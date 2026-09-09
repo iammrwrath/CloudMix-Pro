@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smooth Scrolling Teleprompter Lyrics Overlay</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,800;0,900;1,700;1,800&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      color: #fff;
+    }
+
+    #overlay-wrapper {
+      width: 95%;
+      max-width: 1200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Top Track Info Row */
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      z-index: 10;
+    }
+
+    #track-header {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(0, 255, 204, 0.9);
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    }
+
+    #status-badge {
+      background: rgba(0, 255, 204, 0.15);
+      border: 1px solid rgba(0, 255, 204, 0.5);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #00ffcc;
+      text-transform: uppercase;
+      display: none;
+    }
+
+    /* Viewport with smooth top & bottom gradient fade masks (Apple Music / Spotify Style) */
+    #lyrics-viewport {
+      width: 100%;
+      height: 250px;
+      overflow: hidden;
+      position: relative;
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,1) 22%, rgba(0,0,0,1) 78%, transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,1) 22%, rgba(0,0,0,1) 78%, transparent 100%);
+    }
+
+    /* Track that smoothly glides vertically */
+    #lyrics-track {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translateY(110px);
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.25, 1);
+      will-change: transform;
+    }
+
+    .line-item {
+      text-align: center;
+      max-width: 95%;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      opacity: 0.3;
+      transform: scale(0.92);
+    }
+
+    .line-item .text {
+      font-size: 24px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.6);
+      text-shadow: 0 3px 10px rgba(0, 0, 0, 0.95);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .line-item .trans {
+      font-size: 18px;
+      font-weight: 700;
+      font-style: italic;
+      color: #ffd700;
+      text-shadow: 0 0 14px rgba(255, 215, 0, 0.6);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      display: none;
+    }
+
+    /* Active Highlighted Line */
+    .line-item.active {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+
+    .line-item.active .text {
+      font-size: 36px;
+      font-weight: 900;
+      color: #00ffcc;
+      text-shadow: 0 0 24px rgba(0, 255, 204, 0.85), 0 4px 14px rgba(0, 0, 0, 1);
+      letter-spacing: 0.8px;
+    }
+
+    .line-item.active .trans {
+      font-size: 22px;
+      display: block;
+    }
+
+    /* Neighboring lines (previous and next) */
+    .line-item.near {
+      opacity: 0.55;
+      transform: scale(0.96);
+    }
+
+    .line-item.near .text {
+      color: #fff;
+    }
+
+    /* Instrumental Break & Outro Indicator */
+    #instrumental-indicator {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 800;
+      color: rgba(0, 255, 204, 0.8);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      animation: pulse-beat 1.2s infinite ease-in-out;
+      margin-top: 6px;
+    }
+
+    @keyframes pulse-beat {
+      0%, 100% { transform: scale(0.96); opacity: 0.6; }
+      50% { transform: scale(1.04); opacity: 1; text-shadow: 0 0 18px rgba(0, 255, 204, 0.8); }
+    }
+
+    /* Standby Idle Mode */
+    #standby-msg {
+      font-size: 32px;
+      font-weight: 900;
+      color: #00ffcc;
+      letter-spacing: 3px;
+      text-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+      display: none;
+      animation: pulse-beat 1.5s infinite ease-in-out;
+    }
+
+    /* Interactive Nudge Toolbar */
+    .sync-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 16, 24, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 4px 12px;
+      margin-top: 10px;
+      opacity: 0.15;
+      transition: opacity 0.25s ease;
+      z-index: 10;
+    }
+
+    .sync-bar:hover, body:hover .sync-bar {
+      opacity: 1;
+    }
+
+    .btn-nudge {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-nudge:hover {
+      background: #00ffcc;
+      color: #000;
+      border-color: #00ffcc;
+    }
+
+    #offset-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #ffd700;
+      padding: 0 4px;
+      min-width: 90px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay-wrapper">
+    <div class="header-row">
+      <div id="track-header"></div>
+      <div id="status-badge">AI SYNCED</div>
+    </div>
+
+    <!-- Scrolling Teleprompter Viewport -->
+    <div id="lyrics-viewport">
+      <div id="standby-msg">&#9834; &#9834; &#9834;</div>
+      <div id="lyrics-track"></div>
+    </div>
+
+    <div id="instrumental-indicator">&#9835; &#9834; INSTRUMENTAL &#9834; &#9835;</div>
+
+    <!-- Fine-Tune Nudge Toolbar -->
+    <div class="sync-bar">
+      <button class="btn-nudge" onclick="nudge(-2000)">-2s</button>
+      <button class="btn-nudge" onclick="nudge(-500)">-0.5s</button>
+      <span id="offset-label">SYNC: 0.0s</span>
+      <button class="btn-nudge" onclick="nudge(500)">+0.5s</button>
+      <button class="btn-nudge" onclick="nudge(2000)">+2s</button>
+      <button class="btn-nudge" onclick="resetOffset()">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://127.0.0.1:8765/lyrics';
+    const params = new URLSearchParams(window.location.search);
+    const SHOW_TRANSLATION = params.get('translate') !== '0';
+    let baseOffsetMs = parseInt(params.get('offset_ms') || '0', 10);
+    const LEAD_TIME_MS = parseInt(params.get('lead_ms') || '250', 10);
+
+    const headerEl        = document.getElementById('track-header');
+    const statusBadgeEl   = document.getElementById('status-badge');
+    const viewportEl      = document.getElementById('lyrics-viewport');
+    const trackEl         = document.getElementById('lyrics-track');
+    const standbyEl       = document.getElementById('standby-msg');
+    const instrumentalEl  = document.getElementById('instrumental-indicator');
+    const offsetLabelEl   = document.getElementById('offset-label');
+
+    let cachedLines       = [];
+    let currentSong       = '';
+    let currentSongId     = 0;
+    let isPlaying         = true;
+    let serverElapsedMs   = 0;
+    let localAnchorTime   = performance.now();
+    let currentActiveIdx  = -1;
+    let localOffsetMs     = baseOffsetMs;
+    let lineElements      = [];
+
+    // --- Build DOM elements for lines whenever lyrics arrive ---
+    function buildLyricElements(lines) {
+      trackEl.innerHTML = '';
+      lineElements = [];
+      if (!lines || !lines.length) {
+        standbyEl.style.display = 'block';
+        return;
+      }
+      standbyEl.style.display = 'none';
+
+      lines.forEach((line, idx) => {
+        const item = document.createElement('div');
+        item.className = 'line-item';
+        item.id = 'line-' + idx;
+        item.onclick = () => jumpTo(idx);
+
+        const textEl = document.createElement('div');
+        textEl.className = 'text';
+        textEl.innerText = line.text || '';
+        item.appendChild(textEl);
+
+        if (SHOW_TRANSLATION && line.translation && line.translation.toLowerCase() !== line.text.toLowerCase()) {
+          const transEl = document.createElement('div');
+          transEl.className = 'trans';
+          transEl.innerText = '\u201c' + line.translation + '\u201d';
+          item.appendChild(transEl);
+        }
+
+        trackEl.appendChild(item);
+        lineElements.push(item);
+      });
+
+      // Center initial line
+      scrollToLine(0);
+    }
+
+    // --- Smoothly scroll the teleprompter to center the active line ---
+    function scrollToLine(idx) {
+      if (!lineElements[idx]) return;
+      const targetEl = lineElements[idx];
+      const vpHeight = viewportEl.clientHeight;
+      const targetCenter = targetEl.offsetTop + (targetEl.clientHeight / 2);
+      const translateY = (vpHeight / 2) - targetCenter;
+      trackEl.style.transform = `translateY(${translateY}px)`;
+    }
+
+    // --- 60fps Real-Time Render Loop ---
+    let rafHandle = null;
+
+    function renderLoop() {
+      rafHandle = requestAnimationFrame(renderLoop);
+
+      if (!cachedLines.length) {
+        if (standbyEl.style.display !== 'block') standbyEl.style.display = 'block';
+        instrumentalEl.style.display = 'none';
+        const displayTxt = (currentSong && currentSong !== '...') ? '\u266a ' + currentSong + ' \u266a' : '\u266a \u266a \u266a';
+        if (standbyEl.innerText !== displayTxt) standbyEl.innerText = displayTxt;
+        return;
+      }
+
+      let elapsed = serverElapsedMs + localOffsetMs + LEAD_TIME_MS;
+      if (isPlaying) {
+        elapsed += (performance.now() - localAnchorTime);
+      }
+
+      // Binary search for active lyric line
+      let lo = 0, hi = cachedLines.length - 1, activeIdx = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (cachedLines[mid].time_ms <= elapsed) {
+          activeIdx = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+
+      // Detect Instrumental Break / Outro
+      // If elapsed is > 6.0s past active line and no line is upcoming within 2s, show instrumental
+      let isInstrumental = false;
+      if (activeIdx >= 0) {
+        const curLineTime = cachedLines[activeIdx].time_ms;
+        const timeSinceLine = elapsed - curLineTime;
+        const nextLineTime = (activeIdx < cachedLines.length - 1) ? cachedLines[activeIdx + 1].time_ms : null;
+        if (timeSinceLine > 6000 && (!nextLineTime || (nextLineTime - elapsed > 2500))) {
+          isInstrumental = true;
+        }
+      } else if (cachedLines.length && elapsed < cachedLines[0].time_ms - 2000) {
+        isInstrumental = true; // Intro before first line
+      }
+
+      if (isInstrumental) {
+        instrumentalEl.style.display = 'flex';
+      } else {
+        instrumentalEl.style.display = 'none';
+      }
+
+      // Only update DOM classes and scroll position if line actually changed
+      if (activeIdx !== currentActiveIdx) {
+        currentActiveIdx = activeIdx;
+        const targetIdx = activeIdx >= 0 ? activeIdx : 0;
+
+        lineElements.forEach((el, idx) => {
+          if (idx === targetIdx) {
+            el.className = 'line-item active';
+          } else if (idx === targetIdx - 1 || idx === targetIdx + 1) {
+            el.className = 'line-item near';
+          } else {
+            el.className = 'line-item';
+          }
+        });
+
+        scrollToLine(targetIdx);
+      }
+    }
+
+    rafHandle = requestAnimationFrame(renderLoop);
+
+    // --- Poll Daemon for Updates (With Fail-Safe: Always requests full lines if cache is empty) ---
+    async function pollLyrics() {
+      try {
+        const needFull = (!cachedLines.length) ? '&full=1' : '';
+        const res = await fetch(`${API_URL}?song_id=${currentSongId}${needFull}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.current_song !== currentSong) {
+          currentSong = data.current_song || '';
+          const lang = data.detected_language;
+          const langBadge = (lang && lang !== 'en' && lang !== 'unknown') ? ` [${lang.toUpperCase()} -> EN]` : '';
+          headerEl.innerText = currentSong !== '...' ? `\u266a ${currentSong}${langBadge}` : '';
+        }
+
+        const aiStatus = data.ai_sync_status || '';
+        if (aiStatus.startsWith('Acoustic') || aiStatus.startsWith('Locked') || aiStatus.startsWith('Synced')) {
+          statusBadgeEl.style.display = 'inline-block';
+          statusBadgeEl.innerText = '\u26a1 ' + aiStatus.toUpperCase();
+        } else {
+          statusBadgeEl.style.display = 'none';
+        }
+
+        // When new lines arrive (or song changed)
+        if (data.has_lines && Array.isArray(data.lines) && data.lines.length > 0) {
+          cachedLines = data.lines;
+          currentSongId = data.song_id || 0;
+          currentActiveIdx = -1;
+          buildLyricElements(cachedLines);
+        } else if (data.song_id && data.song_id !== currentSongId) {
+          currentSongId = data.song_id;
+        }
+
+        isPlaying = data.is_playing !== false;
+        serverElapsedMs = data.elapsed_ms || 0;
+        localAnchorTime = performance.now();
+      } catch (err) {}
+    }
+
+    setInterval(pollLyrics, 250);
+
+    // --- Fine-tune Nudge & Click Seek Controls ---
+    function nudge(deltaMs) {
+      localOffsetMs += deltaMs;
+      updateOffsetLabel();
+      fetch(`http://127.0.0.1:8765/nudge?ms=${deltaMs}`).catch(() => {});
+    }
+
+    function resetOffset() {
+      localOffsetMs = 0;
+      updateOffsetLabel();
+    }
+
+    function updateOffsetLabel() {
+      const totalOffsetSec = ((localOffsetMs + LEAD_TIME_MS) / 1000).toFixed(1);
+      offsetLabelEl.innerText = 'SYNC: ' + (totalOffsetSec > 0 ? '+' : '') + totalOffsetSec + 's';
+    }
+
+    function jumpTo(targetIdx) {
+      if (cachedLines && cachedLines[targetIdx]) {
+        const lineMs = cachedLines[targetIdx].time_ms;
+        fetch(`http://127.0.0.1:8765/seek?ms=${lineMs}`).catch(() => {});
+        localAnchorTime = performance.now();
+        serverElapsedMs = lineMs;
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === '[') nudge(-500);
+      else if (e.key === 'ArrowRight' || e.key === ']') nudge(500);
+      else if (e.key === '0') resetOffset();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (rafHandle) { cancelAnimationFrame(rafHandle); rafHandle = null; }
+      } else {
+        localAnchorTime = performance.now();
+        if (!rafHandle) rafHandle = requestAnimationFrame(renderLoop);
+      }
+    });
+  </script>
+</body>
+</html>
