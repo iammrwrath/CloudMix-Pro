@@ -1,4 +1,6 @@
-import { DeckId, HotCue, NeuralTransitionMode, StemState, TrackMetadata } from '../types/dj';
+import { DeckId, FXType, FXUnit, HotCue, NeuralTransitionMode, StemState, TrackMetadata } from '../types/dj';
+import { mixRecorder } from './MixRecorder';
+import { samplerEngine } from './SamplerEngine';
 
 export interface DeckAudioNodes {
   deckId: DeckId;
@@ -22,6 +24,19 @@ export interface DeckAudioNodes {
   stemVocalsXfaderGain: GainNode;
   stemHarmonicsXfaderGain: GainNode;
   channelFader: GainNode;
+  // Studio Multi-FX Rack Nodes
+  fxInputNode: GainNode;
+  fxDryNode: GainNode;
+  fxWetNode: GainNode;
+  fxDelayNode: DelayNode;
+  fxDelayFeedback: GainNode;
+  fxDelayFilter: BiquadFilterNode;
+  fxConvolverNode: ConvolverNode;
+  fxFlangerDelay: DelayNode;
+  fxFlangerDepth: GainNode;
+  fxFlangerOsc: OscillatorNode | null;
+  fxBitcrusherCurve: WaveShaperNode;
+  fxFilterSweep: BiquadFilterNode;
   crossfaderGain: GainNode;
   cueGain: GainNode;
   analyser: AnalyserNode;
@@ -79,6 +94,10 @@ class AudioEngine {
     this.masterGain.connect(this.masterLimiter);
     this.masterLimiter.connect(this.masterAnalyser);
     this.masterAnalyser.connect(this.ctx.destination);
+
+    // Initialize Mix Recorder & Sampler Engine on master bus
+    mixRecorder.init(this.ctx, this.masterLimiter);
+    samplerEngine.init(this.ctx, this.masterGain);
 
     // Setup Decks A and B
     this.setupDeck('A');
@@ -201,9 +220,73 @@ class AudioEngine {
     stemHarmonicsGain.connect(stemHarmonicsXfaderGain);
     stemHarmonicsXfaderGain.connect(channelFader);
 
-    // Channel Fader -> Analyser -> Crossfader Bus -> Master Bus
+    // Channel Fader -> Analyser -> FX Rack -> Crossfader Bus -> Master Bus
+    const fxInputNode = this.ctx.createGain();
+    const fxDryNode = this.ctx.createGain();
+    const fxWetNode = this.ctx.createGain();
+    fxDryNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    fxWetNode.gain.setValueAtTime(0.0, this.ctx.currentTime);
+
+    // 1. Echo / Delay
+    const fxDelayNode = this.ctx.createDelay(4.0);
+    fxDelayNode.delayTime.setValueAtTime(0.35, this.ctx.currentTime);
+    const fxDelayFeedback = this.ctx.createGain();
+    fxDelayFeedback.gain.setValueAtTime(0.4, this.ctx.currentTime);
+    const fxDelayFilter = this.ctx.createBiquadFilter();
+    fxDelayFilter.type = 'lowpass';
+    fxDelayFilter.frequency.setValueAtTime(2500, this.ctx.currentTime);
+    fxDelayNode.connect(fxDelayFeedback);
+    fxDelayFeedback.connect(fxDelayFilter);
+    fxDelayFilter.connect(fxDelayNode);
+
+    // 2. Reverb (Synthesized algorithmic impulse response)
+    const fxConvolverNode = this.ctx.createConvolver();
+    const revSamples = Math.floor(this.ctx.sampleRate * 2.0);
+    const revBuffer = this.ctx.createBuffer(2, revSamples, this.ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = revBuffer.getChannelData(c);
+      for (let i = 0; i < revSamples; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.45));
+      }
+    }
+    fxConvolverNode.buffer = revBuffer;
+
+    // 3. Flanger
+    const fxFlangerDelay = this.ctx.createDelay(0.05);
+    fxFlangerDelay.delayTime.setValueAtTime(0.003, this.ctx.currentTime);
+    const fxFlangerDepth = this.ctx.createGain();
+    fxFlangerDepth.gain.setValueAtTime(0.002, this.ctx.currentTime);
+    let fxFlangerOsc: OscillatorNode | null = null;
+    try {
+      fxFlangerOsc = this.ctx.createOscillator();
+      fxFlangerOsc.type = 'sine';
+      fxFlangerOsc.frequency.setValueAtTime(0.4, this.ctx.currentTime);
+      fxFlangerOsc.connect(fxFlangerDepth);
+      fxFlangerDepth.connect(fxFlangerDelay.delayTime);
+      fxFlangerOsc.start();
+    } catch {}
+
+    // 4. Bitcrusher
+    const fxBitcrusherCurve = this.ctx.createWaveShaper();
+    const bcCurve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = (i * 2) / 256 - 1;
+      bcCurve[i] = Math.round(x * 6) / 6;
+    }
+    fxBitcrusherCurve.curve = bcCurve;
+
+    // 5. Filter Sweep
+    const fxFilterSweep = this.ctx.createBiquadFilter();
+    fxFilterSweep.type = 'bandpass';
+    fxFilterSweep.frequency.setValueAtTime(1000, this.ctx.currentTime);
+    fxFilterSweep.Q.setValueAtTime(3.5, this.ctx.currentTime);
+
+    // Routing: channelFader -> analyser -> fxInputNode -> fxDryNode -> crossfaderGain
     channelFader.connect(analyser);
-    analyser.connect(crossfaderGain);
+    analyser.connect(fxInputNode);
+    fxInputNode.connect(fxDryNode);
+    fxDryNode.connect(crossfaderGain);
+    fxWetNode.connect(crossfaderGain);
     crossfaderGain.connect(this.masterGain);
 
     if (this.headphoneGain) {
@@ -243,6 +326,18 @@ class AudioEngine {
       stemVocalsXfaderGain,
       stemHarmonicsXfaderGain,
       channelFader,
+      fxInputNode,
+      fxDryNode,
+      fxWetNode,
+      fxDelayNode,
+      fxDelayFeedback,
+      fxDelayFilter,
+      fxConvolverNode,
+      fxFlangerDelay,
+      fxFlangerDepth,
+      fxFlangerOsc,
+      fxBitcrusherCurve,
+      fxFilterSweep,
       crossfaderGain,
       cueGain,
       analyser,
@@ -674,6 +769,63 @@ class AudioEngine {
 
   public getDeck(deckId: DeckId): DeckAudioNodes | undefined {
     return this.decks.get(deckId);
+  }
+
+  // Multi-FX Studio Engine
+  public setDeckFX(deckId: DeckId, fx: FXUnit, deckBpm: number = 126) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+
+    const wet = fx.enabled ? Math.max(0, Math.min(1, fx.wetDry)) : 0.0;
+    const dry = 1.0 - wet * 0.6; // Studio DJ send balance
+
+    deck.fxDryNode.gain.setValueAtTime(dry, this.ctx.currentTime);
+    deck.fxWetNode.gain.setValueAtTime(wet, this.ctx.currentTime);
+
+    // Calculate tempo-synced delay time
+    const bpm = Math.max(60, deckBpm || 120);
+    const beatSec = 60.0 / bpm;
+    const delayTime = Math.max(0.01, Math.min(2.5, beatSec * fx.beats));
+
+    // Reset fx connection
+    try { deck.fxInputNode.disconnect(); } catch {}
+    deck.fxInputNode.connect(deck.fxDryNode);
+
+    if (fx.enabled && wet > 0.01) {
+      if (fx.type === 'echo') {
+        deck.fxDelayNode.delayTime.setValueAtTime(delayTime, this.ctx.currentTime);
+        deck.fxDelayFeedback.gain.setValueAtTime(Math.min(0.85, 0.25 + fx.param * 0.55), this.ctx.currentTime);
+        deck.fxInputNode.connect(deck.fxDelayNode);
+        deck.fxDelayNode.connect(deck.fxWetNode);
+      } else if (fx.type === 'reverb') {
+        deck.fxInputNode.connect(deck.fxConvolverNode);
+        deck.fxConvolverNode.connect(deck.fxWetNode);
+      } else if (fx.type === 'flanger') {
+        deck.fxInputNode.connect(deck.fxFlangerDelay);
+        deck.fxFlangerDelay.connect(deck.fxWetNode);
+      } else if (fx.type === 'bitcrusher') {
+        deck.fxInputNode.connect(deck.fxBitcrusherCurve);
+        deck.fxBitcrusherCurve.connect(deck.fxWetNode);
+      } else if (fx.type === 'filter') {
+        const sweepFreq = 250 + fx.param * 5500;
+        deck.fxFilterSweep.frequency.setValueAtTime(sweepFreq, this.ctx.currentTime);
+        deck.fxInputNode.connect(deck.fxFilterSweep);
+        deck.fxFilterSweep.connect(deck.fxWetNode);
+      } else if (fx.type === 'roll') {
+        deck.fxDelayNode.delayTime.setValueAtTime(delayTime, this.ctx.currentTime);
+        deck.fxDelayFeedback.gain.setValueAtTime(0.96, this.ctx.currentTime); // Infinite stutter hold
+        deck.fxInputNode.connect(deck.fxDelayNode);
+        deck.fxDelayNode.connect(deck.fxWetNode);
+      }
+    }
+  }
+
+  public getContext(): AudioContext | null {
+    return this.ctx;
+  }
+
+  public getMasterNode(): GainNode | null {
+    return this.masterGain;
   }
 }
 

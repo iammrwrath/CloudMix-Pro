@@ -26,12 +26,14 @@ interface LibraryProps {
   onLoadTrack: (deckId: DeckId, track: TrackMetadata) => void;
   onOpenDjayImport: () => void;
   onOpenGDriveSettings: () => void;
+  currentMasterKey?: string;
 }
 
 export const Library: React.FC<LibraryProps> = ({
   onLoadTrack,
   onOpenDjayImport,
   onOpenGDriveSettings,
+  currentMasterKey,
 }) => {
   const [tracks, setTracks] = useState<TrackMetadata[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -405,11 +407,58 @@ export const Library: React.FC<LibraryProps> = ({
                       {track.bpm.toFixed(1)}
                     </td>
 
-                    {/* Camelot Key Badge */}
+                    {/* Camelot Key Badge & Harmonic Match */}
                     <td className="py-2 px-2 text-center">
-                      <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800/60">
-                        {track.camelotKey || track.key}
-                      </span>
+                      <div className="flex items-center justify-center space-x-1">
+                        <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800/60">
+                          {track.camelotKey || track.key}
+                        </span>
+                        {(() => {
+                          const k = (track.camelotKey || track.key || '').trim().toUpperCase();
+                          const m = (currentMasterKey || '').trim().toUpperCase();
+                          if (!m || !k) return null;
+                          if (k === m) {
+                            return (
+                              <span
+                                title="Harmonic Perfect Match (Same Key)"
+                                className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
+                              >
+                                MATCH
+                              </span>
+                            );
+                          }
+                          // Camelot +/- 1 check
+                          const matchK = k.match(/^(\d{1,2})([AB])$/);
+                          const matchM = m.match(/^(\d{1,2})([AB])$/);
+                          if (matchK && matchM) {
+                            const nK = parseInt(matchK[1], 10);
+                            const lK = matchK[2];
+                            const nM = parseInt(matchM[1], 10);
+                            const lM = matchM[2];
+                            if (lK === lM && (nK === (nM % 12) + 1 || nK === ((nM - 2 + 12) % 12) + 1)) {
+                              return (
+                                <span
+                                  title="Harmonic Energy Shift (Compatible Adjacent Key)"
+                                  className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
+                                >
+                                  {nK > nM ? '+1 E' : '-1 E'}
+                                </span>
+                              );
+                            }
+                            if (nK === nM && lK !== lM) {
+                              return (
+                                <span
+                                  title="Relative Major/Minor Key"
+                                  className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-purple-950/90 text-purple-300 border border-purple-500/60"
+                                >
+                                  REL
+                                </span>
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </td>
 
                     {/* Duration */}

@@ -102,7 +102,48 @@ export interface DeckState {
   selectedPadMode: 'hotcue' | 'loop' | 'beatjump' | 'stems';
   meterLevelL: number; // 0.0 to 1.0 for VU meter
   meterLevelR: number;
+  fx: FXUnit;
 }
+
+export type FXType = 'echo' | 'reverb' | 'flanger' | 'bitcrusher' | 'roll' | 'filter';
+
+export interface FXUnit {
+  enabled: boolean;
+  type: FXType;
+  wetDry: number; // 0.0 to 1.0
+  beats: number; // 0.125, 0.25, 0.5, 1, 2, 4
+  param: number; // secondary param (feedback, size, resonance)
+}
+
+export type LayoutMode = 'horizontal' | 'vertical' | 'split';
+export type AutomixMode = 'off' | 'eq_blend' | 'stem_swap' | 'echo_drop';
+
+export interface AutomixState {
+  active: boolean;
+  mode: AutomixMode;
+  transitionDurationBeats: number;
+  progress: number;
+  transitioning: boolean;
+  targetDeck: DeckId;
+  timeToTransitionSec?: number;
+}
+
+export interface SamplerSlot {
+  id: number;
+  name: string;
+  color: string;
+  volume: number;
+  isPlaying: boolean;
+  isCustom?: boolean;
+}
+
+export interface RecordingState {
+  isRecording: boolean;
+  duration: number;
+  fileSizeBytes: number;
+}
+
+export type BottomDrawerTab = 'library' | 'fx' | 'sampler' | 'automix';
 
 export interface MixerState {
   crossfader: number; // -1.0 (Deck A) to 0.0 (Center) to 1.0 (Deck B)
@@ -141,3 +182,4 @@ export interface LyricsLine {
   text: string;
   translation?: string;
 }
+

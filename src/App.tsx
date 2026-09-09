@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { DeckId, DeckState, MixerState, NeuralTransitionMode, TrackMetadata, WaveformData } from './types/dj';
+import {
+  DeckId,
+  DeckState,
+  MixerState,
+  NeuralTransitionMode,
+  TrackMetadata,
+  WaveformData,
+  LayoutMode,
+  BottomDrawerTab,
+  FXUnit,
+} from './types/dj';
 import { audioEngine } from './audio/AudioEngine';
 import { AudioAnalyzer } from './audio/AudioAnalyzer';
 import { googleDriveService } from './services/GoogleDriveService';
@@ -7,14 +17,23 @@ import { youtubeMusicService } from './services/YouTubeMusicService';
 import { cloudProgression } from './services/CloudProgressionService';
 import { midiControllerService } from './services/MidiControllerService';
 import { broadcastService } from './services/BroadcastService';
+import { mixRecorder } from './audio/MixRecorder';
+import { samplerEngine } from './audio/SamplerEngine';
+import { automixService } from './services/AutomixService';
 import { Header } from './components/Header';
 import { Deck } from './components/Deck';
 import { Mixer } from './components/Mixer';
 import { Library } from './components/Library';
+import { FXRack } from './components/FXRack';
+import { VerticalWaveforms } from './components/VerticalWaveforms';
+import { SamplerBank } from './components/SamplerBank';
+import { AutomixHud } from './components/AutomixHud';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { StreamerOverlay } from './components/StreamerOverlay';
 import { MidiModal } from './components/MidiModal';
 import { DjayImportModal } from './components/DjayImportModal';
 import { SettingsModal } from './components/SettingsModal';
+import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [masterBpm, setMasterBpm] = useState(126.0);
@@ -61,6 +80,13 @@ export const App: React.FC = () => {
     selectedPadMode: 'hotcue',
     meterLevelL: 0,
     meterLevelR: 0,
+    fx: {
+      enabled: false,
+      type: 'echo',
+      wetDry: 0.5,
+      beats: 0.5,
+      param: 0.5,
+    },
   });
 
   // Deck B State
@@ -105,6 +131,13 @@ export const App: React.FC = () => {
     selectedPadMode: 'hotcue',
     meterLevelL: 0,
     meterLevelR: 0,
+    fx: {
+      enabled: false,
+      type: 'echo',
+      wetDry: 0.5,
+      beats: 0.5,
+      param: 0.5,
+    },
   });
 
   // Waveform peak caches
@@ -126,13 +159,21 @@ export const App: React.FC = () => {
     masterMeterR: 0,
   });
 
-  // Modals
+  // Modals & UI state
   const [isMidiModalOpen, setIsMidiModalOpen] = useState(false);
   const [isStreamerHudOpen, setIsStreamerHudOpen] = useState(false);
   const [isDjayImportOpen, setIsDjayImportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLibraryCollapsed, setIsLibraryCollapsed] = useState(false);
   const [libraryRefreshTrigger, setLibraryRefreshTrigger] = useState(0);
+
+  // Pro DJ Workstation State
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('horizontal');
+  const [bottomDrawerTab, setBottomDrawerTab] = useState<BottomDrawerTab>('library');
+  const [isKeyboardModalOpen, setIsKeyboardModalOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isAutomixActive, setIsAutomixActive] = useState(false);
 
   // 60-120 FPS Audio Clock & Meter Loop
   useEffect(() => {
@@ -500,6 +541,65 @@ export const App: React.FC = () => {
     setMixer((p) => ({ ...p, neuralTransitionMode: mode }));
   };
 
+  // Studio FX Handlers
+  const handleUpdateDeckAFX = (fx: FXUnit) => {
+    setDeckA((p) => ({ ...p, fx }));
+    audioEngine.setDeckFX('A', fx, deckA.track?.bpm || masterBpm);
+  };
+
+  const handleUpdateDeckBFX = (fx: FXUnit) => {
+    setDeckB((p) => ({ ...p, fx }));
+    audioEngine.setDeckFX('B', fx, deckB.track?.bpm || masterBpm);
+  };
+
+  // Master Mix Recording Handler
+  useEffect(() => {
+    mixRecorder.setListener((state) => {
+      setIsRecording(state.isRecording);
+      setRecordingDuration(state.duration);
+    });
+  }, []);
+
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      const res = await mixRecorder.stop();
+      if (res && res.blob) {
+        mixRecorder.downloadRecording(res.blob);
+      }
+    } else {
+      audioEngine.init();
+      audioEngine.resumeContext();
+      mixRecorder.start();
+    }
+  };
+
+  // Automix AI Setup
+  useEffect(() => {
+    automixService.registerCallbacks(
+      (updates) => {
+        if (updates.crossfader !== undefined) {
+          handleCrossfaderChange(updates.crossfader);
+        }
+      },
+      (action, deckId) => {
+        if (action === 'play') {
+          audioEngine.playDeck(deckId);
+          if (deckId === 'A') setDeckA((p) => ({ ...p, isPlaying: true }));
+          if (deckId === 'B') setDeckB((p) => ({ ...p, isPlaying: true }));
+        } else {
+          audioEngine.pauseDeck(deckId);
+          if (deckId === 'A') setDeckA((p) => ({ ...p, isPlaying: false }));
+          if (deckId === 'B') setDeckB((p) => ({ ...p, isPlaying: false }));
+        }
+      }
+    );
+
+    const unsub = automixService.subscribe((state) => {
+      setIsAutomixActive(state.active);
+    });
+    return () => unsub();
+  }, [deckA, deckB]);
+
   // Super-Responsive DJ Keyboard Shortcuts Engine
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -544,6 +644,13 @@ export const App: React.FC = () => {
         handleTriggerCue('B', cueId);
       }
 
+      // Sampler Soundboard: Alt + 1..8
+      else if (e.altKey && ['1', '2', '3', '4', '5', '6', '7', '8'].includes(key)) {
+        e.preventDefault();
+        const slotIdx = parseInt(key) - 1;
+        samplerEngine.triggerSlot(slotIdx);
+      }
+
       // Crossfader Quick Snaps: Z (Deck A), X (Center), C (Deck B)
       else if (key === 'z') {
         e.preventDefault();
@@ -556,7 +663,19 @@ export const App: React.FC = () => {
         handleCrossfaderChange(1.0);
       }
 
-      // Library Drawer Toggle: L
+      // Layout Switcher: V
+      else if (key === 'v') {
+        e.preventDefault();
+        setLayoutMode((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'));
+      }
+
+      // Help / Keyboard Shortcuts Modal: ? or Shift+/
+      else if (e.key === '?' || (e.shiftKey && key === '/')) {
+        e.preventDefault();
+        setIsKeyboardModalOpen((prev) => !prev);
+      }
+
+      // Library / Drawer Toggle: L
       else if (key === 'l' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setIsLibraryCollapsed((prev) => !prev);
@@ -578,6 +697,14 @@ export const App: React.FC = () => {
       <Header
         masterBpm={masterBpm}
         onMasterBpmChange={setMasterBpm}
+        layoutMode={layoutMode}
+        onLayoutModeChange={setLayoutMode}
+        isRecording={isRecording}
+        recordingDuration={recordingDuration}
+        onToggleRecording={handleToggleRecording}
+        isAutomixActive={isAutomixActive}
+        onToggleAutomix={() => automixService.toggleAutomix(deckA, deckB)}
+        onToggleKeyboardModal={() => setIsKeyboardModalOpen((prev) => !prev)}
         onToggleMidiModal={() => setIsMidiModalOpen(true)}
         onToggleStreamerHud={() => setIsStreamerHudOpen(!isStreamerHudOpen)}
         onToggleSettingsModal={() => setIsSettingsOpen(true)}
@@ -585,101 +712,210 @@ export const App: React.FC = () => {
       />
 
       {/* 2. Main DJ Decks & Mixer Workspace */}
-      <div className="flex flex-1 p-2 space-x-2 overflow-hidden relative z-10 justify-center">
-        {/* Deck A */}
-        <Deck
-          deckId="A"
-          deckState={deckA}
-          waveformData={waveformDataA}
-          onPlayToggle={() => handlePlayToggle('A')}
-          onCueClick={() => handleCueClick('A')}
-          onSyncClick={() => handleSyncClick('A')}
-          onSeek={(sec) => audioEngine.seekDeck('A', sec)}
-          onRateChange={(rate) => handleRateChange('A', rate)}
-          onKeyLockToggle={() => setDeckA((p) => ({ ...p, keyLock: !p.keyLock }))}
-          onNudge={(f) => handleNudge('A', f)}
-          onReleaseNudge={() => handleReleaseNudge('A')}
-          onScratch={(d) => handleScratch('A', d)}
-          onTriggerCue={(id) => handleTriggerCue('A', id)}
-          onSetCue={(id, pos) => handleSetCue('A', id, pos)}
-          onClearCue={(id) => handleClearCue('A', id)}
-          onSetAutoLoop={(b) => handleSetAutoLoop('A', b)}
-          onExitLoop={() => handleExitLoop('A')}
-          onBeatJump={(b) => handleBeatJump('A', b)}
-          onStemMuteToggle={(stem) => handleStemMuteToggle('A', stem)}
-          onStemSoloToggle={(stem) => handleStemSoloToggle('A', stem)}
-        />
+      <div className="flex-1 flex flex-col p-2 space-y-2 overflow-hidden relative z-10">
+        {/* Stacked Vertical Waveforms (Rekordbox / Serato Pro mode) */}
+        {layoutMode === 'vertical' && (
+          <div className="w-full">
+            <VerticalWaveforms
+              deckA={deckA}
+              deckB={deckB}
+              waveformA={waveformDataA}
+              waveformB={waveformDataB}
+              masterBpm={masterBpm}
+            />
+          </div>
+        )}
 
-        {/* Central Pro Mixer */}
-        <Mixer
-          deckA={deckA}
-          deckB={deckB}
-          mixer={mixer}
-          onEQChange={handleEQChange}
-          onEQKillToggle={handleEQKillToggle}
-          onFilterChange={handleFilterChange}
-          onTrimChange={handleTrimChange}
-          onFaderChange={handleFaderChange}
-          onCrossfaderChange={handleCrossfaderChange}
-          onCrossfaderCurveChange={handleCrossfaderCurveChange}
-          onMasterVolumeChange={handleMasterVolumeChange}
-          onHeadphoneVolumeChange={() => {}}
-          onCueToggle={(d) =>
-            setMixer((p) => ({
-              ...p,
-              [d === 'A' ? 'headphoneCueA' : 'headphoneCueB']:
-                !p[d === 'A' ? 'headphoneCueA' : 'headphoneCueB'],
-            }))
-          }
-          onEQModeToggle={handleEQModeToggle}
-          onStemGainChange={handleStemGainChange}
-          onStemMuteToggle={handleStemMuteToggle}
-          onStemSoloToggle={handleStemSoloToggle}
-          onNeuralTransitionModeChange={handleNeuralTransitionModeChange}
-        />
+        <div className="flex flex-1 space-x-2 overflow-hidden justify-center">
+          {/* Deck A */}
+          <Deck
+            deckId="A"
+            deckState={deckA}
+            waveformData={waveformDataA}
+            onPlayToggle={() => handlePlayToggle('A')}
+            onCueClick={() => handleCueClick('A')}
+            onSyncClick={() => handleSyncClick('A')}
+            onSeek={(sec) => audioEngine.seekDeck('A', sec)}
+            onRateChange={(rate) => handleRateChange('A', rate)}
+            onKeyLockToggle={() => setDeckA((p) => ({ ...p, keyLock: !p.keyLock }))}
+            onNudge={(f) => handleNudge('A', f)}
+            onReleaseNudge={() => handleReleaseNudge('A')}
+            onScratch={(d) => handleScratch('A', d)}
+            onTriggerCue={(id) => handleTriggerCue('A', id)}
+            onSetCue={(id, pos) => handleSetCue('A', id, pos)}
+            onClearCue={(id) => handleClearCue('A', id)}
+            onSetAutoLoop={(b) => handleSetAutoLoop('A', b)}
+            onExitLoop={() => handleExitLoop('A')}
+            onBeatJump={(b) => handleBeatJump('A', b)}
+            onStemMuteToggle={(stem) => handleStemMuteToggle('A', stem)}
+            onStemSoloToggle={(stem) => handleStemSoloToggle('A', stem)}
+          />
 
-        {/* Deck B */}
-        <Deck
-          deckId="B"
-          deckState={deckB}
-          waveformData={waveformDataB}
-          onPlayToggle={() => handlePlayToggle('B')}
-          onCueClick={() => handleCueClick('B')}
-          onSyncClick={() => handleSyncClick('B')}
-          onSeek={(sec) => audioEngine.seekDeck('B', sec)}
-          onRateChange={(rate) => handleRateChange('B', rate)}
-          onKeyLockToggle={() => setDeckB((p) => ({ ...p, keyLock: !p.keyLock }))}
-          onNudge={(f) => handleNudge('B', f)}
-          onReleaseNudge={() => handleReleaseNudge('B')}
-          onScratch={(d) => handleScratch('B', d)}
-          onTriggerCue={(id) => handleTriggerCue('B', id)}
-          onSetCue={(id, pos) => handleSetCue('B', id, pos)}
-          onClearCue={(id) => handleClearCue('B', id)}
-          onSetAutoLoop={(b) => handleSetAutoLoop('B', b)}
-          onExitLoop={() => handleExitLoop('B')}
-          onBeatJump={(b) => handleBeatJump('B', b)}
-          onStemMuteToggle={(stem) => handleStemMuteToggle('B', stem)}
-          onStemSoloToggle={(stem) => handleStemSoloToggle('B', stem)}
-        />
+          {/* Central Pro Mixer */}
+          <Mixer
+            deckA={deckA}
+            deckB={deckB}
+            mixer={mixer}
+            onEQChange={handleEQChange}
+            onEQKillToggle={handleEQKillToggle}
+            onFilterChange={handleFilterChange}
+            onTrimChange={handleTrimChange}
+            onFaderChange={handleFaderChange}
+            onCrossfaderChange={handleCrossfaderChange}
+            onCrossfaderCurveChange={handleCrossfaderCurveChange}
+            onMasterVolumeChange={handleMasterVolumeChange}
+            onHeadphoneVolumeChange={() => {}}
+            onCueToggle={(d) =>
+              setMixer((p) => ({
+                ...p,
+                [d === 'A' ? 'headphoneCueA' : 'headphoneCueB']:
+                  !p[d === 'A' ? 'headphoneCueA' : 'headphoneCueB'],
+              }))
+            }
+            onEQModeToggle={handleEQModeToggle}
+            onStemGainChange={handleStemGainChange}
+            onStemMuteToggle={handleStemMuteToggle}
+            onStemSoloToggle={handleStemSoloToggle}
+            onNeuralTransitionModeChange={handleNeuralTransitionModeChange}
+          />
+
+          {/* Deck B */}
+          <Deck
+            deckId="B"
+            deckState={deckB}
+            waveformData={waveformDataB}
+            onPlayToggle={() => handlePlayToggle('B')}
+            onCueClick={() => handleCueClick('B')}
+            onSyncClick={() => handleSyncClick('B')}
+            onSeek={(sec) => audioEngine.seekDeck('B', sec)}
+            onRateChange={(rate) => handleRateChange('B', rate)}
+            onKeyLockToggle={() => setDeckB((p) => ({ ...p, keyLock: !p.keyLock }))}
+            onNudge={(f) => handleNudge('B', f)}
+            onReleaseNudge={() => handleReleaseNudge('B')}
+            onScratch={(d) => handleScratch('B', d)}
+            onTriggerCue={(id) => handleTriggerCue('B', id)}
+            onSetCue={(id, pos) => handleSetCue('B', id, pos)}
+            onClearCue={(id) => handleClearCue('B', id)}
+            onSetAutoLoop={(b) => handleSetAutoLoop('B', b)}
+            onExitLoop={() => handleExitLoop('B')}
+            onBeatJump={(b) => handleBeatJump('B', b)}
+            onStemMuteToggle={(stem) => handleStemMuteToggle('B', stem)}
+            onStemSoloToggle={(stem) => handleStemSoloToggle('B', stem)}
+          />
+        </div>
       </div>
 
-      {/* 3. Bottom Library & Cloud Crates Section */}
-      <div className="px-2 pb-2">
-        <div className="flex items-center justify-between pb-1 px-1">
+      {/* 3. Bottom Pro DJ Workstation Drawer */}
+      <div className="px-2 pb-2 flex flex-col">
+        {/* Drawer Tab Navigation Strip */}
+        <div className="flex items-center justify-between pb-1.5 px-1">
+          <div className="flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-white/10">
+            <button
+              onClick={() => {
+                setBottomDrawerTab('library');
+                setIsLibraryCollapsed(false);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                !isLibraryCollapsed && bottomDrawerTab === 'library'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>CRATE LIBRARY</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setBottomDrawerTab('fx');
+                setIsLibraryCollapsed(false);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                !isLibraryCollapsed && bottomDrawerTab === 'fx'
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>STUDIO FX</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setBottomDrawerTab('sampler');
+                setIsLibraryCollapsed(false);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                !isLibraryCollapsed && bottomDrawerTab === 'sampler'
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>8-PAD SAMPLER</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setBottomDrawerTab('automix');
+                setIsLibraryCollapsed(false);
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                !isLibraryCollapsed && bottomDrawerTab === 'automix'
+                  ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40 shadow-[0_0_12px_rgba(236,72,153,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>AUTOMIX AI</span>
+            </button>
+          </div>
+
+          {/* Drawer Collapse Button */}
           <button
             onClick={() => setIsLibraryCollapsed(!isLibraryCollapsed)}
-            className="text-[10px] font-mono text-slate-400 hover:text-cyan-400 flex items-center space-x-1.5 transition-colors cursor-pointer"
+            className="text-[11px] font-mono text-slate-400 hover:text-cyan-400 flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-white/5 transition-colors cursor-pointer"
           >
-            <span>{isLibraryCollapsed ? '▲ Show Track Library & Cloud Crates' : '▼ Hide Library (Full Screen Decks View)'}</span>
+            {isLibraryCollapsed ? (
+              <>
+                <ChevronUp className="w-3.5 h-3.5" />
+                <span>EXPAND DRAWER</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3.5 h-3.5" />
+                <span>COLLAPSE (FULL SCREEN DECKS)</span>
+              </>
+            )}
           </button>
         </div>
+
+        {/* Tab Content Panels */}
         {!isLibraryCollapsed && (
-          <Library
-            key={libraryRefreshTrigger}
-            onLoadTrack={handleLoadTrack}
-            onOpenDjayImport={() => setIsDjayImportOpen(true)}
-            onOpenGDriveSettings={() => setIsSettingsOpen(true)}
-          />
+          <div className="w-full">
+            {bottomDrawerTab === 'library' && (
+              <Library
+                key={libraryRefreshTrigger}
+                onLoadTrack={handleLoadTrack}
+                onOpenDjayImport={() => setIsDjayImportOpen(true)}
+                onOpenGDriveSettings={() => setIsSettingsOpen(true)}
+                currentMasterKey={deckA.isPlaying ? deckA.musicalKey : deckB.musicalKey}
+              />
+            )}
+
+            {bottomDrawerTab === 'fx' && (
+              <FXRack
+                deckAfx={deckA.fx}
+                deckBfx={deckB.fx}
+                onUpdateDeckAFX={handleUpdateDeckAFX}
+                onUpdateDeckBFX={handleUpdateDeckBFX}
+              />
+            )}
+
+            {bottomDrawerTab === 'sampler' && <SamplerBank />}
+
+            {bottomDrawerTab === 'automix' && <AutomixHud deckA={deckA} deckB={deckB} />}
+          </div>
         )}
       </div>
 
@@ -704,6 +940,12 @@ export const App: React.FC = () => {
       )}
 
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+
+      {/* 5. Keyboard Shortcuts Reference Cheat Sheet Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isKeyboardModalOpen}
+        onClose={() => setIsKeyboardModalOpen(false)}
+      />
     </div>
   );
 };

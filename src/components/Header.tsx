@@ -13,13 +13,26 @@ import {
   RefreshCw,
   Download,
   ExternalLink,
+  LayoutGrid,
+  Columns,
+  Bot,
+  HelpCircle,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
+import { LayoutMode } from '../types/dj';
 
 interface HeaderProps {
   masterBpm: number;
   onMasterBpmChange: (bpm: number) => void;
+  layoutMode: LayoutMode;
+  onLayoutModeChange: (mode: LayoutMode) => void;
+  isRecording: boolean;
+  recordingDuration: number;
+  onToggleRecording: () => void;
+  isAutomixActive: boolean;
+  onToggleAutomix: () => void;
+  onToggleKeyboardModal: () => void;
   onToggleMidiModal: () => void;
   onToggleStreamerHud: () => void;
   onToggleSettingsModal: () => void;
@@ -29,6 +42,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   masterBpm,
   onMasterBpmChange,
+  layoutMode,
+  onLayoutModeChange,
+  isRecording,
+  recordingDuration,
+  onToggleRecording,
+  isAutomixActive,
+  onToggleAutomix,
+  onToggleKeyboardModal,
   onToggleMidiModal,
   onToggleStreamerHud,
   onToggleSettingsModal,
@@ -70,6 +91,12 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const formatDuration = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   const primaryMidiName =
     connectedMidiDevices.length > 0
       ? connectedMidiDevices[0].name
@@ -96,6 +123,30 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-[9px] font-mono text-slate-400 hidden sm:inline">
             Next-Gen Cloud-Native DJ Workstation
           </span>
+        </div>
+
+        {/* Layout Switcher */}
+        <div className="hidden md:flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-white/10 ml-2">
+          <button
+            onClick={() => onLayoutModeChange('horizontal')}
+            title="Classic Horizontal 2-Deck Jog View"
+            className={`px-2 py-1 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+              layoutMode === 'horizontal' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutGrid className="w-3 h-3" />
+            <span className="hidden xl:inline">2-DECK</span>
+          </button>
+          <button
+            onClick={() => onLayoutModeChange('vertical')}
+            title="Pro Rekordbox Stacked Vertical Waveforms (120 FPS)"
+            className={`px-2 py-1 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+              layoutMode === 'vertical' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Columns className="w-3 h-3" />
+            <span className="hidden xl:inline">STACKED</span>
+          </button>
         </div>
       </div>
 
@@ -143,8 +194,35 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* 3. System Status Badges & Feature Toggles */}
+      {/* 3. System Status Badges, Recording & Feature Toggles */}
       <div className="flex items-center space-x-2">
+        {/* Master Mix Recording Button */}
+        <button
+          onClick={onToggleRecording}
+          title={isRecording ? "Click to Stop & Save Mix Recording" : "Record Live Master Mix to Lossless Audio"}
+          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer border ${
+            isRecording
+              ? 'bg-red-600 text-white border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400'
+          }`}
+        >
+          <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
+          <span>{isRecording ? formatDuration(recordingDuration) : 'REC MIX'}</span>
+        </button>
+
+        {/* Automix AI Assistant Quick Toggle */}
+        <button
+          onClick={onToggleAutomix}
+          title="Toggle Automix AI Autonomous Transition Engine"
+          className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+            isAutomixActive
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.7)] animate-pulse'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-slate-800'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">AUTOMIX</span>
+        </button>
         {/* Google Drive Status Badge */}
         <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300">
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
@@ -236,6 +314,15 @@ export const Header: React.FC<HeaderProps> = ({
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
+
+        {/* Keyboard Shortcuts Help Button */}
+        <button
+          onClick={onToggleKeyboardModal}
+          title="Keyboard Shortcuts Cheat Sheet (?)"
+          className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 transition-colors cursor-pointer"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
 
         {/* Settings button */}
         <button
