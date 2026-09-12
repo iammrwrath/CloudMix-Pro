@@ -30,6 +30,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
   const scrollingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const overviewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [zoomSeconds, setZoomSeconds] = useState(5.5);
 
   // 1. Draw Overview Waveform (Full track summary with cues & loop)
   useEffect(() => {
@@ -39,8 +40,19 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || 800;
+    const displayHeight = canvas.clientHeight || 24;
+
+    if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
+      canvas.width = displayWidth * dpr;
+      canvas.height = displayHeight * dpr;
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    const width = displayWidth;
+    const height = displayHeight;
     ctx.clearRect(0, 0, width, height);
 
     // Background gradient
@@ -126,6 +138,8 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
     ctx.moveTo(progressX, 0);
     ctx.lineTo(progressX, height);
     ctx.stroke();
+
+    ctx.restore();
   }, [waveformData, currentTime, duration, hotCues, activeLoop]);
 
   // 2. Draw Dynamic Scrolling Tri-Band Waveform (60-120 FPS)
@@ -139,8 +153,19 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const width = canvas.width;
-      const height = canvas.height;
+      const dpr = window.devicePixelRatio || 1;
+      const displayWidth = canvas.clientWidth || 800;
+      const displayHeight = canvas.clientHeight || 64;
+
+      if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+      }
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      const width = displayWidth;
+      const height = displayHeight;
       const centerX = width / 2;
       const centerY = height / 2;
 
@@ -160,11 +185,11 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       ctx.stroke();
 
       if (!waveformData || duration <= 0) {
+        ctx.restore();
         return;
       }
 
       // Scrolling parameters
-      const zoomSeconds = 5.5; // High-precision window
       const pixelsPerSecond = width / zoomSeconds;
       const totalPoints = waveformData.lowPeaks.length;
       const pointsPerSecond = totalPoints / duration;
@@ -309,6 +334,8 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       ctx.fill();
       ctx.shadowBlur = 0; // Reset shadow
 
+      ctx.restore();
+
       if (isPlaying) {
         animId = requestAnimationFrame(renderScrolling);
       }
@@ -316,7 +343,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
 
     renderScrolling();
     return () => cancelAnimationFrame(animId);
-  }, [waveformData, currentTime, duration, isPlaying, track, hotCues, activeLoop, accentColor]);
+  }, [waveformData, currentTime, duration, isPlaying, track, hotCues, activeLoop, accentColor, zoomSeconds]);
 
   // Handle overview click seeking
   const handleOverviewClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -328,17 +355,31 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
     onSeek(targetSec);
   };
 
+  // Zoom on mouse wheel over scrolling waveform
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoomSeconds((prev) => {
+      const factor = e.deltaY > 0 ? 1.2 : 0.83;
+      return Math.max(1.5, Math.min(18.0, prev * factor));
+    });
+  };
+
   // Handle waveform scrub drag
   const handleWaveformMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
   };
 
-  const handleWaveformMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleWaveformMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDragging || duration <= 0) return;
-    const deltaSec = -e.movementX * 0.05;
-    const newTime = Math.max(0, Math.min(currentTime + deltaSec, duration));
+    const canvas = scrollingCanvasRef.current;
+    if (!canvas) return;
+
+    const deltaX = e.movementX;
+    const pixelsPerSecond = canvas.clientWidth / zoomSeconds;
+    const deltaSec = -(deltaX / pixelsPerSecond);
+    const newTime = Math.max(0, Math.min(duration, currentTime + deltaSec));
     onSeek(newTime);
-  }, [isDragging, currentTime, duration, onSeek]);
+  };
 
   const handleWaveformMouseUp = () => {
     setIsDragging(false);
@@ -353,6 +394,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
           width={800}
           height={64}
           className="w-full h-full block"
+          onWheel={handleWheel}
           onMouseDown={handleWaveformMouseDown}
           onMouseMove={handleWaveformMouseMove}
           onMouseUp={handleWaveformMouseUp}

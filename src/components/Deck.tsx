@@ -29,6 +29,8 @@ interface DeckProps {
   onBeatJump: (beats: number) => void;
   onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'drums') => void;
   onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'drums') => void;
+  onKeyShift?: (semitones: number) => void;
+  onKeySync?: () => void;
 }
 
 export const Deck: React.FC<DeckProps> = ({
@@ -52,6 +54,8 @@ export const Deck: React.FC<DeckProps> = ({
   onBeatJump,
   onStemMuteToggle,
   onStemSoloToggle,
+  onKeyShift,
+  onKeySync,
 }) => {
   const [tempoRange, setTempoRange] = useState(0.08); // 8% default
   const isDeckA = deckId === 'A';
@@ -87,14 +91,54 @@ export const Deck: React.FC<DeckProps> = ({
           </div>
         </div>
 
-        {/* BPM & Musical Key Badges */}
+        {/* BPM & Musical Key Badges with Harmonic Shift */}
         <div className="flex items-center space-x-1.5">
-          {/* Key with Camelot wheel color coding */}
-          <div className="flex flex-col items-center bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700">
-            <span className="text-[8px] font-mono text-slate-400 uppercase">KEY</span>
-            <span className="text-[11px] font-mono font-bold text-amber-400 leading-none">
-              {track?.camelotKey || track?.key || '--'}
-            </span>
+          {/* Key with Camelot wheel color coding + Semitone Shift Controls */}
+          <div className="flex items-center space-x-1 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700">
+            <div className="flex flex-col items-center mr-0.5">
+              <span className="text-[8px] font-mono text-slate-400 uppercase">KEY</span>
+              <span className="text-[11px] font-mono font-bold text-amber-400 leading-none">
+                {track?.camelotKey || track?.key || '--'}
+                {deckState.pitchSemitones !== 0 && (
+                  <span className="text-[8px] text-cyan-300 ml-0.5">
+                    {deckState.pitchSemitones > 0 ? `+${deckState.pitchSemitones}` : deckState.pitchSemitones}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* Semitone Shift Buttons */}
+            <div className="flex flex-col space-y-0.5">
+              <button
+                onClick={() => onKeyShift?.((deckState.pitchSemitones || 0) + 1)}
+                title="Transpose Key Up 1 Semitone"
+                className="w-3.5 h-2.5 bg-slate-700 hover:bg-cyan-500 hover:text-black text-slate-300 rounded text-[7px] font-bold flex items-center justify-center cursor-pointer transition-colors"
+              >
+                ▲
+              </button>
+              <button
+                onClick={() => onKeyShift?.((deckState.pitchSemitones || 0) - 1)}
+                title="Transpose Key Down 1 Semitone"
+                className="w-3.5 h-2.5 bg-slate-700 hover:bg-cyan-500 hover:text-black text-slate-300 rounded text-[7px] font-bold flex items-center justify-center cursor-pointer transition-colors"
+              >
+                ▼
+              </button>
+            </div>
+
+            {/* Key Match / Sync Button */}
+            {onKeySync && (
+              <button
+                onClick={onKeySync}
+                title="Harmonic Key Match / Sync with other deck"
+                className={`px-1 py-0.5 rounded text-[8px] font-mono font-bold border transition-all cursor-pointer ${
+                  deckState.pitchSemitones !== 0
+                    ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_6px_rgba(245,158,11,0.5)]'
+                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                }`}
+              >
+                MATCH
+              </button>
+            )}
           </div>
 
           {/* BPM display */}

@@ -37,6 +37,12 @@ export class AutomixService {
     this.listeners.forEach((l) => l({ ...this.state }));
   }
 
+  private deckStateProvider: (() => { deckA: DeckState; deckB: DeckState }) | null = null;
+
+  public setDeckStateProvider(provider: () => { deckA: DeckState; deckB: DeckState }) {
+    this.deckStateProvider = provider;
+  }
+
   public registerCallbacks(
     onStep: (updates: { crossfader?: number; deckA?: Partial<DeckState>; deckB?: Partial<DeckState> }) => void,
     onDeckAction: (action: 'play' | 'pause', deckId: DeckId) => void
@@ -45,7 +51,7 @@ export class AutomixService {
     this.onDeckAction = onDeckAction;
   }
 
-  public toggleAutomix(deckA: DeckState, deckB: DeckState) {
+  public toggleAutomix(deckA?: DeckState, deckB?: DeckState) {
     if (this.state.active) {
       this.stopAutomix();
     } else {
@@ -53,7 +59,7 @@ export class AutomixService {
     }
   }
 
-  public startAutomix(deckA: DeckState, deckB: DeckState) {
+  public startAutomix(deckA?: DeckState, deckB?: DeckState) {
     this.state.active = true;
     this.state.progress = 0;
     this.state.transitioning = false;
@@ -61,7 +67,7 @@ export class AutomixService {
 
     if (this.monitorInterval) clearInterval(this.monitorInterval);
     this.monitorInterval = window.setInterval(() => {
-      this.checkTransitionEligibility(deckA, deckB);
+      this.checkTransitionEligibility();
     }, 500);
   }
 
@@ -90,32 +96,52 @@ export class AutomixService {
     this.notify();
   }
 
-  private checkTransitionEligibility(deckA: DeckState, deckB: DeckState) {
+  private checkTransitionEligibility() {
     if (!this.state.active || this.state.transitioning) return;
 
+    let deckA: DeckState | null = null;
+    let deckB: DeckState | null = null;
+
+    if (this.deckStateProvider) {
+      const live = this.deckStateProvider();
+      deckA = live.deckA;
+      deckB = live.deckB;
+    }
+
+    if (!deckA || !deckB) return;
+
+    // Use live audio engine playback status & time for 100% precision
+    const isPlayingA = audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying;
+    const isPlayingB = audioEngine.getDeck('B')?.isPlaying ?? deckB.isPlaying;
+    const timeA = audioEngine.getCurrentTime('A');
+    const timeB = audioEngine.getCurrentTime('B');
+
     // Identify active playing deck
-    const playingDeck = deckA.isPlaying ? 'A' : deckB.isPlaying ? 'B' : null;
+    const playingDeck = isPlayingA ? 'A' : isPlayingB ? 'B' : null;
     if (!playingDeck) return;
 
     const sourceDeck = playingDeck === 'A' ? deckA : deckB;
+    const sourceTime = playingDeck === 'A' ? timeA : timeB;
     const targetId: DeckId = playingDeck === 'A' ? 'B' : 'A';
     const targetDeck = playingDeck === 'A' ? deckB : deckA;
+    const isTargetPlaying = targetId === 'A' ? isPlayingA : isPlayingB;
 
     if (!sourceDeck.duration || sourceDeck.duration <= 0) return;
 
-    const remainingSec = sourceDeck.duration - sourceDeck.currentTime;
+    const remainingSec = sourceDeck.duration - sourceTime;
     this.state.timeToTransitionSec = Math.max(0, Math.round(remainingSec));
     this.state.targetDeck = targetId;
     this.notify();
 
-    // Trigger transition when 20 seconds remaining and target deck has a loaded track
-    if (remainingSec <= 22 && remainingSec > 2 && targetDeck.track && !targetDeck.isPlaying) {
+    // Trigger transition when 22 seconds remaining and target deck has a loaded track
+    if (remainingSec <= 22 && remainingSec > 2 && targetDeck.track && !isTargetPlaying) {
       this.executeTransition(playingDeck, targetId, sourceDeck.track?.bpm || 126);
     }
   }
 
   public triggerInstantTransition(deckA: DeckState, deckB: DeckState) {
-    const currentPlaying = deckA.isPlaying ? 'A' : deckB.isPlaying ? 'B' : 'A';
+    const isPlayingA = audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying;
+    const currentPlaying = isPlayingA ? 'A' : 'B';
     const target: DeckId = currentPlaying === 'A' ? 'B' : 'A';
     this.executeTransition(currentPlaying, target, (currentPlaying === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || 126);
   }

@@ -48,6 +48,8 @@ export interface DeckAudioNodes {
   playbackRate: number;
   isPlaying: boolean;
   loopRegion: { start: number; end: number } | null;
+  activeFxNode: AudioNode | null;
+  pitchSemitones: number;
 }
 
 class AudioEngine {
@@ -349,6 +351,8 @@ class AudioEngine {
       playbackRate: 1.0,
       isPlaying: false,
       loopRegion: null,
+      activeFxNode: null,
+      pitchSemitones: 0,
     };
 
     this.decks.set(deckId, deckNodes);
@@ -388,8 +392,12 @@ class AudioEngine {
     const deck = this.decks.get(deckId);
     if (!deck || !deck.audioBuffer || !this.ctx) return;
 
-    if (deck.isPlaying && deck.sourceNode) {
-      try { deck.sourceNode.stop(); } catch {}
+    if (deck.sourceNode) {
+      try {
+        deck.sourceNode.stop();
+        deck.sourceNode.disconnect();
+      } catch {}
+      deck.sourceNode = null;
     }
 
     const offset = startOffsetSec !== undefined ? startOffsetSec : deck.pauseOffset;
@@ -398,6 +406,7 @@ class AudioEngine {
     const source = this.ctx.createBufferSource();
     source.buffer = deck.audioBuffer;
     source.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+    source.detune.setValueAtTime(deck.pitchSemitones * 100, this.ctx.currentTime);
 
     // Looping if active
     if (deck.loopRegion) {
@@ -467,12 +476,13 @@ class AudioEngine {
     if (!deck) return 0;
     if (!deck.isPlaying || !this.ctx) return deck.pauseOffset;
 
+    const maxDuration = deck.audioBuffer?.duration || 0;
     const elapsed = (this.ctx.currentTime - deck.startTime) * deck.playbackRate;
     if (deck.loopRegion && elapsed >= deck.loopRegion.end) {
       const loopLen = deck.loopRegion.end - deck.loopRegion.start;
       return deck.loopRegion.start + ((elapsed - deck.loopRegion.start) % loopLen);
     }
-    return Math.max(0, elapsed);
+    return maxDuration > 0 ? Math.max(0, Math.min(maxDuration, elapsed)) : Math.max(0, elapsed);
   }
 
   public setPlaybackRate(deckId: DeckId, rate: number) {
@@ -485,6 +495,15 @@ class AudioEngine {
       const currentPos = this.getCurrentTime(deckId);
       deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
       deck.startTime = this.ctx.currentTime - (currentPos / deck.playbackRate);
+    }
+  }
+
+  public setDeckPitchSemitones(deckId: DeckId, semitones: number) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    deck.pitchSemitones = Math.max(-12, Math.min(12, semitones));
+    if (deck.isPlaying && deck.sourceNode) {
+      deck.sourceNode.detune.setTargetAtTime(deck.pitchSemitones * 100, this.ctx.currentTime, 0.01);
     }
   }
 
@@ -787,37 +806,129 @@ class AudioEngine {
     const beatSec = 60.0 / bpm;
     const delayTime = Math.max(0.01, Math.min(2.5, beatSec * fx.beats));
 
-    // Reset fx connection
+    // Disconnect previously active fx output node from wet node to prevent connection stacking
+    if (deck.activeFxNode) {
+      try { deck.activeFxNode.disconnect(deck.fxWetNode); } catch {}
+      deck.activeFxNode = null;
+    }
+
+    // Reset fx input connection
     try { deck.fxInputNode.disconnect(); } catch {}
     deck.fxInputNode.connect(deck.fxDryNode);
 
     if (fx.enabled && wet > 0.01) {
+      let activeNode: AudioNode | null = null;
       if (fx.type === 'echo') {
         deck.fxDelayNode.delayTime.setValueAtTime(delayTime, this.ctx.currentTime);
         deck.fxDelayFeedback.gain.setValueAtTime(Math.min(0.85, 0.25 + fx.param * 0.55), this.ctx.currentTime);
         deck.fxInputNode.connect(deck.fxDelayNode);
         deck.fxDelayNode.connect(deck.fxWetNode);
+        activeNode = deck.fxDelayNode;
       } else if (fx.type === 'reverb') {
         deck.fxInputNode.connect(deck.fxConvolverNode);
         deck.fxConvolverNode.connect(deck.fxWetNode);
+        activeNode = deck.fxConvolverNode;
       } else if (fx.type === 'flanger') {
         deck.fxInputNode.connect(deck.fxFlangerDelay);
         deck.fxFlangerDelay.connect(deck.fxWetNode);
+        activeNode = deck.fxFlangerDelay;
       } else if (fx.type === 'bitcrusher') {
         deck.fxInputNode.connect(deck.fxBitcrusherCurve);
         deck.fxBitcrusherCurve.connect(deck.fxWetNode);
+        activeNode = deck.fxBitcrusherCurve;
       } else if (fx.type === 'filter') {
         const sweepFreq = 250 + fx.param * 5500;
         deck.fxFilterSweep.frequency.setValueAtTime(sweepFreq, this.ctx.currentTime);
         deck.fxInputNode.connect(deck.fxFilterSweep);
         deck.fxFilterSweep.connect(deck.fxWetNode);
+        activeNode = deck.fxFilterSweep;
       } else if (fx.type === 'roll') {
         deck.fxDelayNode.delayTime.setValueAtTime(delayTime, this.ctx.currentTime);
         deck.fxDelayFeedback.gain.setValueAtTime(0.96, this.ctx.currentTime); // Infinite stutter hold
         deck.fxInputNode.connect(deck.fxDelayNode);
         deck.fxDelayNode.connect(deck.fxWetNode);
+        activeNode = deck.fxDelayNode;
+      }
+      deck.activeFxNode = activeNode;
+    }
+  }
+
+  /**
+   * Generates a 32-bar, 126 BPM synthesized club groove buffer.
+   * Failsafe fallback if cloud or network stream fails to load offline.
+   */
+  public generateOfflineGrooveBuffer(bpm: number = 126, bars: number = 32): AudioBuffer {
+    this.init();
+    if (!this.ctx) throw new Error('AudioContext not ready');
+    const secondsPerBeat = 60.0 / bpm;
+    const totalBeats = bars * 4;
+    const totalDuration = totalBeats * secondsPerBeat;
+    const sampleRate = this.ctx.sampleRate;
+    const totalSamples = Math.floor(totalDuration * sampleRate);
+
+    const buffer = this.ctx.createBuffer(2, totalSamples, sampleRate);
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+
+    for (let b = 0; b < totalBeats; b++) {
+      const beatStartSample = Math.floor(b * secondsPerBeat * sampleRate);
+
+      // 1. Kick on every beat
+      const kickLen = Math.floor(0.22 * sampleRate);
+      for (let i = 0; i < kickLen && beatStartSample + i < totalSamples; i++) {
+        const t = i / sampleRate;
+        const freq = 130 * Math.exp(-t * 24) + 42;
+        const env = Math.exp(-t * 14);
+        const kickVal = Math.sin(2 * Math.PI * freq * t) * env * 0.75;
+        left[beatStartSample + i] += kickVal;
+        right[beatStartSample + i] += kickVal;
+      }
+
+      // 2. Offbeat Hi-Hat
+      const hatStartSample = beatStartSample + Math.floor(0.5 * secondsPerBeat * sampleRate);
+      const hatLen = Math.floor(0.08 * sampleRate);
+      for (let i = 0; i < hatLen && hatStartSample + i < totalSamples; i++) {
+        const t = i / sampleRate;
+        const env = Math.exp(-t * 50);
+        const noise = (Math.random() * 2 - 1) * env * 0.28;
+        left[hatStartSample + i] += noise * 0.9;
+        right[hatStartSample + i] += noise * 1.1;
+      }
+
+      // 3. Snare on beats 2 and 4
+      if (b % 4 === 1 || b % 4 === 3) {
+        const snareLen = Math.floor(0.18 * sampleRate);
+        for (let i = 0; i < snareLen && beatStartSample + i < totalSamples; i++) {
+          const t = i / sampleRate;
+          const noise = (Math.random() * 2 - 1) * Math.exp(-t * 22) * 0.35;
+          const tone = Math.sin(2 * Math.PI * 185 * t) * Math.exp(-t * 28) * 0.3;
+          left[beatStartSample + i] += noise + tone;
+          right[beatStartSample + i] += noise + tone;
+        }
+      }
+
+      // 4. Rolling Synth Bassline (16th notes with chord progression)
+      for (let s = 0; s < 4; s++) {
+        const subStart = beatStartSample + Math.floor((s * 0.25) * secondsPerBeat * sampleRate);
+        const bassLen = Math.floor(0.12 * sampleRate);
+        const barIndex = Math.floor(b / 4);
+        const rootFreqs = [110, 87.31, 130.81, 98.0]; // Am -> F -> C -> G
+        const chordFreq = rootFreqs[barIndex % 4] || 110;
+        for (let i = 0; i < bassLen && subStart + i < totalSamples; i++) {
+          const t = i / sampleRate;
+          const env = Math.exp(-t * 18);
+          const bassVal =
+            (Math.sin(2 * Math.PI * chordFreq * t) +
+              0.5 * Math.sin(4 * Math.PI * chordFreq * t)) *
+            env *
+            0.22;
+          left[subStart + i] += bassVal;
+          right[subStart + i] += bassVal;
+        }
       }
     }
+
+    return buffer;
   }
 
   public getContext(): AudioContext | null {
