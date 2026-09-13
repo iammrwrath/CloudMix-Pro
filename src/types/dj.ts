@@ -36,6 +36,8 @@ export interface TrackMetadata {
   title: string;
   artist: string;
   album?: string;
+  genre?: string;
+  year?: number;
   duration: number; // seconds
   bpm: number;
   key: string; // e.g. '8A', '11B' (Camelot) or 'Am'

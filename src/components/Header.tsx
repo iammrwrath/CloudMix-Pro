@@ -17,6 +17,7 @@ import {
   Columns,
   Bot,
   HelpCircle,
+  BookOpen,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
@@ -37,6 +38,8 @@ interface HeaderProps {
   onToggleStreamerHud: () => void;
   onToggleSettingsModal: () => void;
   isStreamerHudOpen: boolean;
+  drawerMode?: 'collapsed' | 'split' | 'expanded';
+  onDrawerModeChange?: (mode: 'collapsed' | 'split' | 'expanded') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -54,6 +57,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleStreamerHud,
   onToggleSettingsModal,
   isStreamerHudOpen,
+  drawerMode = 'split',
+  onDrawerModeChange,
 }) => {
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [quantize, setQuantize] = useState(true);
@@ -141,11 +146,23 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onLayoutModeChange('vertical')}
             title="Pro Rekordbox Stacked Vertical Waveforms (120 FPS)"
             className={`px-2 py-1 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
-              layoutMode === 'vertical' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              layoutMode === 'vertical' && drawerMode !== 'expanded' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
             }`}
           >
             <Columns className="w-3 h-3" />
             <span className="hidden xl:inline">STACKED</span>
+          </button>
+          <button
+            onClick={() => onDrawerModeChange?.(drawerMode === 'expanded' ? 'split' : 'expanded')}
+            title="djay Pro Expanded Library View (Press L)"
+            className={`px-2 py-1 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+              drawerMode === 'expanded'
+                ? 'bg-indigo-600 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <BookOpen className="w-3 h-3 text-indigo-400" />
+            <span className="hidden xl:inline">LIBRARY</span>
           </button>
         </div>
       </div>

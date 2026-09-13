@@ -13,11 +13,9 @@ import {
   Plus,
   Search,
   UploadCloud,
-  HardDrive,
   Database,
   Flame,
   Clock,
-  Sparkles,
   Play,
   Radio,
   Loader2,
@@ -25,7 +23,11 @@ import {
   ChevronRight,
   ChevronLeft,
   Bot,
-  ListPlus,
+  Maximize2,
+  Minimize2,
+  List,
+  FolderPlus,
+  Disc,
 } from 'lucide-react';
 
 interface LibraryProps {
@@ -34,7 +36,29 @@ interface LibraryProps {
   onOpenGDriveSettings: () => void;
   currentMasterKey?: string;
   onStartAutomix?: () => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
+
+const DEFAULT_PLAYLIST_NAMES = [
+  'Music',
+  'Work',
+  'Dubstep',
+  'REBIRTH',
+  '80s to 2000s',
+  'Muevelo',
+  'House',
+  'Reggaeton',
+  'Hip Hop',
+  "Let's Rock",
+  '2000s',
+  'Reggae',
+  'Weeknd',
+  'Afro',
+  '&THEA',
+  'Dembow',
+  'Bonobo',
+];
 
 export const Library: React.FC<LibraryProps> = ({
   onLoadTrack,
@@ -42,18 +66,23 @@ export const Library: React.FC<LibraryProps> = ({
   onOpenGDriveSettings,
   currentMasterKey,
   onStartAutomix,
+  isExpanded = false,
+  onToggleExpand,
 }) => {
   const [tracks, setTracks] = useState<TrackMetadata[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [selectedCrate, setSelectedCrate] = useState<string>('all');
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isPinning, setIsPinning] = useState<Record<string, number>>({}); // trackId -> percent
+  const [isPinning, setIsPinning] = useState<Record<string, number>>({});
   const [ytResults, setYtResults] = useState<TrackMetadata[]>([]);
   const [isSearchingYt, setIsSearchingYt] = useState(false);
   const [queue, setQueue] = useState<AutomixQueueItem[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [rightSidebarTab, setRightSidebarTab] = useState<'queue' | 'history'>('queue');
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
 
   useEffect(() => {
     loadLibraryData();
@@ -83,83 +112,241 @@ export const Library: React.FC<LibraryProps> = ({
     const savedTracks = await storageCache.getAllTracks();
     const savedPlaylists = await storageCache.getAllPlaylists();
 
-    if (savedTracks.length === 0) {
-      // Seed high-energy demo tracks so the user can test the app immediately!
-      const demoTracks: TrackMetadata[] = [
-        {
-          id: 'demo-1',
-          title: 'Cyberpunk Drive (Original Mix)',
-          artist: 'Aether & DJ Nova',
-          duration: 214.5,
-          bpm: 126.0,
-          key: 'Am',
-          camelotKey: '8A',
-          fileUrl: 'https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3', // High-quality EDM sample
-          fileSource: 'stream',
-          dateAdded: new Date().toISOString(),
-          rating: 5,
-          hotCues: [
-            { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
-            { id: 1, position: 15.2, color: '#f97316', label: 'Build', active: true },
-            { id: 2, position: 30.5, color: '#10b981', label: 'Drop', active: true },
-            { id: 3, position: 60.9, color: '#3b82f6', label: 'Break', active: true },
-          ],
-          savedLoops: [],
-          beatGrid: { bpm: 126.0, firstBeatOffset: 0.05, meter: 4 },
-        },
-        {
-          id: 'demo-2',
-          title: 'Neon Horizon (Club Extended)',
-          artist: 'Solar Pulse',
-          duration: 198.2,
-          bpm: 128.0,
-          key: 'Em',
-          camelotKey: '9A',
-          fileUrl: 'https://cdn.freesound.org/previews/573/573381_11861866-lq.mp3',
-          fileSource: 'stream',
-          dateAdded: new Date().toISOString(),
-          rating: 5,
-          hotCues: [
-            { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
-            { id: 1, position: 14.8, color: '#00e5ff', label: 'Kick', active: true },
-            { id: 2, position: 29.8, color: '#ec4899', label: 'Vocal Drop', active: true },
-          ],
-          savedLoops: [],
-          beatGrid: { bpm: 128.0, firstBeatOffset: 0.02, meter: 4 },
-        },
-        {
-          id: 'demo-3',
-          title: 'Deep Underground (Bassline Mix)',
-          artist: 'Subsonic Lab',
-          duration: 240.0,
-          bpm: 124.0,
-          key: 'Dm',
-          camelotKey: '7A',
-          fileUrl: 'https://cdn.freesound.org/previews/415/415444_5121236-lq.mp3',
-          fileSource: 'stream',
-          dateAdded: new Date().toISOString(),
-          rating: 4,
-          hotCues: [
-            { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
-            { id: 1, position: 31.0, color: '#f59e0b', label: 'Heavy Drop', active: true },
-          ],
-          savedLoops: [],
-          beatGrid: { bpm: 124.0, firstBeatOffset: 0.0, meter: 4 },
-        },
-      ];
+    const initialTracks: TrackMetadata[] = [
+      {
+        id: 'demo-1',
+        title: 'Cyberpunk Drive (Original Mix)',
+        artist: 'Aether & DJ Nova',
+        album: 'Neo Tokyo Sessions',
+        genre: 'Synthwave / Electro',
+        year: 2026,
+        duration: 214.5,
+        bpm: 126.0,
+        key: 'Am',
+        camelotKey: '8A',
+        fileUrl: 'https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3',
+        fileSource: 'stream',
+        dateAdded: '9/1/26',
+        rating: 5,
+        hotCues: [
+          { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
+          { id: 1, position: 15.2, color: '#f97316', label: 'Build', active: true },
+          { id: 2, position: 30.5, color: '#10b981', label: 'Drop', active: true },
+          { id: 3, position: 60.9, color: '#3b82f6', label: 'Break', active: true },
+        ],
+        savedLoops: [],
+        beatGrid: { bpm: 126.0, firstBeatOffset: 0.05, meter: 4 },
+      },
+      {
+        id: 'demo-2',
+        title: 'Neon Horizon (Club Extended)',
+        artist: 'Solar Pulse',
+        album: 'Horizon EP',
+        genre: 'Melodic House',
+        year: 2026,
+        duration: 198.2,
+        bpm: 128.0,
+        key: 'Em',
+        camelotKey: '9A',
+        fileUrl: 'https://cdn.freesound.org/previews/573/573381_11861866-lq.mp3',
+        fileSource: 'stream',
+        dateAdded: '9/5/26',
+        rating: 5,
+        hotCues: [
+          { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
+          { id: 1, position: 14.8, color: '#00e5ff', label: 'Kick', active: true },
+          { id: 2, position: 29.8, color: '#ec4899', label: 'Vocal Drop', active: true },
+        ],
+        savedLoops: [],
+        beatGrid: { bpm: 128.0, firstBeatOffset: 0.02, meter: 4 },
+      },
+      {
+        id: 'demo-3',
+        title: 'Deep Underground (Bassline Mix)',
+        artist: 'Subsonic Lab',
+        album: 'Low End Theory',
+        genre: 'Dubstep / Bass',
+        year: 2025,
+        duration: 240.0,
+        bpm: 124.0,
+        key: 'Dm',
+        camelotKey: '7A',
+        fileUrl: 'https://cdn.freesound.org/previews/415/415444_5121236-lq.mp3',
+        fileSource: 'stream',
+        dateAdded: '8/20/26',
+        rating: 4,
+        hotCues: [
+          { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
+          { id: 1, position: 31.0, color: '#f59e0b', label: 'Heavy Drop', active: true },
+        ],
+        savedLoops: [],
+        beatGrid: { bpm: 124.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+      {
+        id: 'demo-4',
+        title: 'Nobody Land',
+        artist: 'Tory Lanez',
+        album: 'Alone At Prom',
+        genre: 'R&B / Synthpop',
+        year: 2026,
+        duration: 221.0,
+        bpm: 139.0,
+        key: 'Fm',
+        camelotKey: '4A',
+        fileUrl: 'https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3',
+        fileSource: 'local',
+        dateAdded: '6/15/26',
+        rating: 5,
+        hotCues: [],
+        savedLoops: [],
+        beatGrid: { bpm: 139.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+      {
+        id: 'demo-5',
+        title: "'97 Hov",
+        artist: 'Benny the Butcher',
+        album: 'The Plugs I Met',
+        genre: 'Hip Hop',
+        year: 2019,
+        duration: 251.0,
+        bpm: 82.0,
+        key: 'Gm',
+        camelotKey: '6A',
+        fileUrl: 'https://cdn.freesound.org/previews/573/573381_11861866-lq.mp3',
+        fileSource: 'local',
+        dateAdded: '6/15/26',
+        rating: 4,
+        hotCues: [],
+        savedLoops: [],
+        beatGrid: { bpm: 82.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+      {
+        id: 'demo-6',
+        title: 'BROTHER',
+        artist: 'Jessie Reyez & 6LACK',
+        album: 'YESSIE',
+        genre: 'Soul / R&B',
+        year: 2025,
+        duration: 179.0,
+        bpm: 80.0,
+        key: 'Bbm',
+        camelotKey: '3A',
+        fileUrl: 'https://cdn.freesound.org/previews/415/415444_5121236-lq.mp3',
+        fileSource: 'local',
+        dateAdded: '6/15/26',
+        rating: 5,
+        hotCues: [],
+        savedLoops: [],
+        beatGrid: { bpm: 80.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+      {
+        id: 'demo-7',
+        title: 'GOLIATH',
+        artist: 'Jessie Reyez',
+        album: 'YESSIE',
+        genre: 'R&B / Trap',
+        year: 2025,
+        duration: 186.0,
+        bpm: 86.0,
+        key: 'Cm',
+        camelotKey: '5A',
+        fileUrl: 'https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3',
+        fileSource: 'local',
+        dateAdded: '6/15/26',
+        rating: 4,
+        hotCues: [],
+        savedLoops: [],
+        beatGrid: { bpm: 86.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+      {
+        id: 'demo-8',
+        title: 'Where Are U Now (Afro House Remix)',
+        artist: 'Skrillex & Diplo ft. Justin Bieber',
+        album: 'Jack U Remixed',
+        genre: 'Afro House',
+        year: 2025,
+        duration: 220.0,
+        bpm: 124.0,
+        key: 'Em',
+        camelotKey: '9A',
+        fileUrl: 'https://cdn.freesound.org/previews/573/573381_11861866-lq.mp3',
+        fileSource: 'drive',
+        dateAdded: '7/27/26',
+        rating: 5,
+        hotCues: [],
+        savedLoops: [],
+        beatGrid: { bpm: 124.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+      {
+        id: 'demo-9',
+        title: 'Shiver (Club Mix)',
+        artist: 'John Summit & Hayla',
+        album: 'Comfort in Chaos',
+        genre: 'Tech House',
+        year: 2025,
+        duration: 236.0,
+        bpm: 126.0,
+        key: 'Am',
+        camelotKey: '8A',
+        fileUrl: 'https://cdn.freesound.org/previews/415/415444_5121236-lq.mp3',
+        fileSource: 'drive',
+        dateAdded: '8/12/26',
+        rating: 5,
+        hotCues: [],
+        savedLoops: [],
+        beatGrid: { bpm: 126.0, firstBeatOffset: 0.0, meter: 4 },
+      },
+    ];
 
-      for (const t of demoTracks) {
+    if (savedTracks.length === 0) {
+      for (const t of initialTracks) {
         await storageCache.saveTrack(t);
       }
-      setTracks(demoTracks);
+      setTracks(initialTracks);
     } else {
       setTracks(savedTracks);
     }
 
-    setPlaylists(savedPlaylists);
+    if (savedPlaylists.length === 0) {
+      const now = new Date().toISOString();
+      const initialPlaylists: Playlist[] = DEFAULT_PLAYLIST_NAMES.map((name, idx) => ({
+        id: `pl-${idx}-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        name,
+        trackIds: idx === 0 ? initialTracks.map((t) => t.id) : [],
+        dateCreated: now,
+        dateUpdated: now,
+        isCloudSynced: false,
+        isPinnedOffline: false,
+      }));
+      for (const p of initialPlaylists) {
+        await storageCache.savePlaylist(p);
+      }
+      setPlaylists(initialPlaylists);
+    } else {
+      setPlaylists(savedPlaylists);
+    }
   };
 
-  // Local file import (drag-and-drop or file selector)
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) return;
+    const now = new Date().toISOString();
+    const newPl: Playlist = {
+      id: `pl-${Date.now()}`,
+      name: newPlaylistName.trim(),
+      trackIds: [],
+      dateCreated: now,
+      dateUpdated: now,
+      isCloudSynced: false,
+      isPinnedOffline: false,
+    };
+    await storageCache.savePlaylist(newPl);
+    setPlaylists((prev) => [...prev, newPl]);
+    setNewPlaylistName('');
+    setIsCreatingPlaylist(false);
+    setSelectedPlaylistId(newPl.id);
+    setSelectedCrate('playlist');
+  };
+
   const handleLocalFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -170,11 +357,9 @@ export const Library: React.FC<LibraryProps> = ({
       const trackId = 'local_' + Math.random().toString(36).substring(2, 10);
       const url = URL.createObjectURL(file);
 
-      // Cache file arrayBuffer locally
       const buffer = await file.arrayBuffer();
       await storageCache.cacheAudioData(trackId, buffer);
 
-      // Clean filename
       const baseName = file.name.replace(/\.[^/.]+$/, '');
       let title = baseName;
       let artist = 'Local Artist';
@@ -188,14 +373,16 @@ export const Library: React.FC<LibraryProps> = ({
         id: trackId,
         title,
         artist,
-        duration: 180, // will be accurately populated upon audio load
+        genre: 'Imported',
+        year: new Date().getFullYear(),
+        duration: 180,
         bpm: 125.0,
         key: '8A',
         camelotKey: '8A',
         fileUrl: url,
         fileSource: 'local',
         sizeBytes: file.size,
-        dateAdded: new Date().toISOString(),
+        dateAdded: new Date().toLocaleDateString(),
         isOfflineCached: true,
         hotCues: [],
         savedLoops: [],
@@ -229,102 +416,196 @@ export const Library: React.FC<LibraryProps> = ({
     }
   };
 
+  // Filter Tracks
   const filteredTracks = selectedCrate === 'youtube'
     ? ytResults
     : tracks.filter((t) => {
         if (selectedCrate === 'gdrive' && t.fileSource !== 'drive') return false;
         if (selectedCrate === 'prep' && (t.rating || 0) < 4) return false;
+        if (selectedCrate === 'playlist' && selectedPlaylistId) {
+          const pl = playlists.find((p) => p.id === selectedPlaylistId);
+          if (pl && pl.name !== 'Music' && !pl.trackIds.includes(t.id)) return false;
+        }
         const q = searchQuery.toLowerCase();
         return (
           t.title.toLowerCase().includes(q) ||
           t.artist.toLowerCase().includes(q) ||
+          (t.genre && t.genre.toLowerCase().includes(q)) ||
           (t.camelotKey && t.camelotKey.toLowerCase().includes(q)) ||
           t.bpm.toString().includes(q)
         );
       });
 
+  const totalDurationSecs = filteredTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
+  const totalHours = Math.floor(totalDurationSecs / 3600);
+  const totalMins = Math.floor((totalDurationSecs % 3600) / 60);
+  const formattedDuration = totalHours > 0 ? `${totalHours} h ${totalMins} min` : `${totalMins} min`;
+
+  const getActivePlaylistName = () => {
+    if (selectedCrate === 'youtube') return 'YouTube Music';
+    if (selectedCrate === 'gdrive') return 'Google Drive';
+    if (selectedCrate === 'prep') return 'Prepare Crate';
+    if (selectedCrate === 'history') return 'Set History';
+    if (selectedCrate === 'playlist' && selectedPlaylistId) {
+      const pl = playlists.find((p) => p.id === selectedPlaylistId);
+      if (pl) return pl.name;
+    }
+    return 'Music';
+  };
+
   return (
-    <div className="flex h-44 bg-dj-panel rounded-xl border border-dj-border shadow-2xl overflow-hidden">
-      {/* 1. Crates & Playlists Sidebar */}
-      <div className="w-52 bg-dj-surface/90 border-r border-dj-border p-2.5 flex flex-col justify-between">
-        <div>
-          <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
-            CRATES & SOURCES
-          </span>
+    <div
+      className={`flex w-full ${
+        isExpanded ? 'h-full flex-1 min-h-0' : 'h-[340px]'
+      } bg-dj-panel rounded-xl border border-dj-border shadow-2xl overflow-hidden select-none`}
+    >
+      {/* 1. Crates & Playlists Sidebar (djay Pro Tree Layout) */}
+      <div className="w-56 bg-dj-surface/95 border-r border-dj-border p-2.5 flex flex-col justify-between shrink-0 overflow-y-auto">
+        <div className="space-y-3">
+          {/* Section: Main Sources */}
+          <div>
+            <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+              SOURCES
+            </span>
+            <nav className="space-y-0.5">
+              <button
+                onClick={() => {
+                  setSelectedCrate('all');
+                  setSelectedPlaylistId(null);
+                }}
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  selectedCrate === 'all' && !selectedPlaylistId
+                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <Music className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="truncate">All Tracks ({tracks.length})</span>
+              </button>
 
-          <nav className="space-y-1">
-            <button
-              onClick={() => setSelectedCrate('all')}
-              className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                selectedCrate === 'all'
-                  ? 'bg-slate-700 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <Music className="w-3.5 h-3.5 text-cyan-400" />
-              <span>All Tracks ({tracks.length})</span>
-            </button>
+              <button
+                onClick={() => {
+                  setSelectedCrate('gdrive');
+                  setSelectedPlaylistId(null);
+                }}
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  selectedCrate === 'gdrive'
+                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <Cloud className="w-3.5 h-3.5 text-blue-400" />
+                <span className="truncate">Google Drive</span>
+              </button>
 
-            <button
-              onClick={() => setSelectedCrate('gdrive')}
-              className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                selectedCrate === 'gdrive'
-                  ? 'bg-slate-700 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <Cloud className="w-3.5 h-3.5 text-blue-400" />
-              <span>Google Drive</span>
-            </button>
+              <button
+                onClick={() => {
+                  setSelectedCrate('youtube');
+                  setSelectedPlaylistId(null);
+                  if (ytResults.length === 0) {
+                    setYtResults(youtubeMusicService.getFeaturedTracks());
+                  }
+                }}
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  selectedCrate === 'youtube'
+                    ? 'bg-rose-950/80 text-rose-300 border border-rose-600/60 shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5 text-rose-500" />
+                <span className="truncate">YouTube Music</span>
+              </button>
 
-            <button
-              onClick={() => {
-                setSelectedCrate('youtube');
-                if (ytResults.length === 0) {
-                  setYtResults(youtubeMusicService.getFeaturedTracks());
-                }
-              }}
-              className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                selectedCrate === 'youtube'
-                  ? 'bg-rose-950/80 text-rose-300 border border-rose-600/60 shadow-sm'
-                  : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'
-              }`}
-            >
-              <Radio className="w-3.5 h-3.5 text-rose-500" />
-              <span>YouTube Music</span>
-            </button>
+              <button
+                onClick={() => {
+                  setSelectedCrate('prep');
+                  setSelectedPlaylistId(null);
+                }}
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  selectedCrate === 'prep'
+                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <Flame className="w-3.5 h-3.5 text-orange-400" />
+                <span className="truncate">Prepare Crate</span>
+              </button>
+            </nav>
+          </div>
 
-            <button
-              onClick={() => setSelectedCrate('prep')}
-              className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                selectedCrate === 'prep'
-                  ? 'bg-slate-700 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
-              <span>Prepare Crate</span>
-            </button>
+          {/* Section: Playlists / Folders (djay Pro Tree) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                PLAYLISTS
+              </span>
+              <button
+                onClick={() => setIsCreatingPlaylist(!isCreatingPlaylist)}
+                title="Create New Playlist"
+                className="text-slate-400 hover:text-cyan-400 p-0.5 rounded cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-            <button
-              onClick={() => setSelectedCrate('history')}
-              className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                selectedCrate === 'history'
-                  ? 'bg-slate-700 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 text-purple-400" />
-              <span>Set History</span>
-            </button>
-          </nav>
+            {/* Quick Add Playlist Input */}
+            {isCreatingPlaylist && (
+              <div className="flex items-center space-x-1 mb-1.5 p-1 bg-slate-900 rounded-md border border-slate-700">
+                <input
+                  type="text"
+                  placeholder="Playlist name..."
+                  value={newPlaylistName}
+                  onChange={(e) => setNewPlaylistName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+                  className="w-full bg-transparent text-[11px] text-white px-1 focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={handleCreatePlaylist}
+                  className="px-1.5 py-0.5 rounded bg-cyan-600 text-black font-bold text-[10px]"
+                >
+                  OK
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-0.5 max-h-56 overflow-y-auto pr-1">
+              {playlists.map((pl) => {
+                const isSelected = selectedCrate === 'playlist' && selectedPlaylistId === pl.id;
+                const count = pl.name === 'Music' ? tracks.length : pl.trackIds.length;
+
+                return (
+                  <button
+                    key={pl.id}
+                    onClick={() => {
+                      setSelectedCrate('playlist');
+                      setSelectedPlaylistId(pl.id);
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-700 text-white font-bold shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 truncate">
+                      <Folder className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
+                      <span className="truncate">{pl.name}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 shrink-0 ml-1">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* Action buttons at bottom of sidebar */}
+        {/* Bottom Tools */}
         <div className="space-y-1.5 pt-2 border-t border-dj-border/60">
           <button
             onClick={onOpenDjayImport}
-            className="w-full py-1.5 px-2 rounded bg-indigo-950/60 border border-indigo-700/60 text-indigo-300 hover:bg-indigo-900/60 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all"
+            className="w-full py-1.5 px-2 rounded bg-indigo-950/60 border border-indigo-700/60 text-indigo-300 hover:bg-indigo-900/60 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
           >
             <Database className="w-3 h-3 text-indigo-400" />
             <span>Import djay Pro DB</span>
@@ -332,7 +613,7 @@ export const Library: React.FC<LibraryProps> = ({
 
           <button
             onClick={onOpenGDriveSettings}
-            className="w-full py-1.5 px-2 rounded bg-blue-950/60 border border-blue-700/60 text-blue-300 hover:bg-blue-900/60 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all"
+            className="w-full py-1.5 px-2 rounded bg-blue-950/60 border border-blue-700/60 text-blue-300 hover:bg-blue-900/60 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
           >
             <Cloud className="w-3 h-3 text-blue-400" />
             <span>Drive Sync Config</span>
@@ -340,66 +621,77 @@ export const Library: React.FC<LibraryProps> = ({
         </div>
       </div>
 
-      {/* 2. Main Track Browser */}
+      {/* 2. Main Multi-Column Track Browser */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Search & Filter Toolbar */}
-        <div className="flex items-center justify-between p-2.5 border-b border-dj-border bg-dj-surface/40">
-          {/* Search box */}
-          <form onSubmit={handleYouTubeSearch} className="relative flex-1 max-w-md flex items-center space-x-1.5">
-            <div className="relative flex-1">
+        {/* Header Summary Banner (Matching djay Pro in Image 3) */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-dj-border bg-dj-surface/70">
+          {/* Crate Title & Stats */}
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-bold text-white font-mono">
+              {getActivePlaylistName()}
+            </span>
+            <span className="text-[11px] font-mono text-slate-400">
+              {filteredTracks.length} Songs · {formattedDuration}
+            </span>
+          </div>
+
+          {/* Search, Import, & Fullscreen Expand Toggle */}
+          <div className="flex items-center space-x-2">
+            {/* Search Input */}
+            <form onSubmit={handleYouTubeSearch} className="relative w-64 xl:w-80">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
-                placeholder={
-                  selectedCrate === 'youtube'
-                    ? 'Search YouTube Music (e.g. Fisher, Daft Punk, Fred Again)...'
-                    : 'Search by Title, Artist, BPM, Camelot Key (e.g. 8A, 128)...'
-                }
+                placeholder="Search My Collection (Title, Artist, Key, BPM)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900/90 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                className="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg pl-8 pr-3 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
               />
-            </div>
-            {selectedCrate === 'youtube' && (
+            </form>
+
+            {/* Local Import Button */}
+            <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-sm">
+              <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden lg:inline">Import Audio</span>
+              <input
+                type="file"
+                multiple
+                accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg"
+                onChange={handleLocalFileInput}
+                className="hidden"
+              />
+            </label>
+
+            {/* Expand / Minimize Drawer Toggle Button */}
+            {onToggleExpand && (
               <button
-                type="submit"
-                disabled={isSearchingYt}
-                className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center space-x-1 transition-all shadow-sm shrink-0"
+                onClick={onToggleExpand}
+                title={isExpanded ? 'Exit Expanded Library (Split View)' : 'Expand to Full Library (djay Pro Mode)'}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-slate-300 hover:text-cyan-400 border border-slate-600 text-xs font-mono font-bold flex items-center space-x-1 transition-all cursor-pointer shadow-sm"
               >
-                {isSearchingYt ? <Loader2 className="w-3 h-3 animate-spin" /> : <Radio className="w-3 h-3" />}
-                <span>Search</span>
+                {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                <span className="hidden xl:inline">{isExpanded ? 'SPLIT' : 'EXPAND'}</span>
               </button>
             )}
-          </form>
-
-          {/* Import local audio button */}
-          <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-sm">
-            <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Import Audio Files</span>
-            <input
-              type="file"
-              multiple
-              accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg"
-              onChange={handleLocalFileInput}
-              className="hidden"
-            />
-          </label>
+          </div>
         </div>
 
         {/* Tracks Table */}
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-left border-collapse text-xs">
-            <thead className="sticky top-0 bg-dj-surface text-slate-400 font-mono text-[10px] uppercase border-b border-dj-border z-10">
+            <thead className="sticky top-0 bg-dj-surface text-slate-400 font-mono text-[10px] uppercase border-b border-dj-border z-10 shadow-sm">
               <tr>
                 <th className="py-2 px-2.5 w-8">#</th>
-                <th className="py-2 px-2 w-12 text-center">Art</th>
+                <th className="py-2 px-2 w-10 text-center">Art</th>
                 <th className="py-2 px-3">Title</th>
                 <th className="py-2 px-3">Artist</th>
+                <th className="py-2 px-2">Genre</th>
+                <th className="py-2 px-2 text-center w-16">Time</th>
                 <th className="py-2 px-2 text-center w-16">BPM</th>
                 <th className="py-2 px-2 text-center w-16">Key</th>
-                <th className="py-2 px-2 text-center w-16">Time</th>
-                <th className="py-2 px-2 text-center w-20">Source</th>
-                <th className="py-2 px-3 text-right w-52">Actions</th>
+                <th className="py-2 px-2 text-center w-12 hidden md:table-cell">Year</th>
+                <th className="py-2 px-2 text-center w-16 hidden lg:table-cell">Date Added</th>
+                <th className="py-2 px-3 text-right w-48">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dj-border/50 font-sans">
@@ -409,18 +701,19 @@ export const Library: React.FC<LibraryProps> = ({
                 return (
                   <tr
                     key={track.id}
-                    className="hover:bg-slate-800/60 transition-colors group cursor-pointer"
+                    onDoubleClick={() => onLoadTrack('A', track)}
+                    className="hover:bg-slate-800/70 transition-colors group cursor-pointer"
                   >
-                    <td className="py-2 px-2.5 font-mono text-slate-500">{idx + 1}</td>
+                    <td className="py-2 px-2.5 font-mono text-slate-500 text-[11px]">{idx + 1}</td>
 
                     {/* Artwork Thumbnail */}
-                    <td className="py-1 px-2 w-12 text-center">
-                      <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-800/90 border border-white/10 flex items-center justify-center mx-auto shadow-sm">
+                    <td className="py-1 px-2 w-10 text-center">
+                      <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-900 border border-white/10 flex items-center justify-center mx-auto shadow-sm">
                         {track.coverArtUrl ? (
                           <img src={track.coverArtUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                            <Music className="w-3.5 h-3.5 text-cyan-400/70" />
+                          <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
+                            <Disc className="w-4 h-4 text-cyan-400/80" />
                           </div>
                         )}
                       </div>
@@ -428,69 +721,17 @@ export const Library: React.FC<LibraryProps> = ({
 
                     {/* Title */}
                     <td className="py-2 px-3 font-bold text-white group-hover:text-cyan-400 transition-colors">
-                      {track.title}
+                      <div className="flex items-center space-x-1.5">
+                        <span className="truncate">{track.title}</span>
+                      </div>
                     </td>
 
                     {/* Artist */}
-                    <td className="py-2 px-3 text-slate-300">{track.artist}</td>
+                    <td className="py-2 px-3 text-slate-300 truncate">{track.artist}</td>
 
-                    {/* BPM */}
-                    <td className="py-2 px-2 text-center font-mono font-bold text-cyan-400">
-                      {track.bpm.toFixed(1)}
-                    </td>
-
-                    {/* Camelot Key Badge & Harmonic Match */}
-                    <td className="py-2 px-2 text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800/60">
-                          {track.camelotKey || track.key}
-                        </span>
-                        {(() => {
-                          const k = (track.camelotKey || track.key || '').trim().toUpperCase();
-                          const m = (currentMasterKey || '').trim().toUpperCase();
-                          if (!m || !k) return null;
-                          if (k === m) {
-                            return (
-                              <span
-                                title="Harmonic Perfect Match (Same Key)"
-                                className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
-                              >
-                                MATCH
-                              </span>
-                            );
-                          }
-                          // Camelot +/- 1 check
-                          const matchK = k.match(/^(\d{1,2})([AB])$/);
-                          const matchM = m.match(/^(\d{1,2})([AB])$/);
-                          if (matchK && matchM) {
-                            const nK = parseInt(matchK[1], 10);
-                            const lK = matchK[2];
-                            const nM = parseInt(matchM[1], 10);
-                            const lM = matchM[2];
-                            if (lK === lM && (nK === (nM % 12) + 1 || nK === ((nM - 2 + 12) % 12) + 1)) {
-                              return (
-                                <span
-                                  title="Harmonic Energy Shift (Compatible Adjacent Key)"
-                                  className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
-                                >
-                                  {nK > nM ? '+1 E' : '-1 E'}
-                                </span>
-                              );
-                            }
-                            if (nK === nM && lK !== lM) {
-                              return (
-                                <span
-                                  title="Relative Major/Minor Key"
-                                  className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-purple-950/90 text-purple-300 border border-purple-500/60"
-                                >
-                                  REL
-                                </span>
-                              );
-                            }
-                          }
-                          return null;
-                        })()}
-                      </div>
+                    {/* Genre */}
+                    <td className="py-2 px-2 text-slate-400 text-[11px] truncate">
+                      {track.genre || 'Music'}
                     </td>
 
                     {/* Duration */}
@@ -501,54 +742,91 @@ export const Library: React.FC<LibraryProps> = ({
                         .padStart(2, '0')}
                     </td>
 
-                    {/* Source / Offline status */}
-                    <td className="py-2 px-2 text-center">
-                      {track.fileSource === 'youtube' ? (
-                        <span className="inline-flex items-center space-x-1 text-[10px] font-semibold text-rose-400 bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800/60">
-                          <Radio className="w-2.5 h-2.5" />
-                          <span>YouTube</span>
-                        </span>
-                      ) : track.fileSource === 'drive' ? (
-                        <span className="inline-flex items-center space-x-1 text-[10px] font-semibold text-blue-400 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-800/60">
-                          <Cloud className="w-2.5 h-2.5" />
-                          <span>Drive</span>
-                        </span>
-                      ) : track.isOfflineCached ? (
-                        <span className="inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60">
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Pinned</span>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handlePinOffline(track)}
-                          title="Pin for Offline Gig Use"
-                          disabled={isDownloading}
-                          className="inline-flex items-center space-x-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300 bg-blue-950/60 hover:bg-blue-900/80 px-1.5 py-0.5 rounded border border-blue-800/60 transition-colors"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>{isDownloading ? `${isPinning[track.id]}%` : 'Drive Pin'}</span>
-                        </button>
-                      )}
+                    {/* BPM */}
+                    <td className="py-2 px-2 text-center font-mono font-bold text-cyan-400">
+                      {track.bpm.toFixed(1)}
                     </td>
 
-                    {/* Actions: LOAD A, LOAD B, + QUEUE */}
+                    {/* Camelot Key Badge & Harmonic Match */}
+                    <td className="py-2 px-2 text-center">
+                      <div className="flex items-center justify-center space-x-1">
+                        <span className="font-mono text-[10.5px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800/60">
+                          {track.camelotKey || track.key}
+                        </span>
+                        {(() => {
+                          const k = (track.camelotKey || track.key || '').trim().toUpperCase();
+                          const m = (currentMasterKey || '').trim().toUpperCase();
+                          if (!m || !k) return null;
+                          if (k === m) {
+                            return (
+                              <span
+                                title="Harmonic Perfect Match"
+                                className="text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
+                              >
+                                MATCH
+                              </span>
+                            );
+                          }
+                          const matchK = k.match(/^(\d{1,2})([AB])$/);
+                          const matchM = m.match(/^(\d{1,2})([AB])$/);
+                          if (matchK && matchM) {
+                            const nK = parseInt(matchK[1], 10);
+                            const lK = matchK[2];
+                            const nM = parseInt(matchM[1], 10);
+                            const lM = matchM[2];
+                            if (lK === lM && (nK === (nM % 12) + 1 || nK === ((nM - 2 + 12) % 12) + 1)) {
+                              return (
+                                <span
+                                  title="Harmonic Shift"
+                                  className="text-[8.5px] font-mono font-bold px-1 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
+                                >
+                                  {nK > nM ? '+1 E' : '-1 E'}
+                                </span>
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </td>
+
+                    {/* Year */}
+                    <td className="py-2 px-2 text-center font-mono text-slate-400 text-[11px] hidden md:table-cell">
+                      {track.year || 2026}
+                    </td>
+
+                    {/* Date Added */}
+                    <td className="py-2 px-2 text-center font-mono text-slate-400 text-[10.5px] hidden lg:table-cell">
+                      {track.dateAdded ? track.dateAdded.substring(0, 10) : '6/15/26'}
+                    </td>
+
+                    {/* Actions: LOAD A, LOAD B, +Q */}
                     <td className="py-2 px-3 text-right space-x-1.5 whitespace-nowrap">
                       <button
-                        onClick={() => onLoadTrack('A', track)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLoadTrack('A', track);
+                        }}
                         title="Load Track to Deck A"
                         className="px-2 py-1 rounded-md bg-cyan-950/80 border border-cyan-500/60 text-cyan-300 hover:bg-cyan-400 hover:text-black font-mono font-extrabold text-[10px] transition-all cursor-pointer active:scale-95 shadow-[0_0_8px_rgba(0,240,255,0.2)]"
                       >
                         LOAD A
                       </button>
                       <button
-                        onClick={() => onLoadTrack('B', track)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLoadTrack('B', track);
+                        }}
                         title="Load Track to Deck B"
                         className="px-2 py-1 rounded-md bg-rose-950/80 border border-rose-500/60 text-rose-300 hover:bg-rose-500 hover:text-black font-mono font-extrabold text-[10px] transition-all cursor-pointer active:scale-95 shadow-[0_0_8px_rgba(255,46,136,0.2)]"
                       >
                         LOAD B
                       </button>
                       <button
-                        onClick={() => automixService.addToQueue(track)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          automixService.addToQueue(track);
+                        }}
                         title="Add to Automix Queue"
                         className="px-1.5 py-1 rounded-md bg-purple-950/80 border border-purple-500/60 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-extrabold text-[9.5px] transition-all cursor-pointer active:scale-95 shadow-[0_0_8px_rgba(168,85,247,0.2)]"
                       >
@@ -563,9 +841,9 @@ export const Library: React.FC<LibraryProps> = ({
         </div>
       </div>
 
-      {/* 3. Pro Automix Queue & Live History Sidebar (djay Pro Workstation Match) */}
+      {/* 3. Pro Automix Queue & Live History Sidebar */}
       {isRightSidebarOpen ? (
-        <div className="w-72 border-l border-dj-border flex flex-col bg-dj-surface/90 shrink-0 select-none">
+        <div className="w-72 border-l border-dj-border flex flex-col bg-dj-surface/95 shrink-0 select-none">
           {/* Sidebar Header & Tabs */}
           <div className="flex items-center justify-between p-2 border-b border-dj-border bg-slate-950/60">
             <div className="flex items-center space-x-1">
@@ -648,30 +926,29 @@ export const Library: React.FC<LibraryProps> = ({
                           <div className="flex items-center space-x-1 text-[9px] text-slate-400">
                             <span className="truncate max-w-[80px]">{item.track.artist}</span>
                             <span>•</span>
-                            <span className="font-mono text-cyan-400">{item.track.bpm.toFixed(0)} BPM</span>
+                            <span className="text-cyan-400 font-mono">{item.track.bpm.toFixed(0)} BPM</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1 shrink-0">
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={() => onLoadTrack('A', item.track)}
                           title="Load to Deck A"
-                          className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800 hover:bg-cyan-600 hover:text-black cursor-pointer"
+                          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 hover:bg-cyan-500 hover:text-black border border-cyan-800/60 transition-colors cursor-pointer"
                         >
                           A
                         </button>
                         <button
                           onClick={() => onLoadTrack('B', item.track)}
                           title="Load to Deck B"
-                          className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-800 hover:bg-rose-600 hover:text-black cursor-pointer"
+                          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-950 text-rose-300 hover:bg-rose-500 hover:text-black border border-rose-800/60 transition-colors cursor-pointer"
                         >
                           B
                         </button>
                         <button
                           onClick={() => automixService.removeFromQueue(item.id)}
-                          title="Remove from Queue"
-                          className="p-0.5 text-slate-500 hover:text-rose-400 cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -681,22 +958,10 @@ export const Library: React.FC<LibraryProps> = ({
                 )}
               </>
             ) : (
-              /* Live Set History */
               <>
-                <div className="flex items-center justify-between pb-1.5 border-b border-white/5">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                    Played Tracks ({history.length})
-                  </span>
-                  {history.length > 0 && (
-                    <button
-                      onClick={() => automixService.clearHistory()}
-                      title="Clear History"
-                      className="text-[9px] font-mono text-slate-500 hover:text-rose-400 flex items-center space-x-0.5 cursor-pointer"
-                    >
-                      <Trash2 className="w-2.5 h-2.5" />
-                      <span>CLEAR</span>
-                    </button>
-                  )}
+                <div className="flex items-center justify-between pb-1.5 border-b border-white/5 text-[10px] font-mono text-slate-400">
+                  <span>RECENTLY PLAYED</span>
+                  <span>{history.length} TRACKS</span>
                 </div>
 
                 {history.length === 0 ? (
