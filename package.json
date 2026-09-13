@@ -54,10 +54,10 @@
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true,
       "differentialPackage": false,
-      "artifactName": "${productName} Setup.${ext}"
+      "artifactName": "CloudMix-Pro-Setup.${ext}"
     },
     "portable": {
-      "artifactName": "${productName}.${ext}"
+      "artifactName": "CloudMix-Pro-Portable.${ext}"
     }
   },
   "dependencies": {
