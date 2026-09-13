@@ -311,6 +311,8 @@ ipcMain.handle('check-for-updates', async () => {
   return { success: false, error: 'autoUpdater not available' };
 });
 
+let downloadedInstallerPath = null;
+
 ipcMain.handle('start-update-download', async () => {
   log('IPC: start-update-download called');
   if (autoUpdater) {
@@ -318,15 +320,117 @@ ipcMain.handle('start-update-download', async () => {
       await autoUpdater.downloadUpdate();
       return { success: true };
     } catch (err) {
-      log('autoUpdater.downloadUpdate error: ' + err.message);
-      return { success: false, error: err.message };
+      log('autoUpdater.downloadUpdate error: ' + err.message + ' - falling back to direct GitHub release asset download');
     }
   }
-  return { success: false, error: 'autoUpdater not available' };
+
+  // Robust Direct Asset Fallback: Stream directly from GitHub Releases
+  try {
+    const https = require('https');
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+
+    const releaseData = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.github.com',
+        path: '/repos/iammrwrath/CloudMix-Pro/releases/latest',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      };
+      https.get(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }).on('error', reject);
+    });
+
+    const asset = releaseData?.assets?.find((a) => a.name.endsWith('Setup.exe') || a.name.endsWith('.exe'));
+    if (!asset || !asset.browser_download_url) {
+      throw new Error('No executable setup asset found in latest GitHub release');
+    }
+
+    const downloadUrl = asset.browser_download_url;
+    log('Downloading release asset from: ' + downloadUrl);
+
+    const tempFile = path.join(os.tmpdir(), `CloudMix-Pro-Setup-${releaseData.tag_name || 'latest'}.exe`);
+    const fileStream = fs.createWriteStream(tempFile);
+
+    const downloadWithRedirect = (url) => {
+      return new Promise((resolve, reject) => {
+        https.get(url, { headers: { 'User-Agent': 'CloudMix-Pro' } }, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            return downloadWithRedirect(res.headers.location).then(resolve).catch(reject);
+          }
+          if (res.statusCode !== 200) {
+            return reject(new Error('Download failed with status: ' + res.statusCode));
+          }
+
+          const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+          let downloadedBytes = 0;
+
+          res.on('data', (chunk) => {
+            downloadedBytes += chunk.length;
+            if (totalBytes > 0) {
+              const pct = Math.round((downloadedBytes / totalBytes) * 100);
+              mainWindow?.webContents.send('updater-status', {
+                status: 'downloading',
+                percent: pct,
+                message: `Downloading patch: ${pct}%`,
+              });
+            }
+          });
+
+          res.pipe(fileStream);
+          fileStream.on('finish', () => {
+            fileStream.close();
+            resolve(tempFile);
+          });
+          fileStream.on('error', reject);
+        }).on('error', reject);
+      });
+    };
+
+    downloadedInstallerPath = await downloadWithRedirect(downloadUrl);
+    log('Successfully downloaded installer to: ' + downloadedInstallerPath);
+
+    mainWindow?.webContents.send('updater-status', {
+      status: 'downloaded',
+      version: releaseData.tag_name?.replace(/^v/, ''),
+      message: `Patch ${releaseData.tag_name} ready. Click Restart & Apply.`,
+    });
+
+    return { success: true };
+  } catch (err) {
+    log('Direct GitHub release download failed: ' + err.message);
+    mainWindow?.webContents.send('updater-status', {
+      status: 'error',
+      error: err.message,
+      message: 'Download failed: ' + err.message,
+    });
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('restart-and-install-patch', async () => {
   log('IPC: restart-and-install-patch called');
+  if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
+    log('Launching downloaded setup executable: ' + downloadedInstallerPath);
+    const { spawn } = require('child_process');
+    spawn(downloadedInstallerPath, [], { detached: true, stdio: 'ignore' }).unref();
+    app.quit();
+    return { success: true };
+  }
+
   if (autoUpdater) {
     try {
       autoUpdater.quitAndInstall(false, true);
@@ -336,7 +440,7 @@ ipcMain.handle('restart-and-install-patch', async () => {
       return { success: false, error: err.message };
     }
   }
-  return { success: false, error: 'autoUpdater not available' };
+  return { success: false, error: 'No downloaded update available to execute' };
 });
 
 ipcMain.handle('check-github-releases', async () => {
