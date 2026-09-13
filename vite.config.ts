@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
-const buildModulesPath = 'C:/Users/icell/AppData/Local/cloudmix_build/node_modules';
+const rootDir = process.cwd();
+const buildModulesPath = path.resolve(rootDir, 'node_modules');
 
 export default defineConfig({
   base: './',
@@ -25,8 +26,8 @@ export default defineConfig({
     host: true,
     fs: {
       allow: [
-        'g:/My Drive/Backup/Antigravity/djyapro',
-        'C:/Users/icell/AppData/Local/cloudmix_build/node_modules',
+        rootDir,
+        buildModulesPath,
       ],
     },
   },
