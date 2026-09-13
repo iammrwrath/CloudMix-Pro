@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [quantize, setQuantize] = useState(true);
   const [connectedMidiDevices, setConnectedMidiDevices] = useState<MidiDevice[]>([]);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ status: 'idle', version: '1.0.0' });
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(updateService.getStatus());
 
   useEffect(() => {
     // Scan MIDI devices
@@ -292,11 +292,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => updateService.checkForUpdates()}
-              title={`CloudMix Pro v${updateStatus.version || '1.0.0'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '1.1.0'} - Click to check GitHub for patches`}
               className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[10.5px] font-mono text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden xl:inline">v{updateStatus.version || '1.0.0'}</span>
+              <span className="hidden xl:inline">v{updateStatus.version || '1.1.0'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}
