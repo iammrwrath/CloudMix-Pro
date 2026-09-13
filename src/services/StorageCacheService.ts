@@ -1,5 +1,5 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { TrackMetadata, Playlist } from '../types/dj';
+import { TrackMetadata, Playlist, AutomixQueueItem, HistoryItem } from '../types/dj';
 
 const DB_NAME = 'cloudmix_pro_db';
 const DB_VERSION = 1;
@@ -89,6 +89,30 @@ export class StorageCacheService {
   public async setSetting<T>(key: string, value: T): Promise<void> {
     const db = await this.dbPromise;
     await db.put('settings', { key, value });
+  }
+
+  // Automix Queue & Set History
+  public async getQueue(): Promise<AutomixQueueItem[]> {
+    return this.getSetting<AutomixQueueItem[]>('automix_queue', []);
+  }
+
+  public async saveQueue(queue: AutomixQueueItem[]): Promise<void> {
+    await this.setSetting('automix_queue', queue);
+  }
+
+  public async getHistory(): Promise<HistoryItem[]> {
+    return this.getSetting<HistoryItem[]>('set_history', []);
+  }
+
+  public async addHistory(item: HistoryItem): Promise<void> {
+    const history = await this.getHistory();
+    // Prepend latest track, keep up to 100 items
+    const updated = [item, ...history.filter(h => h.id !== item.id)].slice(0, 100);
+    await this.setSetting('set_history', updated);
+  }
+
+  public async clearHistory(): Promise<void> {
+    await this.setSetting('set_history', []);
   }
 }
 

@@ -3,8 +3,9 @@
  * Provides autonomous phrase-aligned mixing, EQ blending, and Neural Stem crossfades.
  */
 
-import { AutomixMode, AutomixState, DeckId, DeckState } from '../types/dj';
+import { AutomixMode, AutomixState, DeckId, DeckState, AutomixQueueItem, HistoryItem, TrackMetadata } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
+import { storageCache } from './StorageCacheService';
 
 type AutomixListener = (state: AutomixState) => void;
 
@@ -24,8 +25,28 @@ export class AutomixService {
   private transitionTimer: number | null = null;
   private onAutomixStep: ((updates: { crossfader?: number; deckA?: Partial<DeckState>; deckB?: Partial<DeckState> }) => void) | null = null;
   private onDeckAction: ((action: 'play' | 'pause', deckId: DeckId) => void) | null = null;
+  private onTrackLoadRequest: ((deckId: DeckId, track: TrackMetadata) => void) | null = null;
 
-  constructor() {}
+  private queue: AutomixQueueItem[] = [];
+  private history: HistoryItem[] = [];
+  private queueListeners: Set<(queue: AutomixQueueItem[]) => void> = new Set();
+  private historyListeners: Set<(history: HistoryItem[]) => void> = new Set();
+
+  constructor() {
+    storageCache.getQueue().then((q) => {
+      if (q && q.length > 0 && this.queue.length === 0) {
+        this.queue = q;
+        this.queueListeners.forEach((l) => l([...this.queue]));
+      }
+    }).catch(() => {});
+
+    storageCache.getHistory().then((h) => {
+      if (h && h.length > 0 && this.history.length === 0) {
+        this.history = h;
+        this.historyListeners.forEach((l) => l([...this.history]));
+      }
+    }).catch(() => {});
+  }
 
   public subscribe(listener: AutomixListener): () => void {
     this.listeners.add(listener);
@@ -45,10 +66,12 @@ export class AutomixService {
 
   public registerCallbacks(
     onStep: (updates: { crossfader?: number; deckA?: Partial<DeckState>; deckB?: Partial<DeckState> }) => void,
-    onDeckAction: (action: 'play' | 'pause', deckId: DeckId) => void
+    onDeckAction: (action: 'play' | 'pause', deckId: DeckId) => void,
+    onTrackLoadRequest?: (deckId: DeckId, track: TrackMetadata) => void
   ) {
     this.onAutomixStep = onStep;
     this.onDeckAction = onDeckAction;
+    if (onTrackLoadRequest) this.onTrackLoadRequest = onTrackLoadRequest;
   }
 
   public toggleAutomix(deckA?: DeckState, deckB?: DeckState) {
@@ -190,12 +213,89 @@ export class AutomixService {
         if (this.onDeckAction) {
           this.onDeckAction('pause', fromDeckId);
         }
+
+        // Continuous Automix: If there are tracks in queue, auto-stage next track into the freed deck
+        if (this.queue.length > 0 && this.onTrackLoadRequest) {
+          const nextItem = this.queue[0];
+          this.queue = this.queue.slice(1);
+          this.queueListeners.forEach((l) => l([...this.queue]));
+          this.onTrackLoadRequest(fromDeckId, nextItem.track);
+        }
       }
     }, 40); // 25 fps automation
   }
 
   public getState(): AutomixState {
     return { ...this.state };
+  }
+
+  // Automix Queue Subscriptions & Controls
+  public subscribeQueue(listener: (queue: AutomixQueueItem[]) => void): () => void {
+    this.queueListeners.add(listener);
+    listener([...this.queue]);
+    return () => this.queueListeners.delete(listener);
+  }
+
+  public setQueue(queue: AutomixQueueItem[]) {
+    this.queue = queue;
+    this.queueListeners.forEach((l) => l([...this.queue]));
+    storageCache.saveQueue(this.queue).catch(() => {});
+  }
+
+  public getQueue(): AutomixQueueItem[] {
+    return [...this.queue];
+  }
+
+  public addToQueue(track: TrackMetadata) {
+    const item: AutomixQueueItem = {
+      id: `${track.id}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      track,
+      addedAt: new Date().toISOString(),
+    };
+    this.queue = [...this.queue, item];
+    this.queueListeners.forEach((l) => l([...this.queue]));
+    storageCache.saveQueue(this.queue).catch(() => {});
+  }
+
+  public removeFromQueue(id: string) {
+    this.queue = this.queue.filter((q) => q.id !== id);
+    this.queueListeners.forEach((l) => l([...this.queue]));
+    storageCache.saveQueue(this.queue).catch(() => {});
+  }
+
+  public clearQueue() {
+    this.queue = [];
+    this.queueListeners.forEach((l) => l([]));
+    storageCache.saveQueue([]).catch(() => {});
+  }
+
+  // Live Set History Subscriptions & Controls
+  public subscribeHistory(listener: (history: HistoryItem[]) => void): () => void {
+    this.historyListeners.add(listener);
+    listener([...this.history]);
+    return () => this.historyListeners.delete(listener);
+  }
+
+  public setHistory(history: HistoryItem[]) {
+    this.history = history;
+    this.historyListeners.forEach((l) => l([...this.history]));
+    storageCache.setSetting('set_history', this.history).catch(() => {});
+  }
+
+  public getHistory(): HistoryItem[] {
+    return [...this.history];
+  }
+
+  public addHistory(item: HistoryItem) {
+    this.history = [item, ...this.history.filter((h) => h.id !== item.id)].slice(0, 100);
+    this.historyListeners.forEach((l) => l([...this.history]));
+    storageCache.addHistory(item).catch(() => {});
+  }
+
+  public clearHistory() {
+    this.history = [];
+    this.historyListeners.forEach((l) => l([]));
+    storageCache.clearHistory().catch(() => {});
   }
 }
 

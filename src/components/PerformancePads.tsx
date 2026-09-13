@@ -14,8 +14,8 @@ interface PerformancePadsProps {
   onExitLoop: () => void;
   onBeatJump: (beats: number) => void;
   stems?: StemState;
-  onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'drums') => void;
-  onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'drums') => void;
+  onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
+  onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
   accentColor?: string;
 }
 
@@ -194,7 +194,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
         {padMode === 'STEMS' && (
           <>
-            {/* Row 1: Stems Mutes + Reset */}
+            {/* Row 1: 4-Stem Mutes (Vocals, Melodics, Bass, Drums) */}
             <button
               onClick={() => onStemMuteToggle?.('vocals')}
               className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
@@ -220,6 +220,18 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             </button>
 
             <button
+              onClick={() => onStemMuteToggle?.('bass')}
+              className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+                stems?.bassMuted
+                  ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
+                  : 'bg-blue-600 text-white border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.6)]'
+              }`}
+            >
+              <span>BASS</span>
+              <span className="text-[7px] opacity-90">{stems?.bassMuted ? 'MUTED' : 'ON'}</span>
+            </button>
+
+            <button
               onClick={() => onStemMuteToggle?.('drums')}
               className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.drumsMuted
@@ -231,22 +243,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <span className="text-[7px] opacity-90">{stems?.drumsMuted ? 'MUTED' : 'ON'}</span>
             </button>
 
-            <button
-              onClick={() => {
-                if (stems?.vocalsMuted) onStemMuteToggle?.('vocals');
-                if (stems?.harmonicsMuted) onStemMuteToggle?.('harmonics');
-                if (stems?.drumsMuted) onStemMuteToggle?.('drums');
-                if (stems?.vocalsSolo) onStemSoloToggle?.('vocals');
-                if (stems?.harmonicsSolo) onStemSoloToggle?.('harmonics');
-                if (stems?.drumsSolo) onStemSoloToggle?.('drums');
-              }}
-              className="h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] bg-slate-800/90 border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer active:scale-[0.95]"
-            >
-              <span>ALL ON</span>
-              <span className="text-[7px] text-slate-500">RESET</span>
-            </button>
-
-            {/* Row 2: Stems Solos + Quick Acapella */}
+            {/* Row 2: 4-Stem Solos (Vocals, Melodics, Bass, Drums) */}
             <button
               onClick={() => onStemSoloToggle?.('vocals')}
               className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
@@ -272,6 +269,18 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             </button>
 
             <button
+              onClick={() => onStemSoloToggle?.('bass')}
+              className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+                stems?.bassSolo
+                  ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
+                  : 'bg-slate-900/90 border border-blue-700/60 text-blue-400 hover:bg-blue-950/40'
+              }`}
+            >
+              <span>BASS SOLO</span>
+              <span className="text-[7px] opacity-90">{stems?.bassSolo ? 'ACTIVE' : 'SOLO'}</span>
+            </button>
+
+            <button
               onClick={() => onStemSoloToggle?.('drums')}
               className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.drumsSolo
@@ -281,20 +290,6 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             >
               <span>DRM SOLO</span>
               <span className="text-[7px] opacity-90">{stems?.drumsSolo ? 'ACTIVE' : 'SOLO'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                onStemSoloToggle?.('vocals');
-              }}
-              className={`h-7.5 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
-                stems?.vocalsSolo
-                  ? 'bg-pink-500 text-black font-extrabold border border-pink-300 shadow-[0_0_12px_rgba(236,72,153,0.8)]'
-                  : 'bg-purple-950/70 border border-purple-600/70 text-purple-300 hover:bg-purple-900/60'
-              }`}
-            >
-              <span>ACAPELLA</span>
-              <span className="text-[7px] opacity-90">{stems?.vocalsSolo ? 'ISOLATED' : 'ISOLATE'}</span>
             </button>
           </>
         )}

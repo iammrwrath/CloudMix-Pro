@@ -9,6 +9,7 @@ import {
   LayoutMode,
   BottomDrawerTab,
   FXUnit,
+  FXType,
 } from './types/dj';
 import { audioEngine } from './audio/AudioEngine';
 import { AudioAnalyzer } from './audio/AudioAnalyzer';
@@ -64,17 +65,21 @@ export const App: React.FC = () => {
     stems: {
       vocals: 1.0,
       harmonics: 1.0,
+      bass: 1.0,
       drums: 1.0,
       vocalsMuted: false,
       harmonicsMuted: false,
+      bassMuted: false,
       drumsMuted: false,
       vocalsSolo: false,
       harmonicsSolo: false,
+      bassSolo: false,
       drumsSolo: false,
     },
     filter: 0,
     activeLoop: null,
     slipMode: false,
+    sandboxMode: false,
     shadowPlayheadTime: 0,
     isScratching: false,
     selectedPadMode: 'hotcue',
@@ -115,17 +120,21 @@ export const App: React.FC = () => {
     stems: {
       vocals: 1.0,
       harmonics: 1.0,
+      bass: 1.0,
       drums: 1.0,
       vocalsMuted: false,
       harmonicsMuted: false,
+      bassMuted: false,
       drumsMuted: false,
       vocalsSolo: false,
       harmonicsSolo: false,
+      bassSolo: false,
       drumsSolo: false,
     },
     filter: 0,
     activeLoop: null,
     slipMode: false,
+    sandboxMode: false,
     shadowPlayheadTime: 0,
     isScratching: false,
     selectedPadMode: 'hotcue',
@@ -353,9 +362,27 @@ export const App: React.FC = () => {
     if (deckId === 'A') {
       setDeckA((prev) => ({ ...prev, isPlaying }));
       broadcastService.update({ isPlayingA: isPlaying, activeDeck: 'A' });
+      if (isPlaying && deckA.track) {
+        automixService.addHistory({
+          id: `${deckA.track.id}-${Date.now()}`,
+          track: deckA.track,
+          playedAt: new Date().toISOString(),
+          durationSec: deckA.duration || 0,
+          deckId: 'A',
+        });
+      }
     } else {
       setDeckB((prev) => ({ ...prev, isPlaying }));
       broadcastService.update({ isPlayingB: isPlaying, activeDeck: 'B' });
+      if (isPlaying && deckB.track) {
+        automixService.addHistory({
+          id: `${deckB.track.id}-${Date.now()}`,
+          track: deckB.track,
+          playedAt: new Date().toISOString(),
+          durationSec: deckB.duration || 0,
+          deckId: 'B',
+        });
+      }
     }
   };
 
@@ -556,7 +583,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleStemGainChange = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'drums', val: number) => {
+  const handleStemGainChange = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => {
     audioEngine.setStemGain(deckId, stem, val);
     if (deckId === 'A') {
       setDeckA((p) => ({ ...p, stems: { ...p.stems, [stem]: val } }));
@@ -565,7 +592,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleStemMuteToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'drums') => {
+  const handleStemMuteToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
     const isMuted = audioEngine.toggleStemMute(deckId, stem);
     const muteKey = `${stem}Muted` as const;
     if (deckId === 'A') {
@@ -575,7 +602,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleStemSoloToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'drums') => {
+  const handleStemSoloToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
     const isSolo = audioEngine.toggleStemSolo(deckId, stem);
     const soloKey = `${stem}Solo` as const;
     if (deckId === 'A') {
@@ -585,6 +612,7 @@ export const App: React.FC = () => {
           ...p.stems,
           vocalsSolo: false,
           harmonicsSolo: false,
+          bassSolo: false,
           drumsSolo: false,
           [soloKey]: isSolo,
         },
@@ -596,6 +624,7 @@ export const App: React.FC = () => {
           ...p.stems,
           vocalsSolo: false,
           harmonicsSolo: false,
+          bassSolo: false,
           drumsSolo: false,
           [soloKey]: isSolo,
         },
@@ -606,6 +635,43 @@ export const App: React.FC = () => {
   const handleNeuralTransitionModeChange = (mode: NeuralTransitionMode) => {
     audioEngine.setNeuralTransitionMode(mode);
     setMixer((p) => ({ ...p, neuralTransitionMode: mode }));
+  };
+
+  // VirtualDJ Sandbox Audition Mode
+  const handleToggleSandbox = (deckId: DeckId) => {
+    const deck = deckId === 'A' ? deckA : deckB;
+    const nextVal = !deck.sandboxMode;
+    audioEngine.setDeckSandbox(deckId, nextVal);
+    if (deckId === 'A') {
+      setDeckA((p) => ({ ...p, sandboxMode: nextVal }));
+    } else {
+      setDeckB((p) => ({ ...p, sandboxMode: nextVal }));
+    }
+  };
+
+  // Quantized Slip Mode
+  const handleToggleSlip = (deckId: DeckId) => {
+    if (deckId === 'A') {
+      setDeckA((p) => ({ ...p, slipMode: !p.slipMode }));
+    } else {
+      setDeckB((p) => ({ ...p, slipMode: !p.slipMode }));
+    }
+  };
+
+  // Quick Multi-FX Punch-In / Punch-Out Toggle
+  const handleToggleFX = (deckId: DeckId, type: FXType) => {
+    const deck = deckId === 'A' ? deckA : deckB;
+    const isCurrentlyActive = deck.fx.enabled && deck.fx.type === type;
+    const updatedFx: FXUnit = {
+      ...deck.fx,
+      type,
+      enabled: !isCurrentlyActive,
+    };
+    if (deckId === 'A') {
+      handleUpdateDeckAFX(updatedFx);
+    } else {
+      handleUpdateDeckBFX(updatedFx);
+    }
   };
 
   // Studio FX Handlers
@@ -660,6 +726,9 @@ export const App: React.FC = () => {
           if (deckId === 'A') setDeckA((p) => ({ ...p, isPlaying: false }));
           if (deckId === 'B') setDeckB((p) => ({ ...p, isPlaying: false }));
         }
+      },
+      (deckId, track) => {
+        handleLoadTrack(deckId, track);
       }
     );
 
@@ -816,10 +885,14 @@ export const App: React.FC = () => {
             onSetAutoLoop={(b) => handleSetAutoLoop('A', b)}
             onExitLoop={() => handleExitLoop('A')}
             onBeatJump={(b) => handleBeatJump('A', b)}
+            onStemGainChange={(stem, val) => handleStemGainChange('A', stem, val)}
             onStemMuteToggle={(stem) => handleStemMuteToggle('A', stem)}
             onStemSoloToggle={(stem) => handleStemSoloToggle('A', stem)}
             onKeyShift={(st) => handleKeyShift('A', st)}
             onKeySync={() => handleKeySync('A')}
+            onToggleSlip={() => handleToggleSlip('A')}
+            onToggleSandbox={() => handleToggleSandbox('A')}
+            onToggleFX={(type) => handleToggleFX('A', type)}
           />
 
           {/* Central Pro Mixer */}
@@ -870,10 +943,14 @@ export const App: React.FC = () => {
             onSetAutoLoop={(b) => handleSetAutoLoop('B', b)}
             onExitLoop={() => handleExitLoop('B')}
             onBeatJump={(b) => handleBeatJump('B', b)}
+            onStemGainChange={(stem, val) => handleStemGainChange('B', stem, val)}
             onStemMuteToggle={(stem) => handleStemMuteToggle('B', stem)}
             onStemSoloToggle={(stem) => handleStemSoloToggle('B', stem)}
             onKeyShift={(st) => handleKeyShift('B', st)}
             onKeySync={() => handleKeySync('B')}
+            onToggleSlip={() => handleToggleSlip('B')}
+            onToggleSandbox={() => handleToggleSandbox('B')}
+            onToggleFX={(type) => handleToggleFX('B', type)}
           />
         </div>
       </div>
@@ -973,6 +1050,7 @@ export const App: React.FC = () => {
                 onOpenDjayImport={() => setIsDjayImportOpen(true)}
                 onOpenGDriveSettings={() => setIsSettingsOpen(true)}
                 currentMasterKey={deckA.isPlaying ? deckA.musicalKey : deckB.musicalKey}
+                onStartAutomix={() => automixService.startAutomix(deckA, deckB)}
               />
             )}
 

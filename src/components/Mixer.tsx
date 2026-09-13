@@ -19,9 +19,9 @@ interface MixerProps {
   onHeadphoneVolumeChange: (val: number) => void;
   onCueToggle: (deckId: 'A' | 'B') => void;
   onEQModeToggle?: (deckId: 'A' | 'B') => void;
-  onStemGainChange?: (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'drums', val: number) => void;
-  onStemMuteToggle?: (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'drums') => void;
-  onStemSoloToggle?: (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'drums') => void;
+  onStemGainChange?: (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => void;
+  onStemMuteToggle?: (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
+  onStemSoloToggle?: (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
   onNeuralTransitionModeChange?: (mode: NeuralTransitionMode) => void;
 }
 
@@ -173,6 +173,40 @@ export const Mixer: React.FC<MixerProps> = ({
                     title="Solo Melody"
                     className={`text-[7px] font-bold px-0.5 rounded uppercase ${
                       deckA.stems?.harmonicsSolo ? 'bg-amber-400 text-black font-extrabold shadow-[0_0_6px_rgba(251,191,36,0.6)]' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    S
+                  </button>
+                </div>
+              </div>
+
+              {/* Bass */}
+              <div className="relative my-0.5">
+                <RotaryKnob
+                  label="BASS"
+                  value={deckA.stems?.bass ?? 1.0}
+                  min={0}
+                  max={1.5}
+                  defaultValue={1.0}
+                  onChange={(v) => onStemGainChange?.('A', 'bass', v)}
+                  accentColor="#3b82f6"
+                  size={26}
+                />
+                <div className="absolute -right-2.5 top-0.5 flex flex-col space-y-0.5">
+                  <button
+                    onClick={() => onStemMuteToggle?.('A', 'bass')}
+                    title="Mute Bass"
+                    className={`text-[7px] font-bold px-0.5 rounded uppercase ${
+                      deckA.stems?.bassMuted ? 'bg-rose-600 text-white' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    M
+                  </button>
+                  <button
+                    onClick={() => onStemSoloToggle?.('A', 'bass')}
+                    title="Solo Bass"
+                    className={`text-[7px] font-bold px-0.5 rounded uppercase ${
+                      deckA.stems?.bassSolo ? 'bg-amber-400 text-black font-extrabold shadow-[0_0_6px_rgba(251,191,36,0.6)]' : 'text-slate-500 hover:text-slate-300'
                     }`}
                   >
                     S
@@ -431,6 +465,40 @@ export const Mixer: React.FC<MixerProps> = ({
                     title="Solo Melody"
                     className={`text-[7px] font-bold px-0.5 rounded uppercase ${
                       deckB.stems?.harmonicsSolo ? 'bg-amber-400 text-black font-extrabold shadow-[0_0_6px_rgba(251,191,36,0.6)]' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    S
+                  </button>
+                </div>
+              </div>
+
+              {/* Bass */}
+              <div className="relative my-0.5">
+                <RotaryKnob
+                  label="BASS"
+                  value={deckB.stems?.bass ?? 1.0}
+                  min={0}
+                  max={1.5}
+                  defaultValue={1.0}
+                  onChange={(v) => onStemGainChange?.('B', 'bass', v)}
+                  accentColor="#3b82f6"
+                  size={26}
+                />
+                <div className="absolute -right-2.5 top-0.5 flex flex-col space-y-0.5">
+                  <button
+                    onClick={() => onStemMuteToggle?.('B', 'bass')}
+                    title="Mute Bass"
+                    className={`text-[7px] font-bold px-0.5 rounded uppercase ${
+                      deckB.stems?.bassMuted ? 'bg-rose-600 text-white' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    M
+                  </button>
+                  <button
+                    onClick={() => onStemSoloToggle?.('B', 'bass')}
+                    title="Solo Bass"
+                    className={`text-[7px] font-bold px-0.5 rounded uppercase ${
+                      deckB.stems?.bassSolo ? 'bg-amber-400 text-black font-extrabold shadow-[0_0_6px_rgba(251,191,36,0.6)]' : 'text-slate-500 hover:text-slate-300'
                     }`}
                   >
                     S

@@ -12,6 +12,7 @@ interface JogWheelProps {
   onReleaseNudge: () => void;
   onScratch: (deltaSec: number) => void;
   accentColor?: string;
+  coverArtUrl?: string;
 }
 
 export const JogWheel: React.FC<JogWheelProps> = ({
@@ -24,6 +25,7 @@ export const JogWheel: React.FC<JogWheelProps> = ({
   onReleaseNudge,
   onScratch,
   accentColor = '#00e5ff',
+  coverArtUrl,
 }) => {
   const wheelRef = useRef<HTMLDivElement | null>(null);
   const [rotationDeg, setRotationDeg] = useState(0);
@@ -175,8 +177,48 @@ export const JogWheel: React.FC<JogWheelProps> = ({
             <div className="h-full w-[1px] bg-white/5" />
           </div>
 
-          {/* Center Jog LCD Display HUD */}
-          <div className="relative z-10 w-22 h-22 rounded-full bg-slate-950/95 border-2 border-slate-800 flex flex-col items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.9)] text-center px-1 overflow-hidden">
+      {/* Mechanical Vinyl Tonearm Assembly (djay Pro / Technics turntable emulation) */}
+      <div className="absolute -top-2 -right-1 pointer-events-none z-20">
+        {/* Tonearm Base & Gimbal Bearing */}
+        <div className="relative w-6 h-6 rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-500 border border-slate-600 shadow-[0_4px_10px_rgba(0,0,0,0.9)] flex items-center justify-center">
+          {/* Gimbal Center Pivot Screw */}
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-500" />
+          {/* Counterweight cylinder */}
+          <div className="absolute -top-2.5 w-3.5 h-2.5 rounded-sm bg-gradient-to-r from-slate-700 to-slate-900 border border-slate-600 shadow-sm" />
+
+          {/* Pivoting Tonearm Rod & Headshell */}
+          <div
+            className="absolute top-3 left-2.5 origin-top transition-transform duration-300 ease-out"
+            style={{
+              transform: `rotate(${isPlaying ? 14 + progressRatio * 24 : 6}deg)`,
+            }}
+          >
+            {/* Curved Aluminum Tonearm Wand */}
+            <div className="w-1 h-34 bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[2px_4px_10px_rgba(0,0,0,0.7)]" />
+
+            {/* Headshell & DJ Stylus Cartridge */}
+            <div className="absolute -bottom-5 -left-1.5 w-4 h-5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">
+              {/* Illuminated Stylus / Needle Indicator */}
+              <div
+                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{
+                  backgroundColor: accentColor,
+                  boxShadow: `0 0 6px ${accentColor}`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Center Jog LCD Display HUD */}
+      <div className="relative z-10 w-22 h-22 rounded-full bg-slate-950/95 border-2 border-slate-800 flex flex-col items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.9)] text-center px-1 overflow-hidden">
+        {coverArtUrl && (
+          <div className="absolute inset-0 opacity-30 rounded-full overflow-hidden pointer-events-none">
+            <img src={coverArtUrl} alt="Cover Art" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+          </div>
+        )}
             {/* Circular SVG Track Progress Arc */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none -rotate-90">
               <circle

@@ -59,12 +59,15 @@ export interface TrackMetadata {
 export interface StemState {
   vocals: number; // 0.0 to 1.5 (1.0 default)
   harmonics: number;
+  bass: number;
   drums: number;
   vocalsMuted: boolean;
   harmonicsMuted: boolean;
+  bassMuted: boolean;
   drumsMuted: boolean;
   vocalsSolo: boolean;
   harmonicsSolo: boolean;
+  bassSolo: boolean;
   drumsSolo: boolean;
 }
 
@@ -97,15 +100,18 @@ export interface DeckState {
   filter: number; // -1.0 (LPF) to 0.0 (Bypass) to +1.0 (HPF)
   activeLoop: { start: number; end: number; beats: number } | null;
   slipMode: boolean;
+  sandboxMode: boolean;
   shadowPlayheadTime: number; // Time tracking during scratch or slip
   isScratching: boolean;
   selectedPadMode: 'hotcue' | 'loop' | 'beatjump' | 'stems';
   meterLevelL: number; // 0.0 to 1.0 for VU meter
   meterLevelR: number;
   fx: FXUnit;
+  fxSlots?: [FXUnit, FXUnit, FXUnit];
 }
 
 export type FXType = 'echo' | 'reverb' | 'flanger' | 'bitcrusher' | 'roll' | 'filter';
+export type FXTarget = 'master' | 'vocals' | 'bass' | 'harmonics' | 'drums';
 
 export interface FXUnit {
   enabled: boolean;
@@ -113,6 +119,21 @@ export interface FXUnit {
   wetDry: number; // 0.0 to 1.0
   beats: number; // 0.125, 0.25, 0.5, 1, 2, 4
   param: number; // secondary param (feedback, size, resonance)
+  target?: FXTarget;
+}
+
+export interface HistoryItem {
+  id: string;
+  track: TrackMetadata;
+  playedAt: string;
+  durationSec: number;
+  deckId: DeckId;
+}
+
+export interface AutomixQueueItem {
+  id: string;
+  track: TrackMetadata;
+  addedAt: string;
 }
 
 export type LayoutMode = 'horizontal' | 'vertical' | 'split';

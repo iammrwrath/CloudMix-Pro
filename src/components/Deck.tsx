@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { DeckId, DeckState, HotCue, TrackMetadata, WaveformData } from '../types/dj';
+import React, { useState } from 'react';
+import { DeckId, DeckState, FXType, HotCue, TrackMetadata, WaveformData } from '../types/dj';
 import { WaveformDisplay } from './WaveformDisplay';
 import { JogWheel } from './JogWheel';
 import { PerformancePads } from './PerformancePads';
 import { PitchFader } from './PitchFader';
-import { Play, Pause, Disc, Radio, RefreshCw, Zap } from 'lucide-react';
+import { Play, Pause, Radio, Zap, Headphones, Repeat, Sparkles, Layers } from 'lucide-react';
 import { audioEngine } from '../audio/AudioEngine';
 import { cloudProgression } from '../services/CloudProgressionService';
 
@@ -27,10 +27,14 @@ interface DeckProps {
   onSetAutoLoop: (beats: number) => void;
   onExitLoop: () => void;
   onBeatJump: (beats: number) => void;
-  onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'drums') => void;
-  onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'drums') => void;
+  onStemGainChange?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => void;
+  onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
+  onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
   onKeyShift?: (semitones: number) => void;
   onKeySync?: () => void;
+  onToggleSlip?: () => void;
+  onToggleSandbox?: () => void;
+  onToggleFX?: (type: FXType) => void;
 }
 
 export const Deck: React.FC<DeckProps> = ({
@@ -52,12 +56,17 @@ export const Deck: React.FC<DeckProps> = ({
   onSetAutoLoop,
   onExitLoop,
   onBeatJump,
+  onStemGainChange,
   onStemMuteToggle,
   onStemSoloToggle,
   onKeyShift,
   onKeySync,
+  onToggleSlip,
+  onToggleSandbox,
+  onToggleFX,
 }) => {
   const [tempoRange, setTempoRange] = useState(0.08); // 8% default
+  const [selectedLoopBeats, setSelectedLoopBeats] = useState<number>(4);
   const isDeckA = deckId === 'A';
   const accentColor = isDeckA ? '#00e5ff' : '#ff3366';
 
@@ -66,6 +75,37 @@ export const Deck: React.FC<DeckProps> = ({
     else if (tempoRange === 0.16) setTempoRange(0.5);
     else setTempoRange(0.08);
   };
+
+  const halveLoop = () => {
+    const nextBeats = Math.max(0.25, selectedLoopBeats / 2);
+    setSelectedLoopBeats(nextBeats);
+    if (deckState.activeLoop) {
+      onSetAutoLoop(nextBeats);
+    }
+  };
+
+  const doubleLoop = () => {
+    const nextBeats = Math.min(32, selectedLoopBeats * 2);
+    setSelectedLoopBeats(nextBeats);
+    if (deckState.activeLoop) {
+      onSetAutoLoop(nextBeats);
+    }
+  };
+
+  const toggleLoop = () => {
+    if (deckState.activeLoop) {
+      onExitLoop();
+    } else {
+      onSetAutoLoop(selectedLoopBeats);
+    }
+  };
+
+  const stemList = [
+    { id: 'vocals' as const, label: 'Vocals', short: 'VOC', color: '#06b6d4' },
+    { id: 'harmonics' as const, label: 'Harmonics', short: 'MEL', color: '#a855f7' },
+    { id: 'bass' as const, label: 'Bass', short: 'BAS', color: '#10b981' },
+    { id: 'drums' as const, label: 'Drums', short: 'DRM', color: '#f97316' },
+  ];
 
   const track = deckState.track;
 
@@ -82,10 +122,17 @@ export const Deck: React.FC<DeckProps> = ({
             {deckId}
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="font-bold text-xs text-white truncate max-w-[180px]">
-              {track ? track.title : 'No Track Loaded'}
-            </span>
-            <span className="text-[10px] text-slate-400 truncate max-w-[180px]">
+            <div className="flex items-center space-x-1.5">
+              <span className="font-bold text-xs text-white truncate max-w-[170px]">
+                {track ? track.title : 'No Track Loaded'}
+              </span>
+              {deckState.sandboxMode && (
+                <span className="text-[8px] font-mono font-extrabold px-1 py-0.2 rounded bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse">
+                  SANDBOX
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] text-slate-400 truncate max-w-[170px]">
               {track ? track.artist : 'Drag track from Library or Google Drive'}
             </span>
           </div>
@@ -167,8 +214,142 @@ export const Deck: React.FC<DeckProps> = ({
         />
       </div>
 
-      {/* 3. Middle Section: Tactile Jog Wheel + Pitch Fader */}
-      <div className="flex items-center justify-between my-0.5 py-0.5">
+      {/* 3. Pro Workstation Tactical Performance Bar: Quick Loop & Multi-FX Punch Buttons */}
+      <div className="flex items-center justify-between bg-slate-900/80 rounded-lg px-2 py-1 my-0.5 border border-white/5">
+        {/* Quick Loop Controls (< 1 > with 1/2x and 2x) */}
+        <div className="flex items-center space-x-1">
+          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase mr-0.5">LOOP</span>
+          <button
+            onClick={halveLoop}
+            title="Halve loop length (/2)"
+            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
+          >
+            &lt;
+          </button>
+          <button
+            onClick={toggleLoop}
+            title="Toggle Quantized Auto-Loop"
+            className={`px-2 h-5 rounded font-mono text-[9px] font-bold border transition-all cursor-pointer active:scale-95 flex items-center space-x-1 ${
+              deckState.activeLoop
+                ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.8)]'
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+            }`}
+          >
+            <Repeat className="w-2.5 h-2.5" />
+            <span>{deckState.activeLoop ? `${deckState.activeLoop.beats}B` : `${selectedLoopBeats}B`}</span>
+          </button>
+          <button
+            onClick={doubleLoop}
+            title="Double loop length (x2)"
+            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
+          >
+            &gt;
+          </button>
+        </div>
+
+        {/* 3-Slot Multi-FX Instant Punch Bar */}
+        <div className="flex items-center space-x-1">
+          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase mr-0.5">FX</span>
+          {(['echo', 'reverb', 'flanger'] as FXType[]).map((fxType) => {
+            const isActive = deckState.fx.enabled && deckState.fx.type === fxType;
+            return (
+              <button
+                key={fxType}
+                onClick={() => onToggleFX?.(fxType)}
+                title={`Instant ${fxType.toUpperCase()} FX Punch-In`}
+                className={`px-1.5 h-5 rounded font-mono text-[8px] font-bold uppercase border transition-all cursor-pointer active:scale-95 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.8)]'
+                    : 'bg-slate-800/80 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                }`}
+              >
+                {fxType === 'echo' ? 'ECHO 1/2' : fxType}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Slip Mode Toggle Button */}
+        <button
+          onClick={onToggleSlip}
+          title="Slip Mode: Audio playhead continues in background during scratch or loops"
+          className={`px-1.5 h-5 rounded font-mono text-[8px] font-bold border transition-all cursor-pointer active:scale-95 ${
+            deckState.slipMode
+              ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+              : 'bg-slate-800/80 text-slate-400 border-slate-700/60 hover:text-white'
+          }`}
+        >
+          SLIP
+        </button>
+      </div>
+
+      {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader */}
+      <div className="flex items-center justify-between my-0.5 py-0.5 gap-2">
+        {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
+        <div className="flex flex-col justify-between h-40 bg-slate-950/70 rounded-xl p-1.5 border border-white/5 w-24 shrink-0 shadow-inner">
+          <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
+            <span className="text-[8px] font-mono font-bold text-slate-400">STEMS</span>
+            <span className="text-[7px] font-mono text-purple-400">4-WAY</span>
+          </div>
+
+          <div className="flex flex-col space-y-1.5 my-auto">
+            {stemList.map((stem) => {
+              const isMuted = deckState.stems[`${stem.id}Muted` as keyof typeof deckState.stems];
+              const isSolo = deckState.stems[`${stem.id}Solo` as keyof typeof deckState.stems];
+
+              return (
+                <div key={stem.id} className="flex items-center justify-between">
+                  {/* Stem Label / Color Dot */}
+                  <div className="flex items-center space-x-1">
+                    <div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: isMuted ? '#64748b' : stem.color }}
+                    />
+                    <span
+                      className={`text-[8px] font-mono font-extrabold leading-none ${
+                        isMuted ? 'text-slate-500 line-through' : 'text-slate-200'
+                      }`}
+                    >
+                      {stem.short}
+                    </span>
+                  </div>
+
+                  {/* Micro Solo & Mute Buttons */}
+                  <div className="flex items-center space-x-0.5">
+                    <button
+                      onClick={() => onStemMuteToggle?.(stem.id)}
+                      title={`Mute ${stem.label}`}
+                      className={`w-3.5 h-3.5 rounded text-[7px] font-mono font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                        isMuted
+                          ? 'bg-rose-600 text-white shadow-[0_0_6px_rgba(225,29,72,0.8)]'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      M
+                    </button>
+                    <button
+                      onClick={() => onStemSoloToggle?.(stem.id)}
+                      title={`Solo ${stem.label}`}
+                      className={`w-3.5 h-3.5 rounded text-[7px] font-mono font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                        isSolo
+                          ? 'bg-amber-400 text-black font-extrabold shadow-[0_0_6px_rgba(251,191,36,0.8)]'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      S
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-[7px] font-mono text-center text-slate-500 pt-0.5 border-t border-white/5">
+            NEURAL MIX
+          </div>
+        </div>
+
+        {/* Tactile Grooved Vinyl Jog Wheel with Mechanical Tonearm */}
         <div className="flex-1 flex justify-center">
           <JogWheel
             deckId={deckId}
@@ -180,9 +361,11 @@ export const Deck: React.FC<DeckProps> = ({
             onReleaseNudge={onReleaseNudge}
             onScratch={onScratch}
             accentColor={accentColor}
+            coverArtUrl={track?.coverArtUrl}
           />
         </div>
 
+        {/* Pitch Fader */}
         <PitchFader
           deckId={deckId}
           playbackRate={deckState.playbackRate}
@@ -198,7 +381,7 @@ export const Deck: React.FC<DeckProps> = ({
         />
       </div>
 
-      {/* 4. Performance Pads Section (Hot Cues, Loops, Stems) */}
+      {/* 5. Performance Pads Section (Hot Cues, Loops, Stems) */}
       <div className="my-0.5">
         <PerformancePads
           deckId={deckId}
@@ -219,13 +402,27 @@ export const Deck: React.FC<DeckProps> = ({
         />
       </div>
 
-      {/* 5. Primary Transport Controls: Large Play, Cue, Sync */}
+      {/* 6. Primary Transport Controls: Play, Cue, Sync, Sandbox Mode */}
       <div className="flex items-center justify-between pt-1 border-t border-dj-border/60">
+        {/* VirtualDJ Sandbox Mode Toggle */}
+        <button
+          onClick={onToggleSandbox}
+          title="VirtualDJ Sandbox Mode: Private Headphone Audition. Mutes master output for this deck while you prep your mix."
+          className={`h-9 px-2 rounded-lg font-mono font-extrabold text-[10px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none ${
+            deckState.sandboxMode
+              ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_16px_rgba(245,158,11,0.85)] animate-pulse'
+              : 'bg-slate-900/90 border-amber-500/30 text-amber-400 hover:bg-slate-800 hover:border-amber-400'
+          }`}
+        >
+          <Headphones className="w-3.5 h-3.5" />
+          <span>SANDBOX</span>
+        </button>
+
         {/* SYNC Button */}
         <button
           onClick={onSyncClick}
           title="Instant Beatgrid Sync"
-          className={`flex-1 h-9 rounded-lg font-mono font-extrabold text-xs mr-1.5 border transition-all cursor-pointer flex items-center justify-center space-x-1.5 active:scale-[0.95] select-none ${
+          className={`flex-1 h-9 rounded-lg font-mono font-extrabold text-xs mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1.5 active:scale-[0.95] select-none ${
             deckState.isSync
               ? 'bg-cyan-500 text-black border-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.8)]'
               : 'bg-slate-900/90 border-cyan-500/30 text-cyan-400 hover:bg-slate-800 hover:border-cyan-400'
@@ -242,7 +439,7 @@ export const Deck: React.FC<DeckProps> = ({
         <button
           onClick={onCueClick}
           title="Temporary Cue Playhead"
-          className="flex-1 h-9 rounded-lg font-mono font-extrabold text-xs mr-1.5 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1.5 cursor-pointer select-none"
+          className="flex-1 h-9 rounded-lg font-mono font-extrabold text-xs mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1.5 cursor-pointer select-none"
           style={{
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}

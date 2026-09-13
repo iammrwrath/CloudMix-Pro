@@ -10,9 +10,12 @@ export interface DeckAudioNodes {
   eqHigh: BiquadFilterNode;
   filterLpf: BiquadFilterNode;
   filterHpf: BiquadFilterNode;
-  // Neural Mix Stem Separation Nodes
+  // Neural Mix 4-Stem Separation Nodes
   stemDrumsFilter: BiquadFilterNode;
   stemDrumsGain: GainNode;
+  stemBassHpf: BiquadFilterNode;
+  stemBassLpf: BiquadFilterNode;
+  stemBassGain: GainNode;
   stemVocalsHpf: BiquadFilterNode;
   stemVocalsLpf: BiquadFilterNode;
   stemVocalsGain: GainNode;
@@ -21,6 +24,7 @@ export interface DeckAudioNodes {
   stemState: StemState;
   // Crossfader stem automation nodes
   stemDrumsXfaderGain: GainNode;
+  stemBassXfaderGain: GainNode;
   stemVocalsXfaderGain: GainNode;
   stemHarmonicsXfaderGain: GainNode;
   channelFader: GainNode;
@@ -50,6 +54,9 @@ export interface DeckAudioNodes {
   loopRegion: { start: number; end: number } | null;
   activeFxNode: AudioNode | null;
   pitchSemitones: number;
+  isSandbox: boolean;
+  preSandboxTime: number;
+  preSandboxPlaying: boolean;
 }
 
 class AudioEngine {
@@ -91,6 +98,7 @@ class AudioEngine {
 
     this.headphoneGain = this.ctx.createGain();
     this.headphoneGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+    this.headphoneGain.connect(this.ctx.destination);
 
     // Wire master chain
     this.masterGain.connect(this.masterLimiter);
@@ -141,36 +149,50 @@ class AudioEngine {
     filterHpf.Q.setValueAtTime(1.0, this.ctx.currentTime);
 
     // ==========================================
-    // Real-Time Neural Mix 3-Way Crossover DSP
+    // Real-Time Neural Mix 4-Way Crossover DSP
     // ==========================================
-    // 1. Rhythm Stem (Drums & Sub-bass: < 280Hz)
+    // 1. Drums Stem (Punch & Transients: < 120Hz)
     const stemDrumsFilter = this.ctx.createBiquadFilter();
     stemDrumsFilter.type = 'lowpass';
-    stemDrumsFilter.frequency.setValueAtTime(280, this.ctx.currentTime);
+    stemDrumsFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
     stemDrumsFilter.Q.setValueAtTime(0.707, this.ctx.currentTime);
     const stemDrumsGain = this.ctx.createGain();
     stemDrumsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemDrumsXfaderGain = this.ctx.createGain();
     stemDrumsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 2. Vocal Stem (Formant Crossover Bandpass: 280Hz - 2800Hz)
+    // 2. Bass Stem (Sub-bass, Bassline, 808s: 60Hz - 320Hz)
+    const stemBassHpf = this.ctx.createBiquadFilter();
+    stemBassHpf.type = 'highpass';
+    stemBassHpf.frequency.setValueAtTime(60, this.ctx.currentTime);
+    stemBassHpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    const stemBassLpf = this.ctx.createBiquadFilter();
+    stemBassLpf.type = 'lowpass';
+    stemBassLpf.frequency.setValueAtTime(320, this.ctx.currentTime);
+    stemBassLpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    const stemBassGain = this.ctx.createGain();
+    stemBassGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    const stemBassXfaderGain = this.ctx.createGain();
+    stemBassXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
+    // 3. Vocals Stem (Lead & Formant Crossover Bandpass: 350Hz - 3800Hz)
     const stemVocalsHpf = this.ctx.createBiquadFilter();
     stemVocalsHpf.type = 'highpass';
-    stemVocalsHpf.frequency.setValueAtTime(280, this.ctx.currentTime);
+    stemVocalsHpf.frequency.setValueAtTime(350, this.ctx.currentTime);
     stemVocalsHpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
     const stemVocalsLpf = this.ctx.createBiquadFilter();
     stemVocalsLpf.type = 'lowpass';
-    stemVocalsLpf.frequency.setValueAtTime(2800, this.ctx.currentTime);
+    stemVocalsLpf.frequency.setValueAtTime(3800, this.ctx.currentTime);
     stemVocalsLpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
     const stemVocalsGain = this.ctx.createGain();
     stemVocalsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemVocalsXfaderGain = this.ctx.createGain();
     stemVocalsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 3. Melodic / Harmonics Stem (Synths, Keys, Strings: > 2800Hz)
+    // 4. Harmonics / Melody Stem (Synths, Keys, Strings: > 3200Hz)
     const stemHarmonicsFilter = this.ctx.createBiquadFilter();
     stemHarmonicsFilter.type = 'highpass';
-    stemHarmonicsFilter.frequency.setValueAtTime(2800, this.ctx.currentTime);
+    stemHarmonicsFilter.frequency.setValueAtTime(3200, this.ctx.currentTime);
     stemHarmonicsFilter.Q.setValueAtTime(0.707, this.ctx.currentTime);
     const stemHarmonicsGain = this.ctx.createGain();
     stemHarmonicsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
@@ -202,21 +224,28 @@ class AudioEngine {
     eqHigh.connect(filterLpf);
     filterLpf.connect(filterHpf);
 
-    // Split filterHpf into 3 Parallel Neural Stems:
-    // Stem 1: Drums / Bass
+    // Split filterHpf into 4 Parallel Neural Stems:
+    // Stem 1: Drums
     filterHpf.connect(stemDrumsFilter);
     stemDrumsFilter.connect(stemDrumsGain);
     stemDrumsGain.connect(stemDrumsXfaderGain);
     stemDrumsXfaderGain.connect(channelFader);
 
-    // Stem 2: Vocals
+    // Stem 2: Bass
+    filterHpf.connect(stemBassHpf);
+    stemBassHpf.connect(stemBassLpf);
+    stemBassLpf.connect(stemBassGain);
+    stemBassGain.connect(stemBassXfaderGain);
+    stemBassXfaderGain.connect(channelFader);
+
+    // Stem 3: Vocals
     filterHpf.connect(stemVocalsHpf);
     stemVocalsHpf.connect(stemVocalsLpf);
     stemVocalsLpf.connect(stemVocalsGain);
     stemVocalsGain.connect(stemVocalsXfaderGain);
     stemVocalsXfaderGain.connect(channelFader);
 
-    // Stem 3: Harmonics / Melody
+    // Stem 4: Harmonics / Melody
     filterHpf.connect(stemHarmonicsFilter);
     stemHarmonicsFilter.connect(stemHarmonicsGain);
     stemHarmonicsGain.connect(stemHarmonicsXfaderGain);
@@ -299,12 +328,15 @@ class AudioEngine {
     const stemState: StemState = {
       vocals: 1.0,
       harmonics: 1.0,
+      bass: 1.0,
       drums: 1.0,
       vocalsMuted: false,
       harmonicsMuted: false,
+      bassMuted: false,
       drumsMuted: false,
       vocalsSolo: false,
       harmonicsSolo: false,
+      bassSolo: false,
       drumsSolo: false,
     };
 
@@ -318,6 +350,9 @@ class AudioEngine {
       filterHpf,
       stemDrumsFilter,
       stemDrumsGain,
+      stemBassHpf,
+      stemBassLpf,
+      stemBassGain,
       stemVocalsHpf,
       stemVocalsLpf,
       stemVocalsGain,
@@ -325,6 +360,7 @@ class AudioEngine {
       stemHarmonicsGain,
       stemState,
       stemDrumsXfaderGain,
+      stemBassXfaderGain,
       stemVocalsXfaderGain,
       stemHarmonicsXfaderGain,
       channelFader,
@@ -353,6 +389,9 @@ class AudioEngine {
       loopRegion: null,
       activeFxNode: null,
       pitchSemitones: 0,
+      isSandbox: false,
+      preSandboxTime: 0,
+      preSandboxPlaying: false,
     };
 
     this.decks.set(deckId, deckNodes);
@@ -599,8 +638,8 @@ class AudioEngine {
     return this.neuralTransitionMode;
   }
 
-  // Neural Mix Stem Methods
-  public setStemGain(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'drums', val: number) {
+  // Neural Mix 4-Stem Methods
+  public setStemGain(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
     const gain = Math.max(0, Math.min(val, 1.5));
@@ -608,22 +647,23 @@ class AudioEngine {
     this.recalculateStemGains(deck);
   }
 
-  public toggleStemMute(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'drums'): boolean {
+  public toggleStemMute(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'bass' | 'drums'): boolean {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return false;
-    const muteKey = `${stem}Muted` as 'vocalsMuted' | 'harmonicsMuted' | 'drumsMuted';
+    const muteKey = `${stem}Muted` as 'vocalsMuted' | 'harmonicsMuted' | 'bassMuted' | 'drumsMuted';
     deck.stemState[muteKey] = !deck.stemState[muteKey];
     this.recalculateStemGains(deck);
     return deck.stemState[muteKey];
   }
 
-  public toggleStemSolo(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'drums'): boolean {
+  public toggleStemSolo(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'bass' | 'drums'): boolean {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return false;
-    const soloKey = `${stem}Solo` as 'vocalsSolo' | 'harmonicsSolo' | 'drumsSolo';
+    const soloKey = `${stem}Solo` as 'vocalsSolo' | 'harmonicsSolo' | 'bassSolo' | 'drumsSolo';
     const isNowSolo = !deck.stemState[soloKey];
     deck.stemState.vocalsSolo = false;
     deck.stemState.harmonicsSolo = false;
+    deck.stemState.bassSolo = false;
     deck.stemState.drumsSolo = false;
     deck.stemState[soloKey] = isNowSolo;
     this.recalculateStemGains(deck);
@@ -635,15 +675,48 @@ class AudioEngine {
     return deck ? { ...deck.stemState } : null;
   }
 
+  // VirtualDJ Sandbox Mode: Private Headphone Transition Auditioning
+  public setDeckSandbox(deckId: DeckId, isSandbox: boolean): boolean {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return false;
+
+    if (isSandbox && !deck.isSandbox) {
+      deck.isSandbox = true;
+      deck.preSandboxTime = this.getCurrentTime(deckId);
+      deck.preSandboxPlaying = deck.isPlaying;
+
+      // Disconnect from master output completely
+      deck.crossfaderGain.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.005);
+      // Route immediately into headphone cue
+      deck.cueGain.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.005);
+    } else if (!isSandbox && deck.isSandbox) {
+      deck.isSandbox = false;
+      this.updateCrossfaderGains();
+    }
+
+    return deck.isSandbox;
+  }
+
+  public isDeckSandbox(deckId: DeckId): boolean {
+    const deck = this.decks.get(deckId);
+    return deck ? !!deck.isSandbox : false;
+  }
+
   private recalculateStemGains(deck: DeckAudioNodes) {
     if (!this.ctx) return;
-    const hasSolo = deck.stemState.vocalsSolo || deck.stemState.harmonicsSolo || deck.stemState.drumsSolo;
+    const hasSolo = deck.stemState.vocalsSolo || deck.stemState.harmonicsSolo || deck.stemState.bassSolo || deck.stemState.drumsSolo;
 
     const effVocals = deck.stemState.vocalsMuted
       ? 0
       : hasSolo
       ? (deck.stemState.vocalsSolo ? deck.stemState.vocals : 0)
       : deck.stemState.vocals;
+
+    const effBass = deck.stemState.bassMuted
+      ? 0
+      : hasSolo
+      ? (deck.stemState.bassSolo ? deck.stemState.bass : 0)
+      : deck.stemState.bass;
 
     const effDrums = deck.stemState.drumsMuted
       ? 0
@@ -658,6 +731,7 @@ class AudioEngine {
       : deck.stemState.harmonics;
 
     deck.stemVocalsGain.gain.setTargetAtTime(effVocals, this.ctx.currentTime, 0.01);
+    deck.stemBassGain.gain.setTargetAtTime(effBass, this.ctx.currentTime, 0.01);
     deck.stemDrumsGain.gain.setTargetAtTime(effDrums, this.ctx.currentTime, 0.01);
     deck.stemHarmonicsGain.gain.setTargetAtTime(effHarmonics, this.ctx.currentTime, 0.01);
   }
@@ -688,19 +762,23 @@ class AudioEngine {
       gainB = pos >= 0.5 ? 1.0 : pos * 2.0;
     }
 
+    // Isolate sandboxed decks from Master
+    if (deckA.isSandbox) gainA = 0.0;
+    if (deckB.isSandbox) gainB = 0.0;
+
     deckA.crossfaderGain.gain.setTargetAtTime(gainA, this.ctx.currentTime, 0.01);
     deckB.crossfaderGain.gain.setTargetAtTime(gainB, this.ctx.currentTime, 0.01);
 
     // ==========================================
     // Neural Mix Crossfader Transition Automation
     // ==========================================
-    let stemDrumsA = 1.0, stemVocalsA = 1.0, stemHarmonicsA = 1.0;
-    let stemDrumsB = 1.0, stemVocalsB = 1.0, stemHarmonicsB = 1.0;
+    let stemDrumsA = 1.0, stemBassA = 1.0, stemVocalsA = 1.0, stemHarmonicsA = 1.0;
+    let stemDrumsB = 1.0, stemBassB = 1.0, stemVocalsB = 1.0, stemHarmonicsB = 1.0;
 
     if (this.neuralTransitionMode === 'bass_swap') {
-      // Bass/Drums swap sharply across center (0.45 to 0.55), while Vocals/Melody blend smoothly
-      stemDrumsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
-      stemDrumsB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+      // Bass swaps cleanly across center (0.45 to 0.55), while Vocals/Melody blend smoothly
+      stemBassA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
+      stemBassB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
     } else if (this.neuralTransitionMode === 'vocal_swap') {
       // Vocals swap cleanly on phrase at center, rhythm and harmony blend continuously
       stemVocalsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
@@ -712,10 +790,12 @@ class AudioEngine {
     }
 
     deckA.stemDrumsXfaderGain.gain.setTargetAtTime(stemDrumsA, this.ctx.currentTime, 0.01);
+    deckA.stemBassXfaderGain.gain.setTargetAtTime(stemBassA, this.ctx.currentTime, 0.01);
     deckA.stemVocalsXfaderGain.gain.setTargetAtTime(stemVocalsA, this.ctx.currentTime, 0.01);
     deckA.stemHarmonicsXfaderGain.gain.setTargetAtTime(stemHarmonicsA, this.ctx.currentTime, 0.01);
 
     deckB.stemDrumsXfaderGain.gain.setTargetAtTime(stemDrumsB, this.ctx.currentTime, 0.01);
+    deckB.stemBassXfaderGain.gain.setTargetAtTime(stemBassB, this.ctx.currentTime, 0.01);
     deckB.stemVocalsXfaderGain.gain.setTargetAtTime(stemVocalsB, this.ctx.currentTime, 0.01);
     deckB.stemHarmonicsXfaderGain.gain.setTargetAtTime(stemHarmonicsB, this.ctx.currentTime, 0.01);
   }
