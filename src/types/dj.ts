@@ -198,6 +198,16 @@ export interface MidiMappingRule {
   type: 'button' | 'toggle' | 'slider' | 'knob' | 'jog';
 }
 
+export interface MidiProfile {
+  id: string;
+  name: string;
+  manufacturer: string;
+  description: string;
+  tags: string[];
+  deviceMatchNames: string[];
+  mappings: MidiMappingRule[];
+}
+
 export interface LyricsLine {
   timestampMs: number;
   text: string;

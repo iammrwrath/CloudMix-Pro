@@ -252,10 +252,15 @@ export const App: React.FC = () => {
   // WebMIDI Controller Binding
   useEffect(() => {
     const unsubscribe = midiControllerService.onControl((controlName, value) => {
+      // Transport
       if (controlName === 'DeckA_Play' && value > 0.5) handlePlayToggle('A');
       else if (controlName === 'DeckB_Play' && value > 0.5) handlePlayToggle('B');
       else if (controlName === 'DeckA_Cue' && value > 0.5) handleCueClick('A');
       else if (controlName === 'DeckB_Cue' && value > 0.5) handleCueClick('B');
+      else if (controlName === 'DeckA_Sync' && value > 0.5) handleSyncClick('A');
+      else if (controlName === 'DeckB_Sync' && value > 0.5) handleSyncClick('B');
+
+      // Faders & Mixer
       else if (controlName === 'Crossfader') handleCrossfaderChange(value * 2.0 - 1.0);
       else if (controlName === 'DeckA_Fader') handleFaderChange('A', value);
       else if (controlName === 'DeckB_Fader') handleFaderChange('B', value);
@@ -267,6 +272,58 @@ export const App: React.FC = () => {
       else if (controlName === 'DeckB_EQ_High') handleEQChange('B', 'high', value * 2.0 - 1.0);
       else if (controlName === 'DeckB_EQ_Mid') handleEQChange('B', 'mid', value * 2.0 - 1.0);
       else if (controlName === 'DeckB_EQ_Low') handleEQChange('B', 'low', value * 2.0 - 1.0);
+      else if (controlName === 'Master_Volume') handleMasterVolumeChange(value);
+
+      // Pitch Faders
+      else if (controlName === 'DeckA_Pitch') handleRateChange('A', 1.0 + (value - 0.5) * 0.16);
+      else if (controlName === 'DeckB_Pitch') handleRateChange('B', 1.0 + (value - 0.5) * 0.16);
+
+      // Jog Wheel Scratch / Nudge
+      else if (controlName === 'DeckA_JogTurn') handleScratch('A', (value - 0.5) * 0.4);
+      else if (controlName === 'DeckB_JogTurn') handleScratch('B', (value - 0.5) * 0.4);
+
+      // Loop Encoder / Controls
+      else if (controlName === 'DeckA_Loop_Toggle' && value > 0.5) {
+        if (deckA.activeLoop) handleExitLoop('A');
+        else handleSetAutoLoop('A', 4);
+      } else if (controlName === 'DeckB_Loop_Toggle' && value > 0.5) {
+        if (deckB.activeLoop) handleExitLoop('B');
+        else handleSetAutoLoop('B', 4);
+      } else if (controlName === 'DeckA_Loop_Halve' && value > 0.5) {
+        handleSetAutoLoop('A', Math.max(0.25, (deckA.activeLoop?.beats || 4) / 2));
+      } else if (controlName === 'DeckB_Loop_Halve' && value > 0.5) {
+        handleSetAutoLoop('B', Math.max(0.25, (deckB.activeLoop?.beats || 4) / 2));
+      }
+
+      // FX Paddles
+      else if (controlName === 'DeckA_FX_Paddle') handleToggleFX('A', 'echo');
+      else if (controlName === 'DeckB_FX_Paddle') handleToggleFX('B', 'echo');
+
+      // 4-Stem Neural Mix Mutes
+      else if (controlName === 'DeckA_Stem_Vocals' && value > 0.5) handleStemMuteToggle('A', 'vocals');
+      else if (controlName === 'DeckA_Stem_Harmonics' && value > 0.5) handleStemMuteToggle('A', 'harmonics');
+      else if (controlName === 'DeckA_Stem_Bass' && value > 0.5) handleStemMuteToggle('A', 'bass');
+      else if (controlName === 'DeckA_Stem_Drums' && value > 0.5) handleStemMuteToggle('A', 'drums');
+      else if (controlName === 'DeckB_Stem_Vocals' && value > 0.5) handleStemMuteToggle('B', 'vocals');
+      else if (controlName === 'DeckB_Stem_Harmonics' && value > 0.5) handleStemMuteToggle('B', 'harmonics');
+      else if (controlName === 'DeckB_Stem_Bass' && value > 0.5) handleStemMuteToggle('B', 'bass');
+      else if (controlName === 'DeckB_Stem_Drums' && value > 0.5) handleStemMuteToggle('B', 'drums');
+
+      // Hot Cues 1-8
+      else if (controlName.startsWith('DeckA_HotCue_') && value > 0.5) {
+        const cueIdx = parseInt(controlName.replace('DeckA_HotCue_', '')) - 1;
+        handleTriggerCue('A', cueIdx);
+      } else if (controlName.startsWith('DeckB_HotCue_') && value > 0.5) {
+        const cueIdx = parseInt(controlName.replace('DeckB_HotCue_', '')) - 1;
+        handleTriggerCue('B', cueIdx);
+      }
+
+      // Headphone Cue PFL
+      else if (controlName === 'Headphone_Cue_A' && value > 0.5) {
+        setMixer((p) => ({ ...p, headphoneCueA: !p.headphoneCueA }));
+      } else if (controlName === 'Headphone_Cue_B' && value > 0.5) {
+        setMixer((p) => ({ ...p, headphoneCueB: !p.headphoneCueB }));
+      }
     });
 
     return () => {
