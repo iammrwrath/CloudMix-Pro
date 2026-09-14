@@ -388,11 +388,11 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
   return (
     <div className="flex flex-col w-full bg-dj-surface rounded-lg overflow-hidden border border-dj-border shadow-inner">
       {/* 1. Dynamic Scrolling Waveform (Tri-Band RGB) */}
-      <div className="relative h-16 w-full cursor-ew-resize">
+      <div className="relative h-20 sm:h-24 md:h-28 xl:h-32 w-full cursor-ew-resize">
         <canvas
           ref={scrollingCanvasRef}
           width={800}
-          height={64}
+          height={100}
           className="w-full h-full block"
           onWheel={handleWheel}
           onMouseDown={handleWaveformMouseDown}
@@ -409,11 +409,11 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       </div>
 
       {/* 2. Overview Waveform (Full track seeker) */}
-      <div className="relative h-6 w-full cursor-pointer border-t border-dj-border/60">
+      <div className="relative h-6 sm:h-7 xl:h-8 w-full cursor-pointer border-t border-dj-border/60">
         <canvas
           ref={overviewCanvasRef}
           width={800}
-          height={24}
+          height={32}
           className="w-full h-full block"
           onClick={handleOverviewClick}
         />

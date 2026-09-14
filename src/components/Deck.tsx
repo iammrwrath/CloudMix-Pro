@@ -284,12 +284,12 @@ export const Deck: React.FC<DeckProps> = ({
       </div>
 
       {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader */}
-      <div className="flex items-center justify-between my-0.5 py-0.5 gap-2">
+      <div className="flex items-center justify-between flex-1 my-1 py-0.5 gap-2 min-h-0">
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
-        <div className="flex flex-col justify-between h-40 bg-slate-950/70 rounded-xl p-1.5 border border-white/5 w-24 shrink-0 shadow-inner">
+        <div className="flex flex-col justify-between h-44 sm:h-52 md:h-56 xl:h-64 bg-slate-950/70 rounded-xl p-2 border border-white/5 w-24 sm:w-28 xl:w-32 shrink-0 shadow-inner">
           <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
-            <span className="text-[8px] font-mono font-bold text-slate-400">STEMS</span>
-            <span className="text-[7px] font-mono text-purple-400">4-WAY</span>
+            <span className="text-[8px] sm:text-[9px] font-mono font-bold text-slate-400">STEMS</span>
+            <span className="text-[7px] sm:text-[8px] font-mono text-purple-400">4-WAY</span>
           </div>
 
           <div className="flex flex-col space-y-1.5 my-auto">
@@ -408,13 +408,13 @@ export const Deck: React.FC<DeckProps> = ({
         <button
           onClick={onToggleSandbox}
           title="VirtualDJ Sandbox Mode: Private Headphone Audition. Mutes master output for this deck while you prep your mix."
-          className={`h-9 px-2 rounded-lg font-mono font-extrabold text-[10px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none ${
+          className={`h-10 sm:h-11 xl:h-12 px-2.5 rounded-xl font-mono font-extrabold text-[10px] sm:text-[11px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none ${
             deckState.sandboxMode
               ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_16px_rgba(245,158,11,0.85)] animate-pulse'
               : 'bg-slate-900/90 border-amber-500/30 text-amber-400 hover:bg-slate-800 hover:border-amber-400'
           }`}
         >
-          <Headphones className="w-3.5 h-3.5" />
+          <Headphones className="w-4 h-4" />
           <span>SANDBOX</span>
         </button>
 
@@ -422,7 +422,7 @@ export const Deck: React.FC<DeckProps> = ({
         <button
           onClick={onSyncClick}
           title="Instant Beatgrid Sync"
-          className={`flex-1 h-9 rounded-lg font-mono font-extrabold text-xs mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1.5 active:scale-[0.95] select-none ${
+          className={`flex-1 h-10 sm:h-11 xl:h-12 rounded-xl font-mono font-extrabold text-xs sm:text-[13px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1.5 active:scale-[0.95] select-none ${
             deckState.isSync
               ? 'bg-cyan-500 text-black border-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.8)]'
               : 'bg-slate-900/90 border-cyan-500/30 text-cyan-400 hover:bg-slate-800 hover:border-cyan-400'
@@ -431,7 +431,7 @@ export const Deck: React.FC<DeckProps> = ({
             boxShadow: deckState.isSync ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
-          <Zap className="w-3.5 h-3.5 fill-current" />
+          <Zap className="w-4 h-4 fill-current" />
           <span>SYNC</span>
         </button>
 
@@ -439,12 +439,12 @@ export const Deck: React.FC<DeckProps> = ({
         <button
           onClick={onCueClick}
           title="Temporary Cue Playhead"
-          className="flex-1 h-9 rounded-lg font-mono font-extrabold text-xs mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1.5 cursor-pointer select-none"
+          className="flex-1 h-10 sm:h-11 xl:h-12 rounded-xl font-mono font-extrabold text-xs sm:text-[13px] mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1.5 cursor-pointer select-none"
           style={{
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
-          <Radio className="w-3.5 h-3.5" />
+          <Radio className="w-4 h-4" />
           <span>CUE</span>
         </button>
 
@@ -452,7 +452,7 @@ export const Deck: React.FC<DeckProps> = ({
         <button
           onClick={onPlayToggle}
           title="Play / Pause"
-          className={`flex-1 h-9 rounded-lg font-mono font-extrabold text-xs border transition-all cursor-pointer flex items-center justify-center space-x-1.5 active:scale-[0.95] select-none ${
+          className={`flex-1 h-10 sm:h-11 xl:h-12 rounded-xl font-mono font-extrabold text-xs sm:text-[13px] border transition-all cursor-pointer flex items-center justify-center space-x-1.5 active:scale-[0.95] select-none ${
             deckState.isPlaying
               ? 'bg-emerald-500 text-black border-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.85)]'
               : 'bg-slate-900/90 border-emerald-500/30 text-emerald-400 hover:bg-slate-800 hover:border-emerald-400'
@@ -462,9 +462,9 @@ export const Deck: React.FC<DeckProps> = ({
           }}
         >
           {deckState.isPlaying ? (
-            <Pause className="w-4 h-4 fill-current animate-pulse" />
+            <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current animate-pulse" />
           ) : (
-            <Play className="w-4 h-4 fill-current" />
+            <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
           )}
           <span>{deckState.isPlaying ? 'PAUSE' : 'PLAY'}</span>
         </button>
