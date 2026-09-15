@@ -9,7 +9,7 @@
 type UpdateListener = (status: UpdateStatus) => void;
 
 class UpdateService {
-  private currentStatus: UpdateStatus = { status: 'idle', version: '1.3.1' };
+  private currentStatus: UpdateStatus = { status: 'idle', version: '1.4.0' };
   private listeners: Set<UpdateListener> = new Set();
   private initialized = false;
 
@@ -87,7 +87,7 @@ class UpdateService {
         const gh = await (window as any).desktopAPI.checkGitHubReleases();
         if (gh.success && gh.release) {
           const latestTag = gh.release.tag_name?.replace(/^v/, '');
-          const currentVer = this.currentStatus.version || '1.3.1';
+          const currentVer = this.currentStatus.version || '1.4.0';
           if (latestTag && latestTag !== currentVer) {
             this.currentStatus = {
               status: 'available',
@@ -103,7 +103,7 @@ class UpdateService {
         } else {
           this.currentStatus = {
             status: 'not-available',
-            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.3.1'}).`
+            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.4.0'}).`
           };
         }
       } else {
@@ -112,7 +112,7 @@ class UpdateService {
         if (resp.ok) {
           const data = await resp.json();
           const latestTag = data.tag_name?.replace(/^v/, '');
-          const currentVer = this.currentStatus.version || '1.3.1';
+          const currentVer = this.currentStatus.version || '1.4.0';
           if (latestTag && latestTag !== currentVer) {
             this.currentStatus = {
               status: 'available',
@@ -128,14 +128,14 @@ class UpdateService {
         } else {
           this.currentStatus = {
             status: 'not-available',
-            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.3.1'}).`
+            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.4.0'}).`
           };
         }
       }
     } catch {
       this.currentStatus = {
         status: 'not-available',
-        message: `CloudMix Pro v${this.currentStatus.version || '1.3.1'} (Latest)`
+        message: `CloudMix Pro v${this.currentStatus.version || '1.4.0'} (Latest)`
       };
     }
     this.notify();

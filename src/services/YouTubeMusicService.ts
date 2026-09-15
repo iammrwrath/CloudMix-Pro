@@ -1,4 +1,4 @@
-import { TrackMetadata } from '../types/dj';
+﻿import { TrackMetadata } from '../types/dj';
 import { storageCache } from './StorageCacheService';
 
 export interface YouTubeSearchResult {
@@ -9,7 +9,17 @@ export interface YouTubeSearchResult {
   thumbnailUrl: string;
 }
 
+export interface YouTubePlaylist {
+  id: string;
+  title: string;
+  description?: string;
+  trackCount?: number;
+  thumbnailUrl?: string;
+}
+
 class YouTubeMusicService {
+  private _accessToken: string | null = null;
+
   // Curated trending / club tracks with high-quality streaming audio for immediate DJ mixing
   private defaultFeaturedTracks: TrackMetadata[] = [
     {
@@ -62,6 +72,166 @@ class YouTubeMusicService {
     },
   ];
 
+  constructor() {
+    // Restore saved token on init
+    storageCache.getSetting<string | null>('yt_oauth_token', null).then((token) => {
+      if (token) this._accessToken = token;
+    });
+  }
+
+  public isSignedIn(): boolean {
+    return !!this._accessToken;
+  }
+
+  /**
+   * Opens a Google OAuth 2.0 popup to sign the user into YouTube Music.
+   * Uses implicit grant flow (token in hash fragment).
+   * For Electron, opens via shell.openExternal and the app can listen for the redirect.
+   */
+  public async signIn(): Promise<void> {
+    const CLIENT_ID = (await storageCache.getSetting<string>('yt_client_id', ''))
+      || '831232978612-cloudmixpro.apps.googleusercontent.com';
+    const REDIRECT_URI = 'https://cloudmixpro.local/oauth2callback';
+    const SCOPES = [
+      'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/userinfo.email',
+    ].join(' ');
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${encodeURIComponent(CLIENT_ID)}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&response_type=token` +
+      `&scope=${encodeURIComponent(SCOPES)}` +
+      `&prompt=select_account`;
+
+    // Try Electron shell first, fall back to window.open
+    if ((window as any).desktopAPI?.openExternal) {
+      await (window as any).desktopAPI.openExternal(authUrl);
+    } else {
+      const popup = window.open(authUrl, 'yt_oauth', 'width=520,height=640,resizable=yes');
+
+      // Poll for redirect
+      await new Promise<void>((resolve) => {
+        const interval = setInterval(() => {
+          try {
+            if (popup && popup.closed) {
+              clearInterval(interval);
+              resolve();
+              return;
+            }
+            const hash = popup?.location?.hash || '';
+            if (hash.includes('access_token')) {
+              const params = new URLSearchParams(hash.replace('#', ''));
+              const token = params.get('access_token');
+              if (token) {
+                this._accessToken = token;
+                storageCache.setSetting('yt_oauth_token', token);
+                // Fetch user email
+                this._fetchUserEmail(token);
+              }
+              popup?.close();
+              clearInterval(interval);
+              resolve();
+            }
+          } catch {
+            // Cross-origin, still loading
+          }
+        }, 500);
+        // Timeout after 5 minutes
+        setTimeout(() => { clearInterval(interval); resolve(); }, 300000);
+      });
+    }
+  }
+
+  public signOut(): void {
+    this._accessToken = null;
+    storageCache.setSetting('yt_oauth_token', null);
+    storageCache.setSetting('yt_email', null);
+  }
+
+  private async _fetchUserEmail(token: string): Promise<void> {
+    try {
+      const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.email) {
+          await storageCache.setSetting('yt_email', data.email);
+        }
+      }
+    } catch {}
+  }
+
+  /**
+   * Fetch the signed-in user's YouTube Music playlists.
+   */
+  public async getUserPlaylists(): Promise<YouTubePlaylist[]> {
+    if (!this._accessToken) return [];
+    try {
+      const res = await fetch(
+        'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
+        { headers: { Authorization: `Bearer ${this._accessToken}` } }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.items || []).map((item: any) => ({
+        id: item.id,
+        title: item.snippet?.title || 'Untitled Playlist',
+        description: item.snippet?.description,
+        trackCount: item.contentDetails?.itemCount,
+        thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Fetch tracks from a specific YouTube playlist.
+   */
+  public async getPlaylistTracks(playlistId: string): Promise<TrackMetadata[]> {
+    if (!this._accessToken) return [];
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
+        { headers: { Authorization: `Bearer ${this._accessToken}` } }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.items || []).map((item: any) => {
+        const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
+        const title = item.snippet?.title || 'Unknown Title';
+        const thumbnailUrl = item.snippet?.thumbnails?.medium?.url;
+        let trackTitle = title;
+        let artist = 'YouTube Music';
+        if (title.includes(' - ')) {
+          const parts = title.split(' - ');
+          artist = parts[0].trim();
+          trackTitle = parts.slice(1).join(' - ').trim();
+        }
+        return {
+          id: `yt_${videoId}`,
+          title: trackTitle,
+          artist,
+          duration: 210,
+          bpm: 125.0,
+          key: '8A',
+          camelotKey: '8A',
+          fileUrl: `https://pipedproxy.kavin.rocks/audio?id=${videoId}`,
+          fileSource: 'youtube' as const,
+          coverArtUrl: thumbnailUrl,
+          dateAdded: new Date().toISOString(),
+          hotCues: [],
+          savedLoops: [],
+          beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+        };
+      });
+    } catch {
+      return [];
+    }
+  }
+
   public getFeaturedTracks(): TrackMetadata[] {
     return this.defaultFeaturedTracks;
   }
@@ -110,11 +280,11 @@ class YouTubeMusicService {
                   title,
                   artist,
                   duration,
-                  bpm: 125.0, // Will be analyzed by AudioAnalyzer upon load
+                  bpm: 125.0,
                   key: '8A',
                   camelotKey: '8A',
                   fileUrl: `https://pipedproxy.kavin.rocks/audio?id=${videoId}`,
-                  fileSource: 'youtube',
+                  fileSource: 'youtube' as const,
                   coverArtUrl: item.thumbnail || item.thumbnailUrl,
                   dateAdded: new Date().toISOString(),
                   hotCues: [],

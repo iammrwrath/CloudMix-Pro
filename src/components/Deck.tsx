@@ -4,7 +4,7 @@ import { WaveformDisplay } from './WaveformDisplay';
 import { JogWheel } from './JogWheel';
 import { PerformancePads } from './PerformancePads';
 import { PitchFader } from './PitchFader';
-import { Play, Pause, Radio, Zap, Headphones, Repeat, Sparkles, Layers } from 'lucide-react';
+import { Play, Pause, Radio, Zap, Headphones, Repeat, Sparkles, Layers, Disc } from 'lucide-react';
 import { audioEngine } from '../audio/AudioEngine';
 import { cloudProgression } from '../services/CloudProgressionService';
 
@@ -12,6 +12,7 @@ interface DeckProps {
   deckId: DeckId;
   deckState: DeckState;
   waveformData: WaveformData | null;
+  onLoadTrack?: (track: TrackMetadata) => void;
   onPlayToggle: () => void;
   onCueClick: () => void;
   onSyncClick: () => void;
@@ -41,6 +42,7 @@ export const Deck: React.FC<DeckProps> = ({
   deckId,
   deckState,
   waveformData,
+  onLoadTrack,
   onPlayToggle,
   onCueClick,
   onSyncClick,
@@ -67,6 +69,7 @@ export const Deck: React.FC<DeckProps> = ({
 }) => {
   const [tempoRange, setTempoRange] = useState(0.08); // 8% default
   const [selectedLoopBeats, setSelectedLoopBeats] = useState<number>(4);
+  const [isDragOver, setIsDragOver] = useState(false);
   const isDeckA = deckId === 'A';
   const accentColor = isDeckA ? '#00e5ff' : '#ff3366';
 
@@ -110,7 +113,56 @@ export const Deck: React.FC<DeckProps> = ({
   const track = deckState.track;
 
   return (
-    <div className="flex flex-col h-full bg-dj-panel rounded-xl p-2 border border-dj-border shadow-2xl flex-1 min-w-[360px] overflow-hidden justify-between">
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        try {
+          const raw = e.dataTransfer.getData('text/plain');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.title && onLoadTrack) {
+              onLoadTrack({
+                id: parsed.id,
+                title: parsed.title,
+                artist: parsed.artist,
+                album: parsed.album,
+                duration: parsed.duration || 180,
+                bpm: parsed.bpm || 124,
+                key: parsed.key || '8A',
+                camelotKey: parsed.camelotKey || '8A',
+                fileUrl: parsed.fileUrl,
+                fileSource: parsed.fileSource || 'local',
+                dateAdded: new Date().toLocaleDateString(),
+                hotCues: [],
+                savedLoops: [],
+                beatGrid: { bpm: parsed.bpm || 124, firstBeatOffset: 0, meter: 4 },
+              });
+            }
+          }
+        } catch {}
+      }}
+      className={`relative flex flex-col h-full bg-dj-panel rounded-xl p-2 border shadow-2xl flex-1 min-w-[360px] overflow-hidden justify-between transition-all duration-150 ${
+        isDragOver
+          ? 'border-cyan-400 ring-2 ring-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.6)]'
+          : 'border-dj-border'
+      }`}
+    >
+      {/* Illuminated Drag-over Drop Zone Overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center border-2 border-dashed border-cyan-400 rounded-xl animate-pulse pointer-events-none">
+          <Disc className="w-12 h-12 text-cyan-400 animate-spin mb-2" />
+          <span className="text-sm font-black text-white tracking-wider">
+            DROP TO LOAD DECK {deckId}
+          </span>
+          <span className="text-xs text-cyan-300 font-mono mt-1">Instant Deck Assignment</span>
+        </div>
+      )}
       {/* 1. Deck Header: Track Info, BPM, Key, Time */}
       <div className="flex items-center justify-between bg-dj-surface/80 rounded-lg p-1.5 mb-1 border border-dj-border">
         {/* Deck Identifier badge & Track Title */}

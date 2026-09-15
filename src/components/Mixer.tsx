@@ -347,17 +347,26 @@ export const Mixer: React.FC<MixerProps> = ({
           </button>
 
           {/* Channel Fader & Meter with Calibrated Scale */}
-          <div className="flex items-center justify-center space-x-2 mt-auto py-1 w-full px-1">
+          <div className="flex items-end justify-center space-x-2 mt-auto pt-1 w-full px-1">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-18 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none">
-              <span>+6</span>
-              <span className="text-slate-400 font-bold">0</span>
+            <div className="flex flex-col justify-between h-32 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none select-none shrink-0">
+              <span className="text-emerald-500 font-bold">+6</span>
+              <span className="text-slate-300 font-bold">0</span>
               <span>-6</span>
               <span>-12</span>
               <span>-∞</span>
             </div>
 
-            <div className="relative h-20 flex items-center justify-center">
+            {/* Vertical fader track */}
+            <div className="relative flex items-center justify-center h-32 w-8">
+              {/* Fader track background */}
+              <div className="absolute left-1/2 -translate-x-1/2 w-1.5 h-full rounded-full bg-slate-950 border border-slate-800 shadow-inner" />
+              {/* Fill bar below thumb */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 w-1.5 rounded-full bg-gradient-to-t from-cyan-500/60 to-cyan-400/20 transition-all"
+                style={{ bottom: 0, height: `${deckA.volume * 100}%` }}
+              />
+              {/* Actual range input rendered vertically */}
               <input
                 type="range"
                 min="0"
@@ -365,12 +374,23 @@ export const Mixer: React.FC<MixerProps> = ({
                 step="0.01"
                 value={deckA.volume}
                 onChange={(e) => onFaderChange('A', parseFloat(e.target.value))}
-                className="h-16 w-2 appearance-none bg-slate-950 rounded-full outline-none cursor-pointer -rotate-90 slider-thumb border border-slate-800 shadow-inner"
+                style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                title={`Channel A Volume: ${Math.round(deckA.volume * 100)}%`}
               />
+              {/* Thumb cap visual */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 w-7 h-3.5 bg-gradient-to-b from-slate-300 to-slate-500 rounded-sm border border-slate-200 shadow-md shadow-black/60 pointer-events-none transition-all"
+                style={{ bottom: `calc(${deckA.volume * 100}% - 7px)` }}
+              >
+                <div className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-px bg-slate-600 opacity-60" />
+              </div>
             </div>
+
             <VUMeter level={deckA.meterLevelL} height={64} segments={12} />
           </div>
         </div>
+
 
         {/* Channel B Strip */}
         <div className="flex-1 flex flex-col items-center bg-dj-surface/60 rounded-lg p-1.5 border border-dj-border/60">
@@ -639,17 +659,26 @@ export const Mixer: React.FC<MixerProps> = ({
           </button>
 
           {/* Channel Fader & Meter with Calibrated Scale */}
-          <div className="flex items-center justify-center space-x-2 mt-auto py-1 w-full px-1">
+          <div className="flex items-end justify-center space-x-2 mt-auto pt-1 w-full px-1">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-18 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none">
-              <span>+6</span>
-              <span className="text-slate-400 font-bold">0</span>
+            <div className="flex flex-col justify-between h-32 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none select-none shrink-0">
+              <span className="text-emerald-500 font-bold">+6</span>
+              <span className="text-slate-300 font-bold">0</span>
               <span>-6</span>
               <span>-12</span>
               <span>-∞</span>
             </div>
 
-            <div className="relative h-20 flex items-center justify-center">
+            {/* Vertical fader track */}
+            <div className="relative flex items-center justify-center h-32 w-8">
+              {/* Fader track background */}
+              <div className="absolute left-1/2 -translate-x-1/2 w-1.5 h-full rounded-full bg-slate-950 border border-slate-800 shadow-inner" />
+              {/* Fill bar below thumb */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 w-1.5 rounded-full bg-gradient-to-t from-rose-500/60 to-rose-400/20 transition-all"
+                style={{ bottom: 0, height: `${deckB.volume * 100}%` }}
+              />
+              {/* Actual range input rendered vertically */}
               <input
                 type="range"
                 min="0"
@@ -657,13 +686,24 @@ export const Mixer: React.FC<MixerProps> = ({
                 step="0.01"
                 value={deckB.volume}
                 onChange={(e) => onFaderChange('B', parseFloat(e.target.value))}
-                className="h-16 w-2 appearance-none bg-slate-950 rounded-full outline-none cursor-pointer -rotate-90 slider-thumb border border-slate-800 shadow-inner"
+                style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                title={`Channel B Volume: ${Math.round(deckB.volume * 100)}%`}
               />
+              {/* Thumb cap visual */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 w-7 h-3.5 bg-gradient-to-b from-slate-300 to-slate-500 rounded-sm border border-slate-200 shadow-md shadow-black/60 pointer-events-none transition-all"
+                style={{ bottom: `calc(${deckB.volume * 100}% - 7px)` }}
+              >
+                <div className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-px bg-slate-600 opacity-60" />
+              </div>
             </div>
+
             <VUMeter level={deckB.meterLevelR} height={64} segments={12} />
           </div>
         </div>
       </div>
+
 
       {/* 3. Crossfader Section (Studio Magvel Well) */}
       <div className="bg-dj-surface/90 rounded-lg p-1.5 mt-1 border border-dj-border shadow-[0_4px_12px_rgba(0,0,0,0.6)]">
