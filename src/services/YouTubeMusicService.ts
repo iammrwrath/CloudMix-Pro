@@ -1,4 +1,4 @@
-﻿import { TrackMetadata } from '../types/dj';
+import { TrackMetadata } from '../types/dj';
 import { storageCache } from './StorageCacheService';
 
 export interface YouTubeSearchResult {
@@ -90,8 +90,11 @@ class YouTubeMusicService {
    */
   public async signIn(): Promise<void> {
     const CLIENT_ID = (await storageCache.getSetting<string>('yt_client_id', ''))
-      || '831232978612-cloudmixpro.apps.googleusercontent.com';
-    const REDIRECT_URI = 'https://cloudmixpro.local/oauth2callback';
+      || '';
+    if (!CLIENT_ID) {
+      throw new Error('YouTube Music Client ID not configured. Go to Settings → YouTube Music and enter your Google OAuth Client ID.');
+    }
+    const REDIRECT_URI = 'http://localhost';
     const SCOPES = [
       'https://www.googleapis.com/auth/youtube.readonly',
       'https://www.googleapis.com/auth/userinfo.email',

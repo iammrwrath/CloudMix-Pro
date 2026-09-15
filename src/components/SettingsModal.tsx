@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
@@ -9,8 +9,42 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+/** Small self-contained input for the Google OAuth Client ID */
+const YtClientIdInput: React.FC = () => {
+  const [value, setValue] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    storageCache.getSetting<string>('yt_client_id', '').then((v) => setValue(v || ''));
+  }, []);
+
+  const save = async () => {
+    await storageCache.setSetting('yt_client_id', value.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  return (
+    <div className="flex space-x-1.5 w-full">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="xxxxxx.apps.googleusercontent.com"
+        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+      />
+      <button
+        onClick={save}
+        className="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-white font-semibold transition-colors flex items-center space-x-1"
+      >
+        {saved ? <Check className="w-3 h-3 text-emerald-400" /> : <span>Save</span>}
+      </button>
+    </div>
+  );
+};
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'local' | 'gdrive' | 'Music2'>('local');
+  const [activeTab, setActiveTab] = useState<'local' | 'gdrive' | 'youtube'>('local');
   const [apiKey, setApiKey] = useState('');
   const [clientId, setClientId] = useState('');
   const [folderId, setFolderId] = useState('');
@@ -35,7 +69,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       setClientId(gdConfig.clientId || '');
       setFolderId(gdConfig.folderId || '');
 
-      // Load Music2 Music auth state
+      // Load YouTube Music auth state
       const ytToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
       const ytEmailSaved = await storageCache.getSetting<string | null>('yt_email', null);
       if (ytToken) {
@@ -108,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setYtEmail(email);
       }
     } catch (e) {
-      console.error('Music2 Music sign-in failed:', e);
+      console.error('YouTube Music sign-in failed:', e);
     } finally {
       setYtLoading(false);
     }
@@ -125,7 +159,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const TABS = [
     { id: 'local' as const, label: 'Local Music', icon: HardDrive },
     { id: 'gdrive' as const, label: 'Google Drive', icon: Cloud },
-    { id: 'Music2' as const, label: 'Music2 Music', icon: Music2 },
+    { id: 'youtube' as const, label: 'YouTube Music', icon: Music2 },
   ];
 
   return (
@@ -161,7 +195,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
-                {tab.id === 'Music2' && ytConnected && (
+                {tab.id === 'youtube' && ytConnected && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-1" />
                 )}
               </button>
@@ -268,12 +302,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           )}
 
           {/* â”€â”€ Music2 MUSIC TAB â”€â”€ */}
-          {activeTab === 'Music2' && (
+          {activeTab === 'youtube' && (
             <>
               <div className="bg-rose-950/30 border border-rose-800/40 rounded-xl p-3 text-xs text-rose-200 flex items-start space-x-2">
                 <Music2 className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                 <span>
-                  Connect your Music2 Music account to browse your playlists, liked songs, and music library directly in CloudMix Pro.
+                  Connect your YouTube Music account to browse your playlists, liked songs, and music library directly in CloudMix Pro.
                 </span>
               </div>
 
@@ -286,9 +320,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         <Music2 className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white">Music2 Music</p>
+                        <p className="text-sm font-bold text-white">YouTube Music</p>
                         <p className="text-[11px] text-emerald-400 font-mono">
-                          â— Connected{ytEmail ? ` â€” ${ytEmail}` : ''}
+                          ● Connected{ytEmail ? ` — ${ytEmail}` : ''}
                         </p>
                       </div>
                     </div>
@@ -301,21 +335,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     </button>
                   </div>
                   <div className="mt-3 pt-3 border-t border-dj-border text-[11px] text-slate-400">
-                    Your Music2 Music playlists and library are now available in the <span className="text-cyan-300 font-bold">Library â†’ Music2 Music</span> tab.
+                    Your YouTube Music playlists and library are now available in the <span className="text-cyan-300 font-bold">Library → YouTube Music</span> tab.
                   </div>
                 </div>
               ) : (
-                /* Sign-in state */
+                /* Sign-in state — requires Client ID */
                 <div className="bg-dj-surface rounded-xl p-4 border border-dj-border flex flex-col items-center space-y-4">
                   <div className="w-14 h-14 rounded-full bg-red-600/20 border border-red-500/40 flex items-center justify-center">
                     <Music2 className="w-7 h-7 text-red-400" />
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-bold text-white">Connect Music2 Music</p>
+                    <p className="text-sm font-bold text-white">Connect YouTube Music</p>
                     <p className="text-[11px] text-slate-400 mt-1">
                       Sign in with Google to access your playlists, liked songs, and music library.
                     </p>
                   </div>
+
+                  {/* Client ID input */}
+                  <div className="w-full space-y-1">
+                    <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+                      Google OAuth Client ID
+                    </label>
+                    <YtClientIdInput />
+                  </div>
+
                   <button
                     onClick={handleYtConnect}
                     disabled={ytLoading}
@@ -329,7 +372,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     <span>{ytLoading ? 'Connecting...' : 'Sign in with Google'}</span>
                   </button>
                   <p className="text-[10px] text-slate-500 text-center">
-                    Uses read-only access to your Music2 Music library. No data is uploaded or modified.
+                    Uses read-only access to your YouTube Music library. No data is uploaded or modified.
                   </p>
                 </div>
               )}
@@ -337,7 +380,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           )}
 
           {/* Footer Buttons (Local + GDrive tabs) */}
-          {activeTab !== 'Music2' && (
+          {activeTab !== 'youtube' && (
             <div className="flex justify-end space-x-2 pt-2">
               <button
                 onClick={onClose}
@@ -360,4 +403,5 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     </div>
   );
 };
+
 
