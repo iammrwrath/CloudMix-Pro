@@ -1,4 +1,4 @@
-﻿# ⚡ CloudMix Pro & MixCortex AI
+# ⚡ CloudMix Pro & MixCortex AI
 
 <p align="center">
   <img src="public/mixcortex-banner.svg" alt="MixCortex AI Banner" width="100%" />
@@ -17,7 +17,7 @@
 
 ## 🧠 Introducing MixCortex AI — Neural DJ Co-Pilot
 
-**MixCortex AI** is an ultra-fast, intelligent harmonic mixing companion. Available both embedded directly inside **CloudMix Pro** and as a **Standalone Independent Windows Desktop App** (`MixCortex-AI-Setup.exe`), MixCortex listens to what you're playing and serves the next best tracks in **sub-millisecond speed (0.93ms)**.
+**MixCortex AI** is an ultra-fast, intelligent harmonic mixing companion. Available both embedded directly inside **CloudMix Pro** and as a **Standalone Independent Desktop Application** hosted in its own dedicated repository at **[iammrwrath/MixCortex-AI](https://github.com/iammrwrath/MixCortex-AI)**. MixCortex listens to what you're playing and serves the next best tracks in **sub-millisecond speed (0.93ms)**.
 
 ### MixCortex AI Highlights
 - ⚡ **0.936ms Harmonic Retrieval**: Instantaneous 24-key Camelot wheel harmonic & tempo matching across thousands of tracks with zero latency.
