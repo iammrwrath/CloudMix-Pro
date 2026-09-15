@@ -29,8 +29,22 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Build & Publish Electron Release
+      - name: Build & Publish CloudMix Pro Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EP_GH_IGNORE_TIME: true
         run: npx electron-builder --win nsis portable --publish always
+
+      - name: Build & Publish MixCortex AI Standalone Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_GH_IGNORE_TIME: true
+        run: npx electron-builder --config electron-builder.cortex.json --win nsis portable --publish always
+
+      - name: Undraft GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release edit ${{ github.ref_name }} --draft=false || true

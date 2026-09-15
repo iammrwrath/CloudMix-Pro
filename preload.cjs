@@ -12,6 +12,13 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   readDjayNowPlaying: () => ipcRenderer.invoke('read-djay-nowplaying'),
   readExternalNowPlayingFile: (filePath) => ipcRenderer.invoke('read-external-nowplaying-file', filePath),
 
+  // Standalone Window Controls
+  setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
+  setAlwaysOnTop: (flag) => ipcRenderer.invoke('set-always-on-top', flag),
+  minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
+  maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
+  closeWindow: () => ipcRenderer.invoke('close-window'),
+
   // In-App Auto-Updater & GitHub Patching Engine
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

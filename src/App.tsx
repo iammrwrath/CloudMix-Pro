@@ -37,13 +37,24 @@ import { SettingsModal } from './components/SettingsModal';
 import { MiniDeckHeader } from './components/MiniDeckHeader';
 import { CortexDJCoPilot } from './components/cortex/CortexDJCoPilot';
 import { CortexFloatingWindow } from './components/cortex/CortexFloatingWindow';
+import { MixCortexStandaloneApp } from './components/cortex/MixCortexStandaloneApp';
 import { cortexMonitorService } from './services/CortexMonitorService';
 import { pulseMonitorService } from './services/PulseMonitorService';
 import { PatchUpdateModal } from './components/PatchUpdateModal';
 import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown, Maximize2, Minimize2, Columns, Activity, Brain } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // If window was opened in standalone MixCortex companion mode, render floating HUD directly
+  // Standalone MixCortex AI Independent App Mode
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.search.includes('view=standalone-cortex') ||
+      window.location.hash.includes('standalone-cortex') ||
+      window.location.search.includes('view=cortex-standalone'))
+  ) {
+    return <MixCortexStandaloneApp />;
+  }
+
+  // Floating Mini Companion HUD Mode
   if (
     typeof window !== 'undefined' &&
     (window.location.search.includes('view=cortex-companion') ||

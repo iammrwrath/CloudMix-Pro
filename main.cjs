@@ -29,8 +29,78 @@ app.commandLine.appendSwitch('disable-web-security');
 
 let mainWindow = null;
 
+const isStandaloneCortex =
+  process.argv.includes('--cortex') ||
+  process.argv.includes('--standalone-cortex') ||
+  path.basename(process.execPath).toLowerCase().includes('cortex') ||
+  (app.name && app.name.toLowerCase().includes('cortex'));
+
+function getAppIconPath() {
+  const iconCandidates = [
+    path.join(__dirname, 'build', 'cortex-icon.png'),
+    path.join(__dirname, 'public', 'cortex-icon.png'),
+    path.join(__dirname, '..', 'build', 'cortex-icon.png'),
+  ];
+  for (const p of iconCandidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return undefined;
+}
+
+function createStandaloneCortexWindow() {
+  log('createStandaloneCortexWindow() called (Standalone MixCortex App)');
+  mainWindow = new BrowserWindow({
+    width: 480,
+    height: 840,
+    minWidth: 380,
+    minHeight: 520,
+    backgroundColor: '#07090e',
+    title: 'MixCortex AI — Neural DJ Co-Pilot',
+    autoHideMenuBar: true,
+    frame: false,
+    alwaysOnTop: true,
+    icon: getAppIconPath(),
+    show: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      backgroundThrottling: false,
+    },
+  });
+
+  const distPaths = [
+    path.join(__dirname, 'dist', 'index.html'),
+    path.join(process.resourcesPath || '', 'app.asar', 'dist', 'index.html'),
+    path.join(process.resourcesPath || '', 'app', 'dist', 'index.html'),
+    path.join(__dirname, '..', 'dist', 'index.html'),
+  ];
+
+  let targetPath = null;
+  for (const p of distPaths) {
+    if (fs.existsSync(p)) {
+      targetPath = p;
+      break;
+    }
+  }
+
+  log(`Target standalone index.html path: ${targetPath}`);
+
+  if (targetPath) {
+    mainWindow.loadFile(targetPath, { hash: 'standalone-cortex', query: { view: 'standalone-cortex' } });
+  } else {
+    mainWindow.loadURL('http://localhost:3000/?view=standalone-cortex#standalone-cortex');
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
 function createWindow() {
-  log('createWindow() called');
+  log('createWindow() called (CloudMix Pro Workstation)');
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -40,6 +110,7 @@ function createWindow() {
     title: 'CloudMix Pro — Next-Gen Cloud DJ',
     autoHideMenuBar: true,
     frame: true,
+    icon: getAppIconPath(),
     show: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -101,13 +172,6 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', async () => {
     log('mainWindow finished loading.');
-    try {
-      const docTitle = await mainWindow.webContents.executeJavaScript('document.title');
-      const rootLength = await mainWindow.webContents.executeJavaScript('document.getElementById("root") ? document.getElementById("root").innerHTML.length : 0');
-      log(`mainWindow document.title: "${docTitle}", root HTML length: ${rootLength}`);
-    } catch (e) {
-      log(`Error inspecting rendered page: ${e.message}`);
-    }
   });
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDesc, validatedURL) => {
@@ -118,12 +182,7 @@ function createWindow() {
     log(`Renderer process gone: reason=${details.reason}, exitCode=${details.exitCode}`);
   });
 
-  mainWindow.on('close', (e) => {
-    log('mainWindow "close" event fired.');
-  });
-
   mainWindow.on('closed', () => {
-    log('mainWindow "closed" event fired.');
     mainWindow = null;
   });
 }
@@ -143,7 +202,13 @@ if (!gotTheLock) {
     }
   });
 
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    if (isStandaloneCortex) {
+      createStandaloneCortexWindow();
+    } else {
+      createWindow();
+    }
+  });
 }
 
 app.on('window-all-closed', () => {
@@ -359,6 +424,57 @@ ipcMain.handle('read-external-nowplaying-file', async (event, filePath) => {
     log('read-external-nowplaying-file error: ' + err.message);
   }
   return null;
+});
+
+// Standalone Window Controls
+ipcMain.handle('set-window-opacity', (event, opacity) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && typeof opacity === 'number') {
+    const clamped = Math.max(0.1, Math.min(1.0, opacity));
+    win.setOpacity(clamped);
+    return { success: true, opacity: clamped };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('set-always-on-top', (event, flag) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && typeof flag === 'boolean') {
+    win.setAlwaysOnTop(flag, 'screen-saver');
+    return { success: true, alwaysOnTop: flag };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('minimize-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    win.minimize();
+    return { success: true };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('maximize-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+    return { success: true, isMaximized: win.isMaximized() };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('close-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    win.close();
+    return { success: true };
+  }
+  return { success: false };
 });
 
 // Auto-Updater & GitHub Patch Engine
