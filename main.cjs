@@ -50,10 +50,10 @@ function getAppIconPath() {
 function createStandaloneCortexWindow() {
   log('createStandaloneCortexWindow() called (Standalone MixCortex App)');
   mainWindow = new BrowserWindow({
-    width: 480,
-    height: 840,
-    minWidth: 380,
-    minHeight: 520,
+    width: 440,
+    height: 760,
+    minWidth: 300,
+    minHeight: 360,
     backgroundColor: '#07090e',
     title: 'MixCortex AI — Neural DJ Co-Pilot',
     autoHideMenuBar: true,
