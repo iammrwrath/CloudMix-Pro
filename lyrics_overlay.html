@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Smooth Scrolling Teleprompter Lyrics Overlay</title>
+  <title>Smooth Scrolling Teleprompter Lyrics Overlay (Self-Healing)</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,800;0,900;1,700;1,800&display=swap');
 
@@ -21,6 +21,7 @@
       color: #fff;
     }
 
+    /* Container: Completely invisible (transparent) by default until lyrics load */
     #overlay-wrapper {
       width: 95%;
       max-width: 1200px;
@@ -28,6 +29,15 @@
       flex-direction: column;
       align-items: center;
       position: relative;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+
+    /* Only visible when there are active synchronized lyrics */
+    #overlay-wrapper.visible {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     /* Top Track Info Row */
@@ -83,7 +93,7 @@
       top: 0;
       left: 0;
       transform: translateY(110px);
-      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.25, 1);
+      transition: transform 0.20s cubic-bezier(0.15, 0.85, 0.25, 1);
       will-change: transform;
     }
 
@@ -105,9 +115,10 @@
       font-weight: 700;
       color: rgba(255, 255, 255, 0.6);
       text-shadow: 0 3px 10px rgba(0, 0, 0, 0.95);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.25;
       max-width: 100%;
     }
 
@@ -117,9 +128,10 @@
       font-style: italic;
       color: #ffd700;
       text-shadow: 0 0 14px rgba(255, 215, 0, 0.6);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.2;
       max-width: 100%;
       display: none;
     }
@@ -127,19 +139,21 @@
     /* Active Highlighted Line */
     .line-item.active {
       opacity: 1;
-      transform: scale(1.06);
+      transform: scale(1.05);
     }
 
     .line-item.active .text {
-      font-size: 36px;
+      font-size: 34px;
       font-weight: 900;
       color: #00ffcc;
       text-shadow: 0 0 24px rgba(0, 255, 204, 0.85), 0 4px 14px rgba(0, 0, 0, 1);
-      letter-spacing: 0.8px;
+      letter-spacing: 0.6px;
+      line-height: 1.25;
     }
 
     .line-item.active .trans {
-      font-size: 22px;
+      font-size: 21px;
+      line-height: 1.2;
       display: block;
     }
 
@@ -153,7 +167,7 @@
       color: #fff;
     }
 
-    /* Instrumental Break & Outro Indicator */
+    /* Instrumental Break & Outro Indicator (only active during synced tracks) */
     #instrumental-indicator {
       display: none;
       align-items: center;
@@ -171,17 +185,6 @@
     @keyframes pulse-beat {
       0%, 100% { transform: scale(0.96); opacity: 0.6; }
       50% { transform: scale(1.04); opacity: 1; text-shadow: 0 0 18px rgba(0, 255, 204, 0.8); }
-    }
-
-    /* Standby Idle Mode */
-    #standby-msg {
-      font-size: 32px;
-      font-weight: 900;
-      color: #00ffcc;
-      letter-spacing: 3px;
-      text-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
-      display: none;
-      animation: pulse-beat 1.5s infinite ease-in-out;
     }
 
     /* Interactive Nudge Toolbar */
@@ -241,7 +244,6 @@
 
     <!-- Scrolling Teleprompter Viewport -->
     <div id="lyrics-viewport">
-      <div id="standby-msg">&#9834; &#9834; &#9834;</div>
       <div id="lyrics-track"></div>
     </div>
 
@@ -263,13 +265,13 @@
     const params = new URLSearchParams(window.location.search);
     const SHOW_TRANSLATION = params.get('translate') !== '0';
     let baseOffsetMs = parseInt(params.get('offset_ms') || '0', 10);
-    const LEAD_TIME_MS = parseInt(params.get('lead_ms') || '250', 10);
+    const LEAD_TIME_MS = parseInt(params.get('lead_ms') || '350', 10);
 
+    const wrapperEl       = document.getElementById('overlay-wrapper');
     const headerEl        = document.getElementById('track-header');
     const statusBadgeEl   = document.getElementById('status-badge');
     const viewportEl      = document.getElementById('lyrics-viewport');
     const trackEl         = document.getElementById('lyrics-track');
-    const standbyEl       = document.getElementById('standby-msg');
     const instrumentalEl  = document.getElementById('instrumental-indicator');
     const offsetLabelEl   = document.getElementById('offset-label');
 
@@ -283,15 +285,25 @@
     let localOffsetMs     = baseOffsetMs;
     let lineElements      = [];
 
+    // --- Overlay Visibility & Clean Blank State Management ---
+    function updateOverlayVisibility() {
+      if (cachedLines && cachedLines.length > 0) {
+        wrapperEl.classList.add('visible');
+      } else {
+        wrapperEl.classList.remove('visible');
+        instrumentalEl.style.display = 'none';
+      }
+    }
+
     // --- Build DOM elements for lines whenever lyrics arrive ---
     function buildLyricElements(lines) {
       trackEl.innerHTML = '';
       lineElements = [];
+
       if (!lines || !lines.length) {
-        standbyEl.style.display = 'block';
+        updateOverlayVisibility();
         return;
       }
-      standbyEl.style.display = 'none';
 
       lines.forEach((line, idx) => {
         const item = document.createElement('div');
@@ -315,15 +327,16 @@
         lineElements.push(item);
       });
 
-      // Center initial line
+      // Center initial line and show overlay
       scrollToLine(0);
+      updateOverlayVisibility();
     }
 
     // --- Smoothly scroll the teleprompter to center the active line ---
     function scrollToLine(idx) {
       if (!lineElements[idx]) return;
       const targetEl = lineElements[idx];
-      const vpHeight = viewportEl.clientHeight;
+      const vpHeight = viewportEl.clientHeight || 250;
       const targetCenter = targetEl.offsetTop + (targetEl.clientHeight / 2);
       const translateY = (vpHeight / 2) - targetCenter;
       trackEl.style.transform = `translateY(${translateY}px)`;
@@ -331,15 +344,14 @@
 
     // --- 60fps Real-Time Render Loop ---
     let rafHandle = null;
+    let lastRenderTimestamp = performance.now();
 
     function renderLoop() {
+      lastRenderTimestamp = performance.now();
       rafHandle = requestAnimationFrame(renderLoop);
 
       if (!cachedLines.length) {
-        if (standbyEl.style.display !== 'block') standbyEl.style.display = 'block';
         instrumentalEl.style.display = 'none';
-        const displayTxt = (currentSong && currentSong !== '...') ? '\u266a ' + currentSong + ' \u266a' : '\u266a \u266a \u266a';
-        if (standbyEl.innerText !== displayTxt) standbyEl.innerText = displayTxt;
         return;
       }
 
@@ -360,21 +372,27 @@
         }
       }
 
-      // Detect Instrumental Break / Outro
-      // If elapsed is > 6.0s past active line and no line is upcoming within 2s, show instrumental
-      let isInstrumental = false;
+      // Detect Instrumental Break / Outro / Intro (only during songs that actually have lyrics)
+      let sectionBadge = '';
       if (activeIdx >= 0) {
         const curLineTime = cachedLines[activeIdx].time_ms;
         const timeSinceLine = elapsed - curLineTime;
-        const nextLineTime = (activeIdx < cachedLines.length - 1) ? cachedLines[activeIdx + 1].time_ms : null;
-        if (timeSinceLine > 6000 && (!nextLineTime || (nextLineTime - elapsed > 2500))) {
-          isInstrumental = true;
+        const isLastLine = (activeIdx === cachedLines.length - 1);
+        const nextLineTime = !isLastLine ? cachedLines[activeIdx + 1].time_ms : null;
+
+        if (isLastLine && timeSinceLine > 4000) {
+          sectionBadge = '\u266a \u266b OUTRO \u266b \u266a';
+        } else if (timeSinceLine > 6000 && (!nextLineTime || (nextLineTime - elapsed > 2500))) {
+          sectionBadge = '\u266a \u266b INSTRUMENTAL \u266b \u266a';
         }
       } else if (cachedLines.length && elapsed < cachedLines[0].time_ms - 2000) {
-        isInstrumental = true; // Intro before first line
+        sectionBadge = '\u266a \u266b INTRO \u266b \u266a';
       }
 
-      if (isInstrumental) {
+      if (sectionBadge) {
+        if (instrumentalEl.innerText !== sectionBadge) {
+          instrumentalEl.innerText = sectionBadge;
+        }
         instrumentalEl.style.display = 'flex';
       } else {
         instrumentalEl.style.display = 'none';
@@ -401,19 +419,52 @@
 
     rafHandle = requestAnimationFrame(renderLoop);
 
-    // --- Poll Daemon for Updates (With Fail-Safe: Always requests full lines if cache is empty) ---
-    async function pollLyrics() {
-      try {
-        const needFull = (!cachedLines.length) ? '&full=1' : '';
-        const res = await fetch(`${API_URL}?song_id=${currentSongId}${needFull}`);
-        if (!res.ok) return;
-        const data = await res.json();
+    // --- Poll Daemon for Updates (Self-Healing Network Pipeline) ---
+    let isPolling = false;
+    let lastSuccessfulPollTimestamp = Date.now();
+    let forceFullSync = false;
+    let activeAbortController = null;
 
+    async function pollLyrics() {
+      if (isPolling) return;
+      isPolling = true;
+
+      const controller = new AbortController();
+      activeAbortController = controller;
+      const timeoutId = setTimeout(() => controller.abort(), 1800);
+
+      try {
+        const needFull = (!cachedLines.length || forceFullSync) ? '&full=1' : '';
+        const res = await fetch(`${API_URL}?song_id=${currentSongId}${needFull}`, {
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        lastSuccessfulPollTimestamp = Date.now();
+        forceFullSync = false;
+
+        // Immediate Track Change Cleansing: purge stale lines immediately so old lyrics never linger
         if (data.current_song !== currentSong) {
           currentSong = data.current_song || '';
-          const lang = data.detected_language;
-          const langBadge = (lang && lang !== 'en' && lang !== 'unknown') ? ` [${lang.toUpperCase()} -> EN]` : '';
-          headerEl.innerText = currentSong !== '...' ? `\u266a ${currentSong}${langBadge}` : '';
+          cachedLines = [];
+          lineElements = [];
+          trackEl.innerHTML = '';
+          currentActiveIdx = -1;
+          localOffsetMs = baseOffsetMs;
+          updateOffsetLabel();
+          updateOverlayVisibility();
+        }
+
+        // Keep header up-to-date with detected language asynchronously
+        const lang = data.detected_language;
+        const langBadge = (lang && lang !== 'en' && lang !== 'unknown') ? ` [${lang.toUpperCase()} -> EN]` : '';
+        const expectedHeader = (currentSong && currentSong !== '...') ? `\u266a ${currentSong}${langBadge}` : '';
+        if (headerEl.innerText !== expectedHeader) {
+          headerEl.innerText = expectedHeader;
         }
 
         const aiStatus = data.ai_sync_status || '';
@@ -424,12 +475,17 @@
           statusBadgeEl.style.display = 'none';
         }
 
-        // When new lines arrive (or song changed)
-        if (data.has_lines && Array.isArray(data.lines) && data.lines.length > 0) {
-          cachedLines = data.lines;
+        // When new lines arrive (or song confirmed to have no lyrics)
+        if (data.has_lines) {
           currentSongId = data.song_id || 0;
           currentActiveIdx = -1;
-          buildLyricElements(cachedLines);
+          if (Array.isArray(data.lines) && data.lines.length > 0) {
+            cachedLines = data.lines;
+            buildLyricElements(cachedLines);
+          } else {
+            cachedLines = [];
+            buildLyricElements([]);
+          }
         } else if (data.song_id && data.song_id !== currentSongId) {
           currentSongId = data.song_id;
         }
@@ -437,10 +493,48 @@
         isPlaying = data.is_playing !== false;
         serverElapsedMs = data.elapsed_ms || 0;
         localAnchorTime = performance.now();
-      } catch (err) {}
+      } catch (err) {
+        // Network timeout or daemon restart — watchdog handles resynchronization
+      } finally {
+        clearTimeout(timeoutId);
+        activeAbortController = null;
+        isPolling = false;
+      }
+    }
+
+    // --- AUTONOMOUS SELF-HEALING WATCHDOG ENGINE ---
+    function runWatchdog() {
+      const now = performance.now();
+      const wallNow = Date.now();
+
+      // 1. Render Loop Watchdog: If requestAnimationFrame died (OBS CEF visibility bug or scene switch), revive it
+      if (now - lastRenderTimestamp > 1200) {
+        if (rafHandle) {
+          try { cancelAnimationFrame(rafHandle); } catch (e) {}
+          rafHandle = null;
+        }
+        localAnchorTime = performance.now();
+        lastRenderTimestamp = performance.now();
+        rafHandle = requestAnimationFrame(renderLoop);
+      }
+
+      // 2. Network Watchdog: If daemon was unreachable for > 3.5s, force a full state resync
+      if (wallNow - lastSuccessfulPollTimestamp > 3500) {
+        if (activeAbortController) {
+          try { activeAbortController.abort(); } catch (e) {}
+          activeAbortController = null;
+        }
+        isPolling = false;
+        forceFullSync = true;
+      }
     }
 
     setInterval(pollLyrics, 250);
+    setInterval(runWatchdog, 1000);
+
+    // --- Global Error Protection (Never locks isPolling) ---
+    window.addEventListener('error', () => { isPolling = false; });
+    window.addEventListener('unhandledrejection', () => { isPolling = false; });
 
     // --- Fine-tune Nudge & Click Seek Controls ---
     function nudge(deltaMs) {
@@ -474,12 +568,24 @@
       else if (e.key === '0') resetOffset();
     });
 
+    // --- Responsive Font & Viewport Handling ---
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        if (currentActiveIdx >= 0) scrollToLine(currentActiveIdx);
+      });
+    }
+    window.addEventListener('resize', () => {
+      if (currentActiveIdx >= 0) scrollToLine(currentActiveIdx);
+    });
+
+    // --- Defensive Visibility Handling (Never permanently kills the render loop) ---
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        if (rafHandle) { cancelAnimationFrame(rafHandle); rafHandle = null; }
-      } else {
-        localAnchorTime = performance.now();
-        if (!rafHandle) rafHandle = requestAnimationFrame(renderLoop);
+      localAnchorTime = performance.now();
+      if (!document.hidden) {
+        lastRenderTimestamp = performance.now();
+        if (!rafHandle) {
+          rafHandle = requestAnimationFrame(renderLoop);
+        }
       }
     });
   </script>
