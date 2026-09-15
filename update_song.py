@@ -1,4 +1,5 @@
 import os
+import sys
 import sqlite3
 import re
 import time
@@ -12,6 +13,14 @@ import struct
 import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import mido
+
+# Guarantee UTF-8 stdout/stderr across Windows consoles
+if hasattr(sys.stdout, 'reconfigure'):
+    try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except: pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try: sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except: pass
 
 # ==============================================================================
 # CONFIGURATION
@@ -56,13 +65,16 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(message)s',
     datefmt='%H:%M:%S',
-    filemode='w'
+    filemode='w',
+    encoding='utf-8'
 )
 
 def log(msg):
     try:
-        print(msg)
         logging.info(msg)
+    except: pass
+    try:
+        print(msg)
     except: pass
 
 # ==============================================================================
@@ -86,19 +98,25 @@ def fire_local_trigger():
     smart_write(TRIGGER_FILE, str(time.time()), force=True)
     log("[TRIGGER] Local trigger file updated.")
 
+_json_file_lock = threading.Lock()
+
 def load_json(path):
-    try:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except: pass
-    return {}
+    with _json_file_lock:
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except: pass
+        return {}
 
 def save_json(path, data):
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-    except: pass
+    with _json_file_lock:
+        try:
+            tmp_path = f"{path}.tmp.{os.getpid()}"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+            os.replace(tmp_path, path)
+        except: pass
 
 # ==============================================================================
 # REAL-TIME PLAYHEAD CLOCK (Analytical Precision + Manual Nudge)
@@ -134,9 +152,9 @@ class PlayheadClock:
             self.current_translation = ""
             self.detected_language = "en"
             if initial_offset_sec > 0:
-                self.ai_sync_status = f"Synced (offset +{initial_offset_sec:.1f}s)"
+                self.ai_sync_status = f"Searching... (+{initial_offset_sec:.1f}s)"
             else:
-                self.ai_sync_status = "Synced"
+                self.ai_sync_status = "Searching..."
 
     def on_midi_play_state(self, playing: bool):
         with self.lock:
@@ -181,10 +199,11 @@ def clean_str(s):
     return re.sub(r'[^a-zA-Z0-9]', '', str(s)).lower()
 
 def split_artist_title(song_str):
-    if " - " in song_str:
-        parts = song_str.split(" - ", 1)
+    s = str(song_str).replace('\u2013', ' - ').replace('\u2014', ' - ')
+    if " - " in s:
+        parts = s.split(" - ", 1)
         return parts[0].strip(), parts[1].strip()
-    return "", song_str.strip()
+    return "", s.strip()
 
 def tokenize(s):
     s = s.lower().replace('.lrc', '').replace('.mp3', '')
@@ -229,27 +248,39 @@ class TranslationEngine:
                     for _ in chunk: all_translations.append("")
                     continue
 
-                url = (f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={self.target_lang}&dt=t&q="
-                       + urllib.parse.quote(body_text))
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=3.5) as res:
-                    data = json.loads(res.read().decode('utf-8'))
-                    if detected_lang == "unknown" and len(data) > 2:
-                        detected_lang = data[2]
+                data = None
+                for client in ['dict-chrome-ex', 'it', 'gtx']:
+                    try:
+                        url = (f"https://translate.googleapis.com/translate_a/single?client={client}&sl=auto&tl={self.target_lang}&dt=t&q="
+                               + urllib.parse.quote(body_text))
+                        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+                        with urllib.request.urlopen(req, timeout=3.5) as res:
+                            if res.status == 200:
+                                data = json.loads(res.read().decode('utf-8'))
+                                break
+                    except Exception:
+                        continue
 
-                    if detected_lang == self.target_lang:
-                        with self.lock:
-                            self.cache[cache_key] = {"translations": ["" for _ in lines], "detected_lang": self.target_lang}
-                            save_json(TRANS_CACHE_FILE, self.cache)
-                        for line in lines: line["translation"] = ""
-                        return lines, self.target_lang
+                if not data:
+                    for _ in chunk: all_translations.append("")
+                    continue
 
-                    translated_parts = [part[0] for part in data[0] if part[0]]
-                    chunk_translated = "".join(translated_parts).split("\n")
+                if detected_lang == "unknown" and len(data) > 2:
+                    detected_lang = data[2]
 
-                    for idx in range(len(chunk)):
-                        t_str = chunk_translated[idx].strip() if idx < len(chunk_translated) else ""
-                        all_translations.append(t_str)
+                if detected_lang == self.target_lang:
+                    with self.lock:
+                        self.cache[cache_key] = {"translations": ["" for _ in lines], "detected_lang": self.target_lang}
+                        save_json(TRANS_CACHE_FILE, self.cache)
+                    for line in lines: line["translation"] = ""
+                    return lines, self.target_lang
+
+                translated_parts = [part[0] for part in data[0] if part[0]]
+                chunk_translated = "".join(translated_parts).split("\n")
+
+                for idx in range(len(chunk)):
+                    t_str = chunk_translated[idx].strip() if idx < len(chunk_translated) else ""
+                    all_translations.append(t_str)
 
             for idx in range(len(lines)):
                 lines[idx]["translation"] = all_translations[idx] if idx < len(all_translations) else ""
@@ -282,7 +313,7 @@ class LocalLyricsEngine:
         self.build_index()
 
     def normalize_key(self, s):
-        s = s.lower().replace('.lrc', '').replace('.mp3', '')
+        s = re.sub(r'\.(lrc|mp3|flac|m4a|wav|aiff)$', '', s.lower())
         s = re.sub(r'\(feat\..*?\)|\[feat\..*?\]|\bft\b', '', s)
         s = re.sub(r'\(remix.*?\)|\[remix.*?\]', '', s)
         return ''.join(re.findall(r'[a-z0-9]', s))
@@ -343,6 +374,15 @@ class LocalLyricsEngine:
 
         return best_match
 
+    def add_to_index(self, filename, full_path):
+        tokens = tokenize(filename)
+        norm = self.normalize_key(filename)
+        with self.lock:
+            self.indexed_files.append((filename, tokens, full_path))
+            if norm:
+                self.exact_map[norm] = full_path
+        log(f"[LYRICS INDEX] Dynamically added to memory index: {filename}")
+
 lyrics_engine = LocalLyricsEngine(LOCAL_LRC_DIR)
 
 # ==============================================================================
@@ -371,27 +411,92 @@ def parse_lrc_file(fpath):
         log(f"[LRC READ ERROR] {fpath}: {e}")
         return None
 
-def is_valid_match(q_artist, q_title, res_artist, res_title):
+def clean_track_components(song_str):
+    """
+    Intelligently extracts (candidate_artists, candidate_titles) from complex DJ/YouTube track names.
+    Handles channel prefixes ('Illumi Music - John Summit - Song'), unicode dashes, remix tags, etc.
+    """
+    norm = song_str.replace('\u2013', ' - ').replace('\u2014', ' - ')
+    norm = re.sub(r'[\U00010000-\U0010ffff]', '', norm)
+    norm = re.sub(r'\|.*?\|', '', norm)
+    norm = re.sub(r'\|.*$', '', norm)
+
+    clean_no_brackets = re.sub(r'\[.*?\]', '', norm)
+    clean_no_tags = re.sub(r'\([^)]*?(?:remix|mix|edit|version|feat|ft|bootleg|dub|vip|official|video|audio|extended|house)[^)]*?\)', '', clean_no_brackets, flags=re.I)
+
+    parts = [p.strip() for p in clean_no_tags.split(' - ') if p.strip()]
+    raw_parts = [p.strip() for p in norm.split(' - ') if p.strip()]
+
+    candidates = []
+    if len(parts) >= 3:
+        candidates.append((parts[1], parts[2]))
+        candidates.append((parts[0], parts[1] + " " + parts[2]))
+    elif len(parts) == 2:
+        candidates.append((parts[0], parts[1]))
+    elif len(raw_parts) == 2:
+        candidates.append((raw_parts[0], raw_parts[1]))
+    else:
+        candidates.append(("", norm.strip()))
+
+    return candidates
+
+REMIX_WORDS = {'remix', 'mix', 'edit', 'dub', 'vip', 'version', 'bootleg', 'rework', 'flip', 'club', 'house'}
+
+def score_candidate(item, q_artist, q_title, track_duration=0.0):
+    r_art = item.get("artistName", "")
+    r_trk = item.get("trackName", "")
+    r_dur = float(item.get("duration", 0.0) or 0.0)
+    synced = item.get("syncedLyrics")
+    if not synced:
+        return -9999
+
     t_q = tokenize(q_title)
-    t_r = tokenize(res_title)
+    t_r = tokenize(r_trk)
     if not t_q:
-        return False
-    title_common = t_q.intersection(t_r)
-    if len(title_common) / len(t_q) < 0.5:
-        return False
+        return -9999
+
+    common = t_q.intersection(t_r)
+    ratio = len(common) / len(t_q)
+    if ratio < 0.4:
+        return -9999
+    score = ratio * 100.0
+
+    if clean_str(r_trk) == clean_str(q_title):
+        score += 80.0
+
+    q_remix = bool(t_q.intersection(REMIX_WORDS))
+    r_remix = bool(t_r.intersection(REMIX_WORDS))
+    if not q_remix and r_remix:
+        score -= 150.0 # Heavy penalty for unsolicited remixes!
+    elif q_remix and r_remix:
+        score += 30.0
 
     if q_artist:
         a_q = tokenize(q_artist)
-        a_r = tokenize(res_artist)
-        if a_q and a_r and not a_q.intersection(a_r):
-            return False
+        a_r = tokenize(r_art)
+        if a_q and a_r:
+            art_common = a_q.intersection(a_r)
+            if art_common:
+                score += (len(art_common) / len(a_q)) * 50.0
+            else:
+                score -= 60.0
 
-    return True
+    if track_duration > 10.0 and r_dur > 10.0:
+        diff = abs(track_duration - r_dur)
+        if diff <= 3.0:
+            score += 150.0 # Near exact duration match!
+        elif diff <= 8.0:
+            score += 80.0
+        elif diff <= 15.0:
+            score += 20.0
+        elif diff > 30.0:
+            score -= 100.0
 
-def fetch_lrclib_synced_lyrics(song_str):
-    artist, title = split_artist_title(song_str)
-    clean_title = re.sub(r'[\(\[\{].*?[\)\]\}]', '', title).strip()
-    effective_title = clean_title if clean_title else title
+    return score
+
+
+def fetch_lrclib_synced_lyrics(song_str, track_duration=0.0):
+    candidates = clean_track_components(song_str)
     
     headers = {
         'User-Agent': 'djay-lyrics-daemon/3.0 (https://github.com/iammrwrath/djay-sync)',
@@ -417,48 +522,61 @@ def fetch_lrclib_synced_lyrics(song_str):
 
     synced = None
 
-    # Strategy 1: Exact artist + title
-    if artist:
-        synced = try_get(artist, effective_title)
+    for art, tit in candidates:
+        clean_title = re.sub(r'[\(\[\{].*?[\)\]\}]', '', tit).strip()
+        effective_title = clean_title if clean_title else tit
 
-    # Strategy 2: Primary artist decomposition (strips songwriter / producer credits from djay metadata)
-    if not synced and artist:
-        parts = [p.strip() for p in re.split(r'[,/&]|\bfeat\.?|\bft\.?', artist, flags=re.IGNORECASE) if p.strip()]
-        if len(parts) > 1:
-            synced = try_get(parts[0], effective_title)
-            if not synced and len(parts) >= 2:
-                synced = try_get(f"{parts[0]}, {parts[1]}", effective_title)
-            if not synced and len(parts) >= 3:
-                synced = try_get(f"{parts[0]}, {parts[1]}, {parts[2]}", effective_title)
+        # Strategy 1: Exact artist + title
+        if art:
+            synced = try_get(art, effective_title)
 
-    # Strategy 3: Search endpoint fallback (Strictly validated to avoid false matches)
-    if not synced:
-        search_queries = []
-        if artist:
-            primary = re.split(r'[,/&]|\bfeat\.?|\bft\.?', artist, flags=re.IGNORECASE)[0].strip()
-            search_queries.append(f"{primary} {effective_title}")
-        search_queries.append(effective_title)
+        # Strategy 2: Primary artist decomposition
+        if not synced and art:
+            parts = [p.strip() for p in re.split(r'[,/&]| x | vs\.?| feat\.?| ft\.?', art, flags=re.IGNORECASE) if p.strip()]
+            if len(parts) > 1:
+                synced = try_get(parts[0], effective_title)
+                if not synced and len(parts) >= 2:
+                    synced = try_get(f"{parts[0]}, {parts[1]}", effective_title)
 
-        for q in search_queries:
-            try:
-                params = urllib.parse.urlencode({'q': q})
-                url = f"https://lrclib.net/api/search?{params}"
-                req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=3.0) as res:
-                    if res.status == 200:
-                        items = json.loads(res.read().decode('utf-8'))
-                        for item in items:
-                            if item.get("syncedLyrics"):
-                                r_art = item.get("artistName", "")
-                                r_trk = item.get("trackName", "")
-                                if is_valid_match(artist, effective_title, r_art, r_trk):
-                                    synced = item.get("syncedLyrics")
-                                    log(f"[LRCLIB SEARCH MATCH] Query '{q}' -> {r_art} - {r_trk}")
-                                    break
-                if synced:
-                    break
-            except Exception:
-                pass
+        # Strategy 3: Search endpoint with Smart Candidate Scoring & Duration Matching
+        if not synced:
+            search_queries = []
+            if art:
+                primary = [p.strip() for p in re.split(r'[,/&]| x | vs\.?| feat\.?| ft\.?', art, flags=re.I) if p.strip()]
+                if primary:
+                    search_queries.append(f"{primary[0]} {effective_title}")
+                search_queries.append(f"{art} {effective_title}")
+            search_queries.append(effective_title)
+
+            for q in search_queries:
+                try:
+                    params = urllib.parse.urlencode({'q': q.strip()})
+                    url = f"https://lrclib.net/api/search?{params}"
+                    req = urllib.request.Request(url, headers=headers)
+                    with urllib.request.urlopen(req, timeout=3.0) as res:
+                        if res.status == 200:
+                            items = json.loads(res.read().decode('utf-8'))
+                            best_candidate = None
+                            best_score = -9999
+                            for item in items:
+                                if item.get("syncedLyrics"):
+                                    s = score_candidate(item, art, effective_title, track_duration=track_duration)
+                                    if s > best_score:
+                                        best_score = s
+                                        best_candidate = item
+                            if best_candidate and best_score >= 50.0:
+                                synced = best_candidate.get("syncedLyrics")
+                                r_art = best_candidate.get("artistName", "")
+                                r_trk = best_candidate.get("trackName", "")
+                                log(f"[LRCLIB SEARCH MATCH] Query '{q}' -> {r_art} - {r_trk} (Score: {best_score:.1f})")
+                                break
+                    if synced:
+                        break
+                except Exception:
+                    pass
+
+        if synced:
+            break
 
     if synced:
         parsed = parse_lrc(synced)
@@ -468,6 +586,7 @@ def fetch_lrclib_synced_lyrics(song_str):
             with open(save_path, 'w', encoding='utf-8') as lf:
                 lf.write(synced)
             log(f"[LRC AUTO-SAVED] Saved to local library: {safe_name}.lrc")
+            lyrics_engine.add_to_index(f"{safe_name}.lrc", save_path)
         except:
             pass
         return parsed
@@ -475,7 +594,7 @@ def fetch_lrclib_synced_lyrics(song_str):
     log(f"[LRCLIB ERROR] {song_str}: No synced lyrics found across all search strategies")
     return None
 
-def get_lyrics_for_song(song_str):
+def get_lyrics_for_song(song_str, track_duration=0.0):
     local_path = lyrics_engine.find_lrc(song_str)
     if local_path:
         lines = parse_lrc_file(local_path)
@@ -489,15 +608,31 @@ def get_lyrics_for_song(song_str):
         if isinstance(cached, list):
             return cached
 
-    lines = fetch_lrclib_synced_lyrics(song_str)
+    lines = fetch_lrclib_synced_lyrics(song_str, track_duration=track_duration)
     cache[song_str] = lines if lines else "NOT_FOUND"
     save_json(LYRICS_CACHE_FILE, cache)
     return lines
 
-def bg_fetch_lyrics_and_translate(song_str, is_current=False):
-    lines = get_lyrics_for_song(song_str)
+def bg_fetch_lyrics_and_translate(song_str, is_current=False, track_duration=0.0):
+    lines = get_lyrics_for_song(song_str, track_duration=track_duration)
     if not lines:
+        if is_current:
+            with clock.lock:
+                if clock.current_song == song_str:
+                    clock.lyrics_lines = []
+                    clock.ai_sync_status = "No Lyrics"
+                    clock.song_id = int(time.time() * 1000)
+            log(f"[LYRICS NOT FOUND] {song_str} (ai_sync_status set to 'No Lyrics')")
         return
+
+    # Instant Display: Publish raw synced lyrics immediately so overlay renders in <50ms
+    if is_current:
+        with clock.lock:
+            if clock.current_song == song_str:
+                clock.lyrics_lines = [dict(l) for l in lines]
+                clock.ai_sync_status = "Synced"
+                clock.song_id = int(time.time() * 1000)
+        log(f"[LYRICS INSTANT DISPLAY] {song_str} ({len(lines)} lines displayed, translating in background...)")
 
     lines, lang = translation_engine.translate_lines(song_str, lines)
 
@@ -506,6 +641,7 @@ def bg_fetch_lyrics_and_translate(song_str, is_current=False):
             if clock.current_song == song_str:
                 clock.lyrics_lines = lines
                 clock.detected_language = lang
+                clock.ai_sync_status = "Synced"
                 clock.song_id = int(time.time() * 1000)
         log(f"[LYRICS + TRANS LOADED] {song_str} ({len(lines)} lines, lang: {lang})")
     else:
@@ -554,9 +690,23 @@ def resolve_youtube_url(song_str):
         if cached != "SEARCHING...":
             return cached
 
-    url = yt_search(f"{song_str} official music video")
-    if not url: url = yt_search(f"{song_str} lyric video")
-    if not url: url = yt_search(song_str)
+    # Build clean candidate search terms to strip promoter prefixes and junk tags
+    candidates = clean_track_components(song_str)
+    search_terms = []
+    if candidates and candidates[0][0] and candidates[0][1]:
+        search_terms.append(f"{candidates[0][0]} {candidates[0][1]}".strip())
+    if song_str not in search_terms:
+        search_terms.append(song_str.strip())
+
+    url = None
+    for term in search_terms:
+        url = yt_search(f"{term} official music video")
+        if not url:
+            url = yt_search(f"{term} lyric video")
+        if not url:
+            url = yt_search(term)
+        if url:
+            break
 
     final_url = url if url else "NOT_FOUND"
     cache[song_str] = final_url
@@ -586,11 +736,38 @@ class DjayEngine:
     def __init__(self):
         self.db_path = self.find_db_path()
         self.uuid_cache = {}
+        self.dur_cache = {}
         self.last_db_mtime = 0.0
-        self.cached_song_info = (None, 0, 0.0)
+        self.cached_song_info = (None, 0, 0.0, 0.0)
         self.last_meta_mtime = 0.0
         self.cached_next_song = "..."
         log(f"[DATABASE] Connected to: {self.db_path}")
+
+    def get_duration_for_uuid(self, uuid_hex):
+        uuid_hex = uuid_hex.lower()
+        if uuid_hex in self.dur_cache:
+            return self.dur_cache[uuid_hex]
+        try:
+            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=0.5)
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT data FROM database2 WHERE collection='mediaItems' AND key = ?", (uuid_hex,))
+                row = cur.fetchone()
+            finally:
+                conn.close()
+            if row:
+                m_blob = row[0]
+                dur_idx = m_blob.find(b'duration')
+                if dur_idx >= 9:
+                    for off in range(1, 12):
+                        try:
+                            v = struct.unpack('<d', m_blob[dur_idx-off:dur_idx-off+8])[0]
+                            if 20 < v < 1800:
+                                self.dur_cache[uuid_hex] = v
+                                return v
+                        except: pass
+        except: pass
+        return 0.0
 
     def find_db_path(self):
         if os.path.exists(PRIMARY_DB_PATH):
@@ -639,10 +816,12 @@ class DjayEngine:
 
             self.last_db_mtime = cur_mtime
             conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=0.5)
-            cur = conn.cursor()
-            cur.execute("SELECT data FROM database2 WHERE collection='historySessionItems' ORDER BY rowid DESC LIMIT 1")
-            row = cur.fetchone()
-            conn.close()
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT data FROM database2 WHERE collection='historySessionItems' ORDER BY rowid DESC LIMIT 1")
+                row = cur.fetchone()
+            finally:
+                conn.close()
 
             if row:
                 blob = row[0]
@@ -674,13 +853,21 @@ class DjayEngine:
                         start_ts = start_dt.timestamp()
                     except: pass
 
+                track_dur = 0.0
+                m_uuids = re.findall(rb'[a-f0-9]{32}', blob)
+                for u in m_uuids:
+                    dur = self.get_duration_for_uuid(u.decode('utf-8'))
+                    if dur > 0:
+                        track_dur = dur
+                        break
+
                 if title != "Unknown":
                     name = f"{artist} - {title}" if artist else title
-                    self.cached_song_info = (name, deck_num, start_ts)
+                    self.cached_song_info = (name, deck_num, start_ts, track_dur)
                     return self.cached_song_info
         except Exception as e:
             pass
-        return self.cached_song_info if self.cached_song_info[0] else (None, 0, 0.0)
+        return self.cached_song_info if self.cached_song_info[0] else (None, 0, 0.0, 0.0)
 
     def resolve_uuid(self, uuid_hex):
         """Point lookup by key in mediaItems: cached in memory (<0.01ms)."""
@@ -690,10 +877,12 @@ class DjayEngine:
 
         try:
             conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=0.5)
-            cur = conn.cursor()
-            cur.execute("SELECT data FROM database2 WHERE collection='mediaItems' AND key = ?", (uuid_hex,))
-            row = cur.fetchone()
-            conn.close()
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT data FROM database2 WHERE collection='mediaItems' AND key = ?", (uuid_hex,))
+                row = cur.fetchone()
+            finally:
+                conn.close()
 
             if row:
                 decoded = self.extract_metadata_strings(row[0])
@@ -725,7 +914,7 @@ class DjayEngine:
                     return self.cached_next_song
 
             self.last_meta_mtime = cur_meta_mtime
-            subdirs = [os.path.join(METADATA_PATH, d) for d in os.listdir(METADATA_PATH)]
+            subdirs = [os.path.join(METADATA_PATH, d) for d in os.listdir(METADATA_PATH) if os.path.isdir(os.path.join(METADATA_PATH, d))]
             subdirs.sort(key=os.path.getmtime, reverse=True)
 
             files = []
@@ -782,6 +971,7 @@ def start_midi_listener():
 # ==============================================================================
 class LyricsHTTPHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    timeout = 3.0
 
     def do_GET(self):
         # 1. API: /lyrics JSON (Delta Payload: Only transfers lyrics array on song change)
@@ -792,7 +982,8 @@ class LyricsHTTPHandler(BaseHTTPRequestHandler):
                 client_sid = int(qs.get("song_id", [0])[0])
             except:
                 client_sid = 0
-            want_full = (qs.get("full", ["0"])[0] == "1") or (client_sid == 0)
+            is_meta_only = (qs.get("meta", ["0"])[0] == "1")
+            want_full = ((qs.get("full", ["0"])[0] == "1") or (client_sid == 0)) and not is_meta_only
 
             elapsed_ms = clock.get_elapsed_ms()
             with clock.lock:
@@ -814,7 +1005,7 @@ class LyricsHTTPHandler(BaseHTTPRequestHandler):
                     "next_video_id": clock.next_video_id,
                 }
 
-                if want_full or song_changed:
+                if (want_full or song_changed) and not is_meta_only:
                     payload["lines"] = clock.lyrics_lines
                     payload["has_lines"] = True
                 else:
@@ -898,7 +1089,9 @@ class LyricsHTTPHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
                 self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 self.send_header("Content-Length", str(len(content)))
                 self.send_header("Connection", "keep-alive")
                 self.end_headers()
@@ -912,9 +1105,17 @@ class LyricsHTTPHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # Suppress broken pipe noise when OBS browser source refreshes or disconnects abruptly
+        pass
+
 def start_http_server():
     try:
-        server = ThreadingHTTPServer(("0.0.0.0", HTTP_SERVER_PORT), LyricsHTTPHandler)
+        server = ReusableThreadingHTTPServer(("0.0.0.0", HTTP_SERVER_PORT), LyricsHTTPHandler)
         log(f"[HTTP SERVER] Multi-threaded HTTP/1.1 listening on http://127.0.0.1:{HTTP_SERVER_PORT}")
         server.serve_forever()
     except Exception as e:
@@ -939,11 +1140,13 @@ def main_loop():
     log(f"Cache Directory: {CACHE_DIR}")
     log("="*60)
 
-    # 1. Start HTTP Server
-    threading.Thread(target=start_http_server, daemon=True).start()
+    # 1. Start HTTP Server with thread supervisor
+    http_thread = threading.Thread(target=start_http_server, daemon=True, name="HTTPServerThread")
+    http_thread.start()
 
-    # 2. Start MIDI In Listener
-    threading.Thread(target=start_midi_listener, daemon=True).start()
+    # 2. Start MIDI In Listener with thread supervisor
+    midi_thread = threading.Thread(target=start_midi_listener, daemon=True, name="MIDIListenerThread")
+    midi_thread.start()
 
     last_current_song = ""
     last_next_song = ""
@@ -955,8 +1158,19 @@ def main_loop():
             time.sleep(HEARTBEAT_SEC)
             now = time.time()
 
+            # Thread Supervisory Watchdog
+            if not http_thread.is_alive():
+                log("[DAEMON WATCHDOG] HTTP Server thread died. Reviving...")
+                http_thread = threading.Thread(target=start_http_server, daemon=True, name="HTTPServerThread")
+                http_thread.start()
+
+            if not midi_thread.is_alive():
+                log("[DAEMON WATCHDOG] MIDI Listener thread died. Reviving...")
+                midi_thread = threading.Thread(target=start_midi_listener, daemon=True, name="MIDIListenerThread")
+                midi_thread.start()
+
             # --- 1. DETECT CURRENT SONG FROM HISTORY (Mtime-Gated, 0 SQLite queries during play) ---
-            current_song, deck_num, start_ts = djay_engine.get_current_song_info()
+            current_song, deck_num, start_ts, track_dur = djay_engine.get_current_song_info()
             if not current_song:
                 current_song = "..."
 
@@ -970,14 +1184,18 @@ def main_loop():
                     initial_offset = max(0.0, now - start_ts)
 
                 clock.on_track_change(current_song, initial_offset_sec=initial_offset)
-                log(f"[TRACK CHANGE] Now Playing: {current_song} (Deck {deck_num}, initial offset {initial_offset:.1f}s)")
+                log(f"[TRACK CHANGE] Now Playing: {current_song} (Deck {deck_num}, initial offset {initial_offset:.1f}s, dur {track_dur:.1f}s)")
 
-                # Immediate Lyrics & Translation in Background Thread
-                threading.Thread(target=bg_fetch_lyrics_and_translate, args=(current_song, True), daemon=True).start()
+                # Immediate Lyrics & Translation in Background Thread with Track Duration Matching
+                threading.Thread(target=bg_fetch_lyrics_and_translate, args=(current_song, True, track_dur), daemon=True).start()
 
                 # Fast YouTube Video Resolution & Trigger
                 cached_vid = load_json(CACHE_FILE).get(current_song)
-                if cached_vid and cached_vid not in ("SEARCHING...", "NOT_FOUND"):
+                if cached_vid == "NOT_FOUND":
+                    with clock.lock:
+                        clock.current_video_id = ""
+                    smart_write(URL_FILE, "about:blank")
+                elif cached_vid and cached_vid != "SEARCHING...":
                     with clock.lock:
                         clock.current_video_id = extract_video_id(cached_vid)
                     smart_write(URL_FILE, cached_vid)
