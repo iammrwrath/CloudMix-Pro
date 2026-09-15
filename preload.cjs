@@ -6,6 +6,11 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   writeNowPlayingBroadcast: (info) => ipcRenderer.invoke('write-now-playing-broadcast', info),
+  openPulseDjCompanion: () => ipcRenderer.invoke('open-cortex-companion'),
+  openCortexCompanion: () => ipcRenderer.invoke('open-cortex-companion'),
+  readMusicCsv: () => ipcRenderer.invoke('read-music-csv'),
+  readDjayNowPlaying: () => ipcRenderer.invoke('read-djay-nowplaying'),
+  readExternalNowPlayingFile: (filePath) => ipcRenderer.invoke('read-external-nowplaying-file', filePath),
 
   // In-App Auto-Updater & GitHub Patching Engine
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),

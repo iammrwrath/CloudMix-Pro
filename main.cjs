@@ -225,6 +225,142 @@ ipcMain.handle('write-now-playing-broadcast', async (event, { title, artist, bpm
   }
 });
 
+// ==============================================================================
+// MIXCORTEX AI CO-PILOT ELECTRON INTEGRATION
+// ==============================================================================
+let cortexWindow = null;
+
+async function openCortexCompanionWindow() {
+  try {
+    if (cortexWindow && !cortexWindow.isDestroyed()) {
+      cortexWindow.show();
+      cortexWindow.focus();
+      return true;
+    }
+
+    cortexWindow = new BrowserWindow({
+      width: 440,
+      height: 760,
+      minWidth: 380,
+      minHeight: 480,
+      backgroundColor: '#07090e',
+      title: 'MixCortex AI Co-Pilot — CloudMix Pro',
+      alwaysOnTop: true,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: false,
+      },
+    });
+
+    const distPaths = [
+      path.join(__dirname, 'dist', 'index.html'),
+      path.join(process.resourcesPath || '', 'app.asar', 'dist', 'index.html'),
+      path.join(__dirname, '..', 'dist', 'index.html'),
+    ];
+
+    let targetPath = null;
+    for (const p of distPaths) {
+      if (fs.existsSync(p)) {
+        targetPath = p;
+        break;
+      }
+    }
+
+    if (targetPath) {
+      cortexWindow.loadFile(targetPath, { hash: 'cortex-companion', query: { view: 'cortex-companion' } });
+    } else {
+      cortexWindow.loadURL('http://localhost:3000/?view=cortex-companion#cortex-companion');
+    }
+
+    cortexWindow.on('closed', () => {
+      cortexWindow = null;
+    });
+
+    return true;
+  } catch (err) {
+    log('Failed to open MixCortex companion window: ' + err);
+    return false;
+  }
+}
+
+ipcMain.handle('open-cortex-companion', openCortexCompanionWindow);
+ipcMain.handle('open-pulsedj-companion', openCortexCompanionWindow);
+
+ipcMain.handle('read-music-csv', async () => {
+  const candidatePaths = [
+    path.join(__dirname, 'Music.csv'),
+    path.join(__dirname, 'public', 'Music.csv'),
+    path.join(__dirname, '..', 'Music.csv'),
+    'G:\\My Drive\\Backup\\Antigravity\\djyapro\\Music.csv',
+    'C:\\Users\\icell\\AppData\\Local\\cloudmix_build\\Music.csv',
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        log('Reading Music.csv from: ' + p);
+        return fs.readFileSync(p, 'utf8');
+      } catch (e) {
+        log('Error reading ' + p + ': ' + e.message);
+      }
+    }
+  }
+  return '';
+});
+
+ipcMain.handle('read-djay-nowplaying', async () => {
+  try {
+    const streamerTxt = 'C:\\StreamerBot\\nowplaying.txt';
+    if (fs.existsSync(streamerTxt)) {
+      const raw = fs.readFileSync(streamerTxt, 'utf8').trim();
+      let title = raw;
+      let artist = 'djay Pro Artist';
+      let bpm = 124.0;
+      let key = '8A';
+      let deck = '1';
+
+      const bpmKeyMatch = raw.match(/\[([0-9.]+)\s*BPM\s*\|\s*([0-9a-zA-Z]+)\]/i);
+      if (bpmKeyMatch) {
+        bpm = parseFloat(bpmKeyMatch[1]) || 124.0;
+        key = bpmKeyMatch[2].trim();
+      }
+
+      const deckMatch = raw.match(/\(Deck\s*([0-9a-zA-Z]+)\)/i);
+      if (deckMatch) {
+        deck = deckMatch[1].trim();
+      }
+
+      const cleanName = raw.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+      if (cleanName.includes(' - ')) {
+        const parts = cleanName.split(' - ');
+        artist = parts[0].trim();
+        title = parts.slice(1).join(' - ').trim();
+      } else {
+        title = cleanName;
+      }
+
+      return { title, artist, bpm, key, deck, currentTime: 0, duration: 210 };
+    }
+  } catch (err) {
+    log('read-djay-nowplaying error: ' + err.message);
+  }
+  return null;
+});
+
+ipcMain.handle('read-external-nowplaying-file', async (event, filePath) => {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, 'utf8');
+    }
+  } catch (err) {
+    log('read-external-nowplaying-file error: ' + err.message);
+  }
+  return null;
+});
+
 // Auto-Updater & GitHub Patch Engine
 let autoUpdater = null;
 try {

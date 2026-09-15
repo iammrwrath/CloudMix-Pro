@@ -43,7 +43,7 @@ export interface TrackMetadata {
   key: string; // e.g. '8A', '11B' (Camelot) or 'Am'
   camelotKey?: string;
   fileUrl: string;
-  fileSource: 'drive' | 'local' | 'stream' | 'djay_import' | 'youtube';
+  fileSource: 'drive' | 'local' | 'stream' | 'djay_import' | 'youtube' | 'csv';
   driveFileId?: string;
   sizeBytes?: number;
   coverArtUrl?: string;
@@ -166,7 +166,7 @@ export interface RecordingState {
   fileSizeBytes: number;
 }
 
-export type BottomDrawerTab = 'library' | 'fx' | 'sampler' | 'automix';
+export type BottomDrawerTab = 'library' | 'fx' | 'sampler' | 'automix' | 'cortex' | 'pulsedj';
 
 export interface MixerState {
   crossfader: number; // -1.0 (Deck A) to 0.0 (Center) to 1.0 (Deck B)

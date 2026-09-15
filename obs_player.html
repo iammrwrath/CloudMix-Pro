@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OBS Instant Dual-Deck YouTube Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    .player-wrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      transition: opacity 0.5s ease-in-out;
+      opacity: 0;
+      z-index: 1;
+    }
+
+    .player-wrap.active {
+      opacity: 1;
+      z-index: 2;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      pointer-events: none;
+    }
+
+    /* Fallback / Standby Screen */
+    #standby-card {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #1a1a24 0%, #08080c 100%);
+      color: #fff;
+      z-index: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .brand-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #00ffcc;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      text-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+    }
+
+    .song-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      max-width: 80%;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #status-pill {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #00ffcc;
+      border: 1px solid rgba(0,255,204,0.3);
+      z-index: 10;
+      display: none; /* Set display: block if debug pill is desired */
+    }
+  </style>
+</head>
+<body>
+  <div id="status-pill">DAEMON SYNC ACTIVE</div>
+
+  <div id="stage">
+    <!-- Standby screen behind players -->
+    <div id="standby-card">
+      <div class="brand-title">iammrwrath live</div>
+      <div id="standby-song" class="song-title">Waiting for track...</div>
+    </div>
+
+    <!-- Dual Deck A / B Players -->
+    <div id="wrap-a" class="player-wrap">
+      <div id="player-a"></div>
+    </div>
+    <div id="wrap-b" class="player-wrap">
+      <div id="player-b"></div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration from URL params
+    const params = new URLSearchParams(window.location.search);
+    const IS_MUTED = params.get('mute') !== '0'; // default: muted to prevent echo with DJ mixer
+    const API_URL = 'http://127.0.0.1:8765/lyrics';
+
+    let ytReady = false;
+    let playerA = null;
+    let playerB = null;
+
+    let activeDeck = 'A'; // 'A' or 'B'
+    let currentVideoId = '';
+    let nextVideoId = '';
+    let isPlaying = true;
+    let pollInterval = null;
+
+    // Load YouTube IFrame API
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+
+    window.onYouTubeIframeAPIReady = function() {
+      const playerConfig = {
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          rel: 0,
+          showinfo: 0,
+          playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin
+        },
+        events: {
+          onReady: onPlayersReady
+        }
+      };
+
+      playerA = new YT.Player('player-a', playerConfig);
+      playerB = new YT.Player('player-b', playerConfig);
+    };
+
+    let readyCount = 0;
+    function onPlayersReady(event) {
+      if (IS_MUTED && event.target.mute) {
+        event.target.mute();
+      }
+      readyCount++;
+      if (readyCount >= 2) {
+        ytReady = true;
+        document.getElementById('status-pill').style.display = 'block';
+        startPolling();
+      }
+    }
+
+    let currentSongId = 0;
+
+    function startPolling() {
+      pollInterval = setInterval(pollDaemon, 500);
+    }
+
+    let isPolling = false;
+
+    async function pollDaemon() {
+      if (!ytReady || isPolling) return;
+      isPolling = true;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+      try {
+        const res = await fetch(`${API_URL}?song_id=${currentSongId}&meta=1`, {
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.song_id) currentSongId = data.song_id;
+
+        const newVid = data.video_id || '';
+        const newNextVid = data.next_video_id || '';
+        const newPlaying = data.is_playing !== false;
+        const currentSong = data.current_song || '...';
+
+        document.getElementById('standby-song').innerText = currentSong;
+
+        // Handle Play / Pause from MIDI In
+        if (newPlaying !== isPlaying) {
+          isPlaying = newPlaying;
+          const active = activeDeck === 'A' ? playerA : playerB;
+          if (active && active.getPlayerState) {
+            if (!isPlaying) active.pauseVideo();
+            else active.playVideo();
+          }
+        }
+
+        // 1. Current Video Changed -> Instant Switch or Graceful Standby Card Fade
+        if (newVid !== currentVideoId) {
+          currentVideoId = newVid;
+          if (newVid) {
+            switchVideo(newVid);
+          } else {
+            // Track has no official video -> smoothly show standby card
+            const wrapA = document.getElementById('wrap-a');
+            const wrapB = document.getElementById('wrap-b');
+            if (wrapA) wrapA.classList.remove('active');
+            if (wrapB) wrapB.classList.remove('active');
+            if (playerA && playerA.pauseVideo) playerA.pauseVideo();
+            if (playerB && playerB.pauseVideo) playerB.pauseVideo();
+          }
+        }
+
+        // Live Playhead Visual Resync (if DJ seeks, sync video visuals to audio playhead)
+        if (newPlaying && currentVideoId) {
+          const active = activeDeck === 'A' ? playerA : playerB;
+          if (active && active.getCurrentTime && typeof active.seekTo === 'function') {
+            const currentVidTime = active.getCurrentTime();
+            const djTime = (data.elapsed_ms || 0) / 1000;
+            if (djTime > 1.0 && Math.abs(currentVidTime - djTime) > 3.0) {
+              active.seekTo(djTime, true);
+            }
+          }
+        }
+
+        // 2. Next Video Cueing (Pre-buffering on standby deck)
+        if (newNextVid && newNextVid !== nextVideoId && newNextVid !== currentVideoId) {
+          nextVideoId = newNextVid;
+          cueStandby(newNextVid);
+        }
+
+      } catch (e) {
+        // daemon might be restarting
+      } finally {
+        clearTimeout(timeoutId);
+        isPolling = false;
+      }
+    }
+
+    function switchVideo(videoId) {
+      const wrapA = document.getElementById('wrap-a');
+      const wrapB = document.getElementById('wrap-b');
+
+      if (activeDeck === 'A') {
+        // If Deck B already has this video cued, instantly play & flip!
+        if (playerB && playerB.playVideo) {
+          playerB.loadVideoById({ videoId: videoId, startSeconds: 0 });
+          if (IS_MUTED) playerB.mute();
+          playerB.playVideo();
+
+          wrapB.classList.add('active');
+          wrapA.classList.remove('active');
+          activeDeck = 'B';
+        }
+      } else {
+        // Deck B was active, flip to Deck A
+        if (playerA && playerA.playVideo) {
+          playerA.loadVideoById({ videoId: videoId, startSeconds: 0 });
+          if (IS_MUTED) playerA.mute();
+          playerA.playVideo();
+
+          wrapA.classList.add('active');
+          wrapB.classList.remove('active');
+          activeDeck = 'A';
+        }
+      }
+    }
+
+    function cueStandby(nextVid) {
+      const standbyPlayer = activeDeck === 'A' ? playerB : playerA;
+      if (standbyPlayer && standbyPlayer.cueVideoById) {
+        standbyPlayer.cueVideoById({ videoId: nextVid, startSeconds: 0 });
+        if (IS_MUTED) standbyPlayer.mute();
+      }
+    }
+  </script>
+</body>
+</html>

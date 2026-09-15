@@ -35,9 +35,25 @@ import { MidiModal } from './components/MidiModal';
 import { DjayImportModal } from './components/DjayImportModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MiniDeckHeader } from './components/MiniDeckHeader';
-import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown, Maximize2, Minimize2, Columns } from 'lucide-react';
+import { CortexDJCoPilot } from './components/cortex/CortexDJCoPilot';
+import { CortexFloatingWindow } from './components/cortex/CortexFloatingWindow';
+import { cortexMonitorService } from './services/CortexMonitorService';
+import { pulseMonitorService } from './services/PulseMonitorService';
+import { PatchUpdateModal } from './components/PatchUpdateModal';
+import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown, Maximize2, Minimize2, Columns, Activity, Brain } from 'lucide-react';
 
 export const App: React.FC = () => {
+  // If window was opened in standalone MixCortex companion mode, render floating HUD directly
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.search.includes('view=cortex-companion') ||
+      window.location.hash.includes('cortex-companion') ||
+      window.location.search.includes('view=pulsedj-companion') ||
+      window.location.hash.includes('pulsedj-companion'))
+  ) {
+    return <CortexFloatingWindow />;
+  }
+
   const [masterBpm, setMasterBpm] = useState(126.0);
 
   // Deck A State
@@ -174,6 +190,7 @@ export const App: React.FC = () => {
   const [isStreamerHudOpen, setIsStreamerHudOpen] = useState(false);
   const [isDjayImportOpen, setIsDjayImportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'collapsed' | 'split' | 'expanded'>('split');
   const [libraryRefreshTrigger, setLibraryRefreshTrigger] = useState(0);
 
@@ -249,6 +266,36 @@ export const App: React.FC = () => {
     animId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animId);
   }, []);
+
+  // Provide live deck status to MixCortex AI Co-Pilot Monitor
+  useEffect(() => {
+    const provider = () => ({
+      deckA,
+      deckB,
+      crossfader: mixer.crossfader,
+    });
+    cortexMonitorService.setDeckStateProvider(provider);
+    pulseMonitorService.setDeckStateProvider(provider);
+  }, [deckA, deckB, mixer.crossfader]);
+
+  const handleToggleCortex = () => {
+    if ((bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed') {
+      setBottomDrawerTab('library');
+    } else {
+      setBottomDrawerTab('cortex');
+      if (drawerMode === 'collapsed') setDrawerMode('split');
+    }
+  };
+
+  const handlePopOutCortex = () => {
+    if ((window as any).desktopAPI?.openCortexCompanion) {
+      (window as any).desktopAPI.openCortexCompanion();
+    } else if ((window as any).desktopAPI?.openPulseDjCompanion) {
+      (window as any).desktopAPI.openPulseDjCompanion();
+    } else {
+      window.open('?view=cortex-companion', 'MixCortex_Companion', 'width=420,height=760');
+    }
+  };
 
   // WebMIDI Controller Binding
   useEffect(() => {
@@ -925,6 +972,9 @@ export const App: React.FC = () => {
           onToggleStreamerHud={() => setIsStreamerHudOpen(!isStreamerHudOpen)}
           onToggleSettingsModal={() => setIsSettingsOpen(true)}
           isStreamerHudOpen={isStreamerHudOpen}
+          isCortexOpen={(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed'}
+          onToggleCortex={handleToggleCortex}
+          onOpenPatchModal={() => setIsPatchModalOpen(true)}
           drawerMode={drawerMode}
           onDrawerModeChange={setDrawerMode}
         />
@@ -952,6 +1002,7 @@ export const App: React.FC = () => {
               deckId="A"
               deckState={deckA}
               waveformData={waveformDataA}
+              onLoadTrack={(t) => handleLoadTrack('A', t)}
               onPlayToggle={() => handlePlayToggle('A')}
               onCueClick={() => handleCueClick('A')}
               onSyncClick={() => handleSyncClick('A')}
@@ -1010,6 +1061,7 @@ export const App: React.FC = () => {
               deckId="B"
               deckState={deckB}
               waveformData={waveformDataB}
+              onLoadTrack={(t) => handleLoadTrack('B', t)}
               onPlayToggle={() => handlePlayToggle('B')}
               onCueClick={() => handleCueClick('B')}
               onSyncClick={() => handleSyncClick('B')}
@@ -1110,6 +1162,21 @@ export const App: React.FC = () => {
               <Bot className="w-3.5 h-3.5" />
               <span>AUTOMIX AI</span>
             </button>
+
+            <button
+              onClick={() => {
+                setBottomDrawerTab('cortex');
+                if (drawerMode === 'collapsed') setDrawerMode('split');
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                drawerMode !== 'collapsed' && (bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj')
+                  ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 text-purple-300 border border-purple-500/50 shadow-[0_0_14px_rgba(168,85,247,0.4)] font-black'
+                  : 'text-slate-400 hover:text-purple-300'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+              <span>MIXCORTEX AI</span>
+            </button>
           </div>
 
           {/* 3-Tier Drawer Sizing Controls */}
@@ -1179,6 +1246,13 @@ export const App: React.FC = () => {
             {bottomDrawerTab === 'sampler' && <SamplerBank />}
 
             {bottomDrawerTab === 'automix' && <AutomixHud deckA={deckA} deckB={deckB} />}
+
+            {(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && (
+              <CortexDJCoPilot
+                onLoadTrackToDeck={(deckId, track) => handleLoadTrack(deckId, track)}
+                onPopOutWindow={handlePopOutCortex}
+              />
+            )}
           </div>
         )}
       </div>
@@ -1204,6 +1278,9 @@ export const App: React.FC = () => {
       )}
 
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+
+      {/* GitHub In-App Patch Downloader Modal */}
+      {isPatchModalOpen && <PatchUpdateModal onClose={() => setIsPatchModalOpen(false)} />}
 
       {/* 5. Keyboard Shortcuts Reference Cheat Sheet Modal */}
       <KeyboardShortcutsModal
