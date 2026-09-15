@@ -22,6 +22,7 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   const [releaseName, setReleaseName] = useState<string>('');
   const [publishedAt, setPublishedAt] = useState<string>('');
   const [assetSize, setAssetSize] = useState<string>('');
+  const [downloadUrl, setDownloadUrl] = useState<string>('');
   const [loadingNotes, setLoadingNotes] = useState<boolean>(false);
 
   useEffect(() => {
@@ -50,10 +51,16 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
             day: 'numeric',
           }));
         }
-        const exeAsset = data.assets?.find((a: any) => a.name.endsWith('.exe'));
-        if (exeAsset && exeAsset.size) {
-          const mb = (exeAsset.size / (1024 * 1024)).toFixed(1);
-          setAssetSize(`${mb} MB`);
+        const exeAsset = data.assets?.find((a: any) => a.name.includes('Setup') && a.name.endsWith('.exe')) ||
+                         data.assets?.find((a: any) => a.name.endsWith('.exe'));
+        if (exeAsset) {
+          if (exeAsset.size) {
+            const mb = (exeAsset.size / (1024 * 1024)).toFixed(1);
+            setAssetSize(`${mb} MB`);
+          }
+          if (exeAsset.browser_download_url) {
+            setDownloadUrl(exeAsset.browser_download_url);
+          }
         }
       }
     } catch {
@@ -64,7 +71,11 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   };
 
   const handleDownload = () => {
-    updateService.startDownload();
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank');
+    } else {
+      updateService.startDownload();
+    }
   };
 
   const handleApply = () => {
