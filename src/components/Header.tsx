@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Disc3,
   Cloud,
@@ -18,6 +18,7 @@ import {
   Bot,
   HelpCircle,
   BookOpen,
+  Brain,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
@@ -38,6 +39,11 @@ interface HeaderProps {
   onToggleStreamerHud: () => void;
   onToggleSettingsModal: () => void;
   isStreamerHudOpen: boolean;
+  isPulseDjOpen?: boolean;
+  onTogglePulseDj?: () => void;
+  isCortexOpen?: boolean;
+  onToggleCortex?: () => void;
+  onOpenPatchModal?: () => void;
   drawerMode?: 'collapsed' | 'split' | 'expanded';
   onDrawerModeChange?: (mode: 'collapsed' | 'split' | 'expanded') => void;
 }
@@ -57,6 +63,11 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleStreamerHud,
   onToggleSettingsModal,
   isStreamerHudOpen,
+  isPulseDjOpen = false,
+  onTogglePulseDj,
+  isCortexOpen,
+  onToggleCortex,
+  onOpenPatchModal,
   drawerMode = 'split',
   onDrawerModeChange,
 }) => {
@@ -240,6 +251,27 @@ export const Header: React.FC<HeaderProps> = ({
           <Bot className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">AUTOMIX</span>
         </button>
+
+        {/* MixCortex AI Co-Pilot Quick Toggle */}
+        {(() => {
+          const isCortexActive = isCortexOpen ?? isPulseDjOpen;
+          const handleToggle = onToggleCortex || onTogglePulseDj;
+          return (
+            <button
+              onClick={handleToggle}
+              title="Toggle MixCortex AI Co-Pilot (Real-time Harmonic & Vibe Next Track Ideas)"
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+                isCortexActive
+                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.8)] font-black'
+                  : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
+              }`}
+            >
+              <Brain className={`w-3.5 h-3.5 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
+              <span className="hidden sm:inline font-extrabold tracking-wide">CORTEX AI</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+            </button>
+          );
+        })()}
         {/* Google Drive Status Badge */}
         <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300">
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
@@ -285,35 +317,38 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center space-x-1">
           {updateStatus.status === 'available' ? (
             <button
-              onClick={() => updateService.startDownload()}
-              title="A new patch is available on GitHub! Click to download."
+              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.startDownload())}
+              title="A new patch is available on GitHub! Click to open patch downloader."
               className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-[10.5px] font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Patch v{updateStatus.version}</span>
             </button>
           ) : updateStatus.status === 'downloading' ? (
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[10.5px] font-mono text-purple-200">
+            <button
+              onClick={() => onOpenPatchModal && onOpenPatchModal()}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[10.5px] font-mono text-purple-200 cursor-pointer"
+            >
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" />
               <span>Patching: {updateStatus.percent || 0}%</span>
-            </div>
+            </button>
           ) : updateStatus.status === 'downloaded' ? (
             <button
-              onClick={() => updateService.restartAndApply()}
-              title="Patch downloaded. Click to restart and apply."
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10.5px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.6)] cursor-pointer transition-all"
+              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.restartAndApply())}
+              title="Patch downloaded. Click to review and apply."
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10.5px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.6)] cursor-pointer transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Restart & Apply</span>
             </button>
           ) : (
             <button
-              onClick={() => updateService.checkForUpdates()}
-              title={`CloudMix Pro v${updateStatus.version || '1.2.0'} - Click to check GitHub for patches`}
+              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
+              title={`CloudMix Pro v${updateStatus.version || '1.3.1'} - Click to check GitHub for patches`}
               className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[10.5px] font-mono text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.2.0'}</span>
+              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.3.1'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}
