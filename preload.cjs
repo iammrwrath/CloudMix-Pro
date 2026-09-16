@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
 
+  // YouTube Music OAuth — opens a modal BrowserWindow, intercepts redirect, returns token
+  openOAuthWindow: (authUrl) => ipcRenderer.invoke('open-oauth-window', authUrl),
+
   // Universal DJ Bridge & NowPlaying Integration
   writeNowPlayingBroadcast: (payload) => ipcRenderer.invoke('write-now-playing-broadcast', payload),
   readDjayNowPlaying: () => ipcRenderer.invoke('read-djay-nowplaying'),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
@@ -403,5 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     </div>
   );
 };
+
+
 
 

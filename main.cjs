@@ -270,6 +270,49 @@ ipcMain.handle('select-folder', async () => {
   return null;
 });
 
+// ── YouTube Music OAuth BrowserWindow ──────────────────────────────────────
+// Opens a child window for Google OAuth, intercepts the http://localhost
+// redirect, extracts the access_token from the hash, and returns it.
+ipcMain.handle('open-oauth-window', async (event, authUrl) => {
+  return new Promise((resolve) => {
+    const { BrowserWindow: BW } = require('electron');
+    const oauthWin = new BW({
+      width: 520,
+      height: 680,
+      title: 'Sign in with Google',
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+      parent: mainWindow,
+      modal: true,
+    });
+
+    oauthWin.loadURL(authUrl);
+    oauthWin.show();
+
+    const handleNavigation = (url) => {
+      if (!url || !url.startsWith('http://localhost')) return;
+      // Token is in the hash fragment: http://localhost#access_token=xxx&...
+      try {
+        const hash = new URL(url).hash.replace('#', '');
+        const params = new URLSearchParams(hash);
+        const token = params.get('access_token');
+        if (token) {
+          resolve(token);
+          oauthWin.destroy();
+        }
+      } catch {}
+    };
+
+    oauthWin.webContents.on('will-navigate', (e, url) => handleNavigation(url));
+    oauthWin.webContents.on('will-redirect', (e, url) => {
+      e.preventDefault();
+      handleNavigation(url);
+    });
+    oauthWin.webContents.on('did-navigate', (e, url) => handleNavigation(url));
+
+    oauthWin.on('closed', () => resolve(null));
+  });
+});
+
 ipcMain.handle('write-now-playing-broadcast', async (event, { title, artist, bpm, key, deck }) => {
   try {
     const streamerDir = 'C:\\StreamerBot';

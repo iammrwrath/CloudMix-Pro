@@ -85,14 +85,16 @@ class YouTubeMusicService {
 
   /**
    * Opens a Google OAuth 2.0 popup to sign the user into YouTube Music.
-   * Uses implicit grant flow (token in hash fragment).
-   * For Electron, opens via shell.openExternal and the app can listen for the redirect.
+   * Uses implicit grant (token in hash fragment).
+   * In Electron, opens a modal BrowserWindow via IPC that intercepts the
+   * http://localhost redirect and returns the token directly.
    */
   public async signIn(): Promise<void> {
-    const CLIENT_ID = (await storageCache.getSetting<string>('yt_client_id', ''))
-      || '';
+    const CLIENT_ID = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
     if (!CLIENT_ID) {
-      throw new Error('YouTube Music Client ID not configured. Go to Settings → YouTube Music and enter your Google OAuth Client ID.');
+      throw new Error(
+        'No Client ID set. Paste your Google OAuth Client ID in Settings → YouTube Music first.'
+      );
     }
     const REDIRECT_URI = 'http://localhost';
     const SCOPES = [
@@ -100,50 +102,28 @@ class YouTubeMusicService {
       'https://www.googleapis.com/auth/userinfo.email',
     ].join(' ');
 
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-      `client_id=${encodeURIComponent(CLIENT_ID)}` +
+    const authUrl =
+      `https://accounts.google.com/o/oauth2/v2/auth` +
+      `?client_id=${encodeURIComponent(CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
       `&response_type=token` +
       `&scope=${encodeURIComponent(SCOPES)}` +
       `&prompt=select_account`;
 
-    // Try Electron shell first, fall back to window.open
-    if ((window as any).desktopAPI?.openExternal) {
-      await (window as any).desktopAPI.openExternal(authUrl);
-    } else {
-      const popup = window.open(authUrl, 'yt_oauth', 'width=520,height=640,resizable=yes');
-
-      // Poll for redirect
-      await new Promise<void>((resolve) => {
-        const interval = setInterval(() => {
-          try {
-            if (popup && popup.closed) {
-              clearInterval(interval);
-              resolve();
-              return;
-            }
-            const hash = popup?.location?.hash || '';
-            if (hash.includes('access_token')) {
-              const params = new URLSearchParams(hash.replace('#', ''));
-              const token = params.get('access_token');
-              if (token) {
-                this._accessToken = token;
-                storageCache.setSetting('yt_oauth_token', token);
-                // Fetch user email
-                this._fetchUserEmail(token);
-              }
-              popup?.close();
-              clearInterval(interval);
-              resolve();
-            }
-          } catch {
-            // Cross-origin, still loading
-          }
-        }, 500);
-        // Timeout after 5 minutes
-        setTimeout(() => { clearInterval(interval); resolve(); }, 300000);
-      });
+    // Use Electron's IPC-backed OAuth window (intercepts redirect, no 404)
+    const desktopAPI = (window as any).desktopAPI;
+    if (desktopAPI?.openOAuthWindow) {
+      const token: string | null = await desktopAPI.openOAuthWindow(authUrl);
+      if (token) {
+        this._accessToken = token;
+        await storageCache.setSetting('yt_oauth_token', token);
+        this._fetchUserEmail(token);
+      }
+      return;
     }
+
+    // Fallback for non-Electron environments (dev/browser mode)
+    throw new Error('OAuth requires the Electron desktop app.');
   }
 
   public signOut(): void {
