@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { updateService, UpdateStatus } from '../services/UpdateService';
 import {
   Download,
@@ -70,6 +70,20 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
     }
   };
 
+function isNewer(latest: string, current: string): boolean {
+  if (!latest || !current) return false;
+  const pLatest = latest.replace(/^v/i, '').trim().split('.').map(n => parseInt(n, 10) || 0);
+  const pCurrent = current.replace(/^v/i, '').trim().split('.').map(n => parseInt(n, 10) || 0);
+  const maxLen = Math.max(pLatest.length, pCurrent.length, 3);
+  for (let i = 0; i < maxLen; i++) {
+    const l = pLatest[i] || 0;
+    const c = pCurrent[i] || 0;
+    if (l > c) return true;
+    if (l < c) return false;
+  }
+  return false;
+}
+
   const handleDownload = () => {
     if (downloadUrl) {
       window.open(downloadUrl, '_blank');
@@ -87,9 +101,13 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
     fetchGitHubReleaseInfo();
   };
 
+  const installedVersion = (status.version || '1.4.2').replace(/^v/i, '');
+  const latestVersion = (releaseName.match(/v?[0-9.]+/)?.[0] || '1.4.2').replace(/^v/i, '');
+  const hasNewerVersion = isNewer(latestVersion, installedVersion);
+
   const isDownloading = status.status === 'downloading';
   const isDownloaded = status.status === 'downloaded';
-  const isAvailable = status.status === 'available';
+  const isAvailable = (status.status === 'available' || hasNewerVersion) && hasNewerVersion && !isDownloading && !isDownloaded;
   const isChecking = status.status === 'checking';
 
   return (
@@ -133,7 +151,7 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
                 Installed Version
               </span>
               <span className="font-mono text-base font-bold text-slate-200 mt-0.5">
-                v{status.version || '1.4.1'}
+                v{installedVersion}
               </span>
               <span className="text-[10.5px] text-slate-500 mt-0.5">Current workstation build</span>
             </div>
@@ -144,7 +162,7 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
                 <span>GitHub Latest</span>
               </span>
               <span className="font-mono text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-300 mt-0.5">
-                {releaseName.match(/v[0-9.]+/)?.[0] || 'v1.4.1'}
+                v{latestVersion}
               </span>
               <span className="text-[10.5px] text-slate-500 mt-0.5">
                 {publishedAt ? `Published ${publishedAt}` : 'Available on GitHub'}

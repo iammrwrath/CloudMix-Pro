@@ -1,4 +1,4 @@
-﻿export interface UpdateStatus {
+export interface UpdateStatus {
   status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
   version?: string;
   percent?: number;
@@ -8,8 +8,24 @@
 
 type UpdateListener = (status: UpdateStatus) => void;
 
+// Strict semver comparator: returns true only if `latest` is strictly newer than `current`
+function isNewerVersion(latest: string, current: string): boolean {
+  if (!latest || !current) return false;
+  const pLatest = latest.replace(/^v/i, '').trim().split('.').map((n) => parseInt(n, 10) || 0);
+  const pCurrent = current.replace(/^v/i, '').trim().split('.').map((n) => parseInt(n, 10) || 0);
+
+  const maxLen = Math.max(pLatest.length, pCurrent.length, 3);
+  for (let i = 0; i < maxLen; i++) {
+    const l = pLatest[i] || 0;
+    const c = pCurrent[i] || 0;
+    if (l > c) return true;
+    if (l < c) return false;
+  }
+  return false;
+}
+
 class UpdateService {
-  private currentStatus: UpdateStatus = { status: 'idle', version: '1.4.1' };
+  private currentStatus: UpdateStatus = { status: 'idle', version: '1.4.2' };
   private listeners: Set<UpdateListener> = new Set();
   private initialized = false;
 
@@ -38,6 +54,11 @@ class UpdateService {
         api.onUpdaterStatus((data: any) => {
           this.currentStatus = { ...this.currentStatus, ...data };
           this.notify();
+
+          // If electron-updater signals 'available', automatically trigger background download
+          if (data && data.status === 'available') {
+            this.startDownload().catch(() => {});
+          }
         });
       }
 
@@ -86,24 +107,30 @@ class UpdateService {
       if (typeof window !== 'undefined' && (window as any).desktopAPI?.checkGitHubReleases) {
         const gh = await (window as any).desktopAPI.checkGitHubReleases();
         if (gh.success && gh.release) {
-          const latestTag = gh.release.tag_name?.replace(/^v/, '');
-          const currentVer = this.currentStatus.version || '1.4.1';
-          if (latestTag && latestTag !== currentVer) {
+          const latestTag = gh.release.tag_name?.replace(/^v/i, '');
+          const currentVer = (this.currentStatus.version || '1.4.2').replace(/^v/i, '');
+          if (latestTag && isNewerVersion(latestTag, currentVer)) {
             this.currentStatus = {
               status: 'available',
               version: latestTag,
-              message: `Patch v${latestTag} available on GitHub!`
+              message: `Patch v${latestTag} available! Auto-downloading...`
             };
+            this.notify();
+            // Automatically download patch in background
+            this.startDownload().catch(() => {});
+            return;
           } else {
             this.currentStatus = {
               status: 'not-available',
+              version: currentVer,
               message: `CloudMix Pro is up to date (v${currentVer}).`
             };
           }
         } else {
           this.currentStatus = {
             status: 'not-available',
-            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.4.1'}).`
+            version: this.currentStatus.version || '1.4.2',
+            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.4.2'}).`
           };
         }
       } else {
@@ -111,31 +138,38 @@ class UpdateService {
         const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases/latest');
         if (resp.ok) {
           const data = await resp.json();
-          const latestTag = data.tag_name?.replace(/^v/, '');
-          const currentVer = this.currentStatus.version || '1.4.1';
-          if (latestTag && latestTag !== currentVer) {
+          const latestTag = data.tag_name?.replace(/^v/i, '');
+          const currentVer = (this.currentStatus.version || '1.4.2').replace(/^v/i, '');
+          if (latestTag && isNewerVersion(latestTag, currentVer)) {
             this.currentStatus = {
               status: 'available',
               version: latestTag,
-              message: `Patch v${latestTag} available!`
+              message: `Patch v${latestTag} available! Auto-downloading...`
             };
+            this.notify();
+            // Automatically download patch in background
+            this.startDownload().catch(() => {});
+            return;
           } else {
             this.currentStatus = {
               status: 'not-available',
+              version: currentVer,
               message: `CloudMix Pro is up to date (v${currentVer}).`
             };
           }
         } else {
           this.currentStatus = {
             status: 'not-available',
-            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.4.1'}).`
+            version: this.currentStatus.version || '1.4.2',
+            message: `CloudMix Pro is up to date (v${this.currentStatus.version || '1.4.2'}).`
           };
         }
       }
     } catch {
       this.currentStatus = {
         status: 'not-available',
-        message: `CloudMix Pro v${this.currentStatus.version || '1.4.1'} (Latest)`
+        version: this.currentStatus.version || '1.4.2',
+        message: `CloudMix Pro v${this.currentStatus.version || '1.4.2'} (Latest)`
       };
     }
     this.notify();

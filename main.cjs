@@ -809,7 +809,7 @@ let autoUpdater = null;
 try {
   const updaterModule = require('electron-updater');
   autoUpdater = updaterModule.autoUpdater;
-  autoUpdater.autoDownload = false;
+  autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   log('electron-updater initialized');
 
@@ -1003,16 +1003,18 @@ ipcMain.handle('start-update-download', async () => {
 ipcMain.handle('restart-and-install-patch', async () => {
   log('IPC: restart-and-install-patch called');
   if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
-    log('Launching downloaded setup executable: ' + downloadedInstallerPath);
+    log('Launching downloaded setup executable silently: ' + downloadedInstallerPath);
     const { spawn } = require('child_process');
-    spawn(downloadedInstallerPath, [], { detached: true, stdio: 'ignore' }).unref();
+    // Launch NSIS silent install flag (/S)
+    spawn(downloadedInstallerPath, ['/S'], { detached: true, stdio: 'ignore' }).unref();
     app.quit();
     return { success: true };
   }
 
   if (autoUpdater) {
     try {
-      autoUpdater.quitAndInstall(false, true);
+      // isSilent: true, isForceRunAfter: true
+      autoUpdater.quitAndInstall(true, true);
       return { success: true };
     } catch (err) {
       log('autoUpdater.quitAndInstall error: ' + err.message);
