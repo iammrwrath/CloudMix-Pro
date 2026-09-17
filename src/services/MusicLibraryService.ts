@@ -118,7 +118,37 @@ export class MusicLibraryService {
     this.tracks = Array.from(combined.values());
     this.isLoaded = true;
     this.notify();
+
+    // Persist combined tracks to IndexedDB so Library.tsx and other components can access them
+    try {
+      const djTracks = this.tracks.map((t) => this.convertPulseToDjTrack(t));
+      storageCache.saveTracks(djTracks).catch((e) => console.warn('Background track cache save error:', e));
+    } catch {}
+
     return this.tracks;
+  }
+
+  public convertPulseToDjTrack(track: PulseTrack): TrackMetadata {
+    return {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album || '',
+      genre: track.genre || 'Various',
+      year: track.year || new Date().getFullYear(),
+      duration: track.duration || 180,
+      bpm: track.bpm || 124,
+      key: track.key || '8A',
+      camelotKey: track.camelotKey || '8A',
+      fileUrl: track.fileUrl,
+      fileSource: track.fileSource as any,
+      coverArtUrl: track.coverArtUrl,
+      dateAdded: new Date().toLocaleDateString(),
+      rating: track.rating || 4,
+      hotCues: [],
+      savedLoops: [],
+      beatGrid: { bpm: track.bpm || 124, firstBeatOffset: 0.0, meter: 4 },
+    };
   }
 
   /**
@@ -191,6 +221,13 @@ export class MusicLibraryService {
     if (added > 0 || newTracks.length > 0) {
       this.isLoaded = true;
       this.notify();
+
+      try {
+        const djTracks = newTracks.map((t) => this.convertPulseToDjTrack(t));
+        await storageCache.saveTracks(djTracks);
+      } catch (err) {
+        console.warn('Failed to persist scanned tracks to storageCache:', err);
+      }
     }
 
     return newTracks.length;

@@ -4,6 +4,7 @@ import { storageCache } from '../services/StorageCacheService';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { youtubeMusicService } from '../services/YouTubeMusicService';
 import { automixService } from '../services/AutomixService';
+import { musicLibraryService } from '../services/MusicLibraryService';
 import {
   Folder,
   Music,
@@ -89,9 +90,19 @@ export const Library: React.FC<LibraryProps> = ({
     setYtResults(youtubeMusicService.getFeaturedTracks());
     const unsubQ = automixService.subscribeQueue(setQueue);
     const unsubH = automixService.subscribeHistory(setHistory);
+
+    // Subscribe to real-time music library updates (from folder scan or djay Pro import)
+    const unsubLib = musicLibraryService.subscribe((pulseTracks) => {
+      if (pulseTracks && pulseTracks.length > 0) {
+        const djTracks = pulseTracks.map((pt) => musicLibraryService.convertPulseToDjTrack(pt));
+        setTracks(djTracks);
+      }
+    });
+
     return () => {
       unsubQ();
       unsubH();
+      unsubLib();
     };
   }, []);
 

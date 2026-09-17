@@ -131,7 +131,7 @@ export const JogWheel: React.FC<JogWheelProps> = ({
       {/* Outer Pitch Bend Rim (Machined Aluminum Strobe Bezel) */}
       <div
         ref={wheelRef}
-        className="relative w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 lg:w-60 lg:h-60 xl:w-72 xl:h-72 max-h-[min(26vh,260px)] aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1.5 sm:p-2 shadow-[0_12px_32px_rgba(0,0,0,0.9)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0"
+        className="relative w-[min(26vh,260px,100%)] h-[min(26vh,260px,100%)] aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1.5 sm:p-2 shadow-[0_12px_32px_rgba(0,0,0,0.9)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
       >
         {/* Outer Strobe Dot Ring (Pioneer CDJ / Technics Style) */}
         <div className="absolute inset-0 rounded-full border border-dashed border-slate-400/25 pointer-events-none" />

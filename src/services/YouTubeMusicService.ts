@@ -96,7 +96,7 @@ class YouTubeMusicService {
         'No Client ID set. Paste your Google OAuth Client ID in Settings → YouTube Music first.'
       );
     }
-    const REDIRECT_URI = 'http://localhost';
+    const REDIRECT_URI = 'http://127.0.0.1:42813/callback';
     const SCOPES = [
       'https://www.googleapis.com/auth/youtube.readonly',
       'https://www.googleapis.com/auth/userinfo.email',

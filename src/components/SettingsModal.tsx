@@ -360,6 +360,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       Google OAuth Client ID
                     </label>
                     <YtClientIdInput />
+                    <p className="text-[10px] text-slate-500 font-mono mt-1">
+                      Add <code className="text-cyan-400">http://127.0.0.1:42813/callback</code> to your Google Cloud Console Authorized redirect URIs.
+                    </p>
                   </div>
 
                   {ytError && (

@@ -35,6 +35,16 @@ export class StorageCacheService {
     await db.put('tracks', track);
   }
 
+  public async saveTracks(tracks: TrackMetadata[]): Promise<void> {
+    if (!tracks || tracks.length === 0) return;
+    const db = await this.dbPromise;
+    const tx = db.transaction('tracks', 'readwrite');
+    for (const track of tracks) {
+      tx.store.put(track);
+    }
+    await tx.done;
+  }
+
   public async getTrack(id: string): Promise<TrackMetadata | undefined> {
     const db = await this.dbPromise;
     return await db.get('tracks', id);

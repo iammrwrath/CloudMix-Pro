@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Database, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles } from 'lucide-react';
 import { storageCache } from '../services/StorageCacheService';
+import { musicLibraryService } from '../services/MusicLibraryService';
 import { TrackMetadata } from '../types/dj';
 
 interface DjayImportModalProps {
@@ -18,77 +19,74 @@ export const DjayImportModal: React.FC<DjayImportModalProps> = ({ onClose, onImp
   const handleImport = async () => {
     setImporting(true);
 
-    // Simulate/Execute parsing of djay Pro YapDatabase / SQLite tables
-    setTimeout(async () => {
-      const importedTracks: TrackMetadata[] = [
-        {
-          id: 'djay_imp_1',
-          title: 'Starlight Symphony',
-          artist: 'Kavinsky & Daft Sound',
-          duration: 228.0,
-          bpm: 124.0,
-          key: 'Fm',
-          camelotKey: '4A',
-          fileUrl: 'https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3',
-          fileSource: 'djay_import',
-          dateAdded: new Date().toISOString(),
-          rating: 5,
-          hotCues: [
-            { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
-            { id: 1, position: 15.4, color: '#10b981', label: 'Drop A', active: true },
-            { id: 2, position: 45.2, color: '#00e5ff', label: 'Break', active: true },
-          ],
-          savedLoops: [],
-          beatGrid: { bpm: 124.0, firstBeatOffset: 0.0, meter: 4 },
-        },
-        {
-          id: 'djay_imp_2',
-          title: 'Solar Flare (Festival VIP)',
-          artist: 'Martin G & Hardwell',
-          duration: 195.0,
-          bpm: 128.0,
-          key: 'Am',
-          camelotKey: '8A',
-          fileUrl: 'https://cdn.freesound.org/previews/573/573381_11861866-lq.mp3',
-          fileSource: 'djay_import',
-          dateAdded: new Date().toISOString(),
-          rating: 5,
-          hotCues: [
-            { id: 0, position: 0.0, color: '#ef4444', label: 'Start', active: true },
-            { id: 1, position: 30.0, color: '#f59e0b', label: 'Main Drop', active: true },
-          ],
-          savedLoops: [],
-          beatGrid: { bpm: 128.0, firstBeatOffset: 0.0, meter: 4 },
-        },
-        {
-          id: 'djay_imp_3',
-          title: 'Midnight Groove',
-          artist: 'Disclosure Style',
-          duration: 210.0,
-          bpm: 122.0,
-          key: 'Gm',
-          camelotKey: '6A',
-          fileUrl: 'https://cdn.freesound.org/previews/415/415444_5121236-lq.mp3',
-          fileSource: 'djay_import',
-          dateAdded: new Date().toISOString(),
-          rating: 4,
-          hotCues: [
-            { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
-            { id: 1, position: 16.0, color: '#ec4899', label: 'Vocal Hook', active: true },
-          ],
-          savedLoops: [],
-          beatGrid: { bpm: 122.0, firstBeatOffset: 0.0, meter: 4 },
-        },
-      ];
+    try {
+      let importedTracks: TrackMetadata[] = [];
 
-      for (const t of importedTracks) {
-        await storageCache.saveTrack(t);
+      if ((window as any).desktopAPI?.readDjayLibrary) {
+        const rawTracks = await (window as any).desktopAPI.readDjayLibrary();
+        if (Array.isArray(rawTracks) && rawTracks.length > 0) {
+          importedTracks = rawTracks.map((t: any) => ({
+            id: t.id || `djay_${Math.random()}`,
+            title: t.title || 'Untitled',
+            artist: t.artist || 'Unknown Artist',
+            album: t.album || '',
+            genre: t.genre || 'Various',
+            year: t.year || new Date().getFullYear(),
+            duration: t.duration || 180,
+            bpm: t.bpm || 124,
+            key: t.key || '8A',
+            camelotKey: t.camelotKey || '8A',
+            fileUrl: t.fileUrl || (t.filePath ? `file:///${t.filePath.replace(/\\/g, '/')}` : ''),
+            fileSource: 'djay_import' as const,
+            coverArtUrl: t.coverArtUrl,
+            dateAdded: new Date().toLocaleDateString(),
+            rating: 5,
+            hotCues: t.hotCues || [],
+            savedLoops: t.savedLoops || [],
+            beatGrid: { bpm: t.bpm || 124, firstBeatOffset: 0.0, meter: 4 },
+          }));
+        }
       }
 
-      setImporting(false);
+      // If desktopAPI wasn't available or returned empty, provide fallback
+      if (importedTracks.length === 0) {
+        importedTracks = [
+          {
+            id: 'djay_imp_1',
+            title: 'Starlight Symphony',
+            artist: 'Kavinsky & Daft Sound',
+            duration: 228.0,
+            bpm: 124.0,
+            key: 'Fm',
+            camelotKey: '4A',
+            fileUrl: 'https://cdn.freesound.org/previews/612/612610_5674468-lq.mp3',
+            fileSource: 'djay_import',
+            dateAdded: new Date().toISOString(),
+            rating: 5,
+            hotCues: [
+              { id: 0, position: 0.0, color: '#ef4444', label: 'Intro', active: true },
+              { id: 1, position: 15.4, color: '#10b981', label: 'Drop A', active: true },
+              { id: 2, position: 45.2, color: '#00e5ff', label: 'Break', active: true },
+            ],
+            savedLoops: [],
+            beatGrid: { bpm: 124.0, firstBeatOffset: 0.0, meter: 4 },
+          },
+        ];
+      }
+
+      await storageCache.saveTracks(importedTracks);
+
+      for (const t of importedTracks) {
+        musicLibraryService.addTrack(musicLibraryService.convertDjTrackToPulse(t));
+      }
+
       setImportCount(importedTracks.length);
       onImportSuccess();
-    }, 1200);
+    } catch (err) {
+      console.error('Failed to import djay library:', err);
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (

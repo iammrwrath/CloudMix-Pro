@@ -170,24 +170,36 @@ ipcMain.handle('read-local-audio', async (event, filePath) => {
 ipcMain.handle('scan-directory', async (event, dirPath) => {
   try {
     if (!fs.existsSync(dirPath)) return [];
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    const audioExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg'];
+    const audioExtensions = new Set(['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.aif', '.aiff', '.wma']);
     const results = [];
 
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        const ext = path.extname(entry.name).toLowerCase();
-        if (audioExtensions.includes(ext)) {
-          const fullPath = path.join(dirPath, entry.name);
-          const stats = fs.statSync(fullPath);
-          results.push({
-            name: entry.name,
-            fullPath,
-            size: stats.size,
-          });
+    const scanSubdir = (currentDir, depth = 0) => {
+      if (depth > 10) return;
+      try {
+        const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+        for (const entry of entries) {
+          try {
+            const fullPath = path.join(currentDir, entry.name);
+            if (entry.isDirectory()) {
+              scanSubdir(fullPath, depth + 1);
+            } else if (entry.isFile()) {
+              const ext = path.extname(entry.name).toLowerCase();
+              if (audioExtensions.has(ext)) {
+                const stats = fs.statSync(fullPath);
+                results.push({
+                  name: entry.name,
+                  fullPath,
+                  size: stats.size,
+                });
+              }
+            }
+          } catch {}
         }
-      }
-    }
+      } catch {}
+    };
+
+    scanSubdir(dirPath, 0);
+    log(`[SCAN DIRECTORY] Scanned ${results.length} tracks from ${dirPath}`);
     return results;
   } catch (err) {
     log('Error scanning directory: ' + err);

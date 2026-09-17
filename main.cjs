@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const http = require('http');
 
 const logFile = path.join(os.tmpdir(), 'cloudmix_electron.log');
 function log(msg) {
@@ -235,24 +236,36 @@ ipcMain.handle('read-local-audio', async (event, filePath) => {
 ipcMain.handle('scan-directory', async (event, dirPath) => {
   try {
     if (!fs.existsSync(dirPath)) return [];
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    const audioExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg'];
+    const audioExtensions = new Set(['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.aif', '.aiff', '.wma']);
     const results = [];
 
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        const ext = path.extname(entry.name).toLowerCase();
-        if (audioExtensions.includes(ext)) {
-          const fullPath = path.join(dirPath, entry.name);
-          const stats = fs.statSync(fullPath);
-          results.push({
-            name: entry.name,
-            fullPath,
-            size: stats.size,
-          });
+    const scanSubdir = (currentDir, depth = 0) => {
+      if (depth > 10) return;
+      try {
+        const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+        for (const entry of entries) {
+          try {
+            const fullPath = path.join(currentDir, entry.name);
+            if (entry.isDirectory()) {
+              scanSubdir(fullPath, depth + 1);
+            } else if (entry.isFile()) {
+              const ext = path.extname(entry.name).toLowerCase();
+              if (audioExtensions.has(ext)) {
+                const stats = fs.statSync(fullPath);
+                results.push({
+                  name: entry.name,
+                  fullPath,
+                  size: stats.size,
+                });
+              }
+            }
+          } catch {}
         }
-      }
-    }
+      } catch {}
+    };
+
+    scanSubdir(dirPath, 0);
+    log(`[SCAN DIRECTORY] Scanned ${results.length} tracks from ${dirPath}`);
     return results;
   } catch (err) {
     log('Error scanning directory: ' + err);
@@ -270,77 +283,121 @@ ipcMain.handle('select-folder', async () => {
   return null;
 });
 
-// ── YouTube Music OAuth BrowserWindow ──────────────────────────────────────
-// Opens a child window for Google OAuth, intercepts the http://localhost
-// redirect, extracts the access_token from the hash, and returns it.
+// ── YouTube Music OAuth Loopback Server (RFC 8252 Native App Standard) ──────
+// Starts a temporary local HTTP server on 127.0.0.1:42813, opens system browser via
+// shell.openExternal(authUrl), intercepts the redirect, returns the token, and closes server.
 ipcMain.handle('open-oauth-window', async (event, authUrl) => {
   return new Promise((resolve) => {
-    const { BrowserWindow: BW } = require('electron');
-    const CHROME_UA =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+    const PORT = 42813;
+    let server = null;
+    let isResolved = false;
 
-    const oauthWin = new BW({
-      width: 520,
-      height: 700,
-      title: 'Sign in with Google',
-      autoHideMenuBar: true,
-      backgroundColor: '#ffffff',
-      parent: mainWindow,
-      modal: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        webSecurity: true,
-      },
-    });
-
-    oauthWin.webContents.setUserAgent(CHROME_UA);
-    oauthWin.setMenuBarVisibility(false);
-
-    oauthWin.loadURL(authUrl, { userAgent: CHROME_UA }).catch((err) => {
-      log('OAuth loadURL error: ' + err);
-    });
-
-    const handleNavigation = (url) => {
-      if (!url) return;
-      log('OAuth navigation detected: ' + url);
-      if (!url.startsWith('http://localhost') && !url.startsWith('https://localhost')) return;
-
-      try {
-        const parsed = new URL(url);
-        // Check hash: http://localhost#access_token=xxx&...
-        const hash = parsed.hash.replace(/^#/, '');
-        let params = new URLSearchParams(hash);
-        let token = params.get('access_token');
-
-        // Check query: http://localhost?code=xxx or ?access_token=xxx
-        if (!token) {
-          params = parsed.searchParams;
-          token = params.get('access_token');
-        }
-
-        if (token) {
-          log('OAuth access token successfully intercepted');
-          resolve(token);
-          oauthWin.destroy();
-        }
-      } catch (err) {
-        log('Error parsing OAuth redirect: ' + err);
+    const cleanupAndResolve = (token) => {
+      if (isResolved) return;
+      isResolved = true;
+      if (server) {
+        try { server.close(); } catch {}
       }
+      resolve(token);
     };
 
-    oauthWin.webContents.on('will-navigate', (e, url) => handleNavigation(url));
-    oauthWin.webContents.on('will-redirect', (e, url) => {
-      handleNavigation(url);
-    });
-    oauthWin.webContents.on('did-navigate', (e, url) => handleNavigation(url));
+    try {
+      server = http.createServer((req, res) => {
+        const reqUrl = req.url || '';
+        log(`OAuth loopback request received: ${reqUrl}`);
 
-    oauthWin.webContents.on('did-fail-load', (e, errorCode, errorDescription, validatedURL) => {
-      log(`OAuth did-fail-load: code=${errorCode} desc=${errorDescription} url=${validatedURL}`);
-      handleNavigation(validatedURL);
-    });
+        if (reqUrl.startsWith('/callback')) {
+          // Serve an HTML page that extracts hash fragments (#access_token=...) and sends them back via POST
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CloudMix Pro — Sign-In</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0d14; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #131823; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; text-align: center; max-width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+    h2 { color: #38bdf8; margin-top: 0; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Connected to YouTube Music!</h2>
+    <p>Authentication was successful. You can safely close this browser window and return to CloudMix Pro.</p>
+  </div>
+  <script>
+    (function() {
+      var hash = window.location.hash.substring(1);
+      var search = window.location.search.substring(1);
+      var params = new URLSearchParams(hash || search);
+      var token = params.get('access_token');
+      if (token) {
+        fetch('/token-received', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token })
+        }).then(function() {
+          setTimeout(function() { window.close(); }, 1500);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>`);
+          return;
+        }
 
-    oauthWin.on('closed', () => resolve(null));
+        if (reqUrl.startsWith('/token-received') && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body);
+              if (data && data.token) {
+                log('OAuth access token received via loopback POST');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok' }));
+                cleanupAndResolve(data.token);
+                return;
+              }
+            } catch {}
+            res.writeHead(400);
+            res.end();
+          });
+          return;
+        }
+
+        res.writeHead(404);
+        res.end();
+      });
+
+      server.listen(PORT, '127.0.0.1', () => {
+        log(`OAuth loopback server listening on http://127.0.0.1:${PORT}`);
+        // Launch Google authentication in user's default system browser (Chrome/Edge/Firefox)
+        shell.openExternal(authUrl).catch(err => {
+          log('shell.openExternal error: ' + err);
+          cleanupAndResolve(null);
+        });
+      });
+
+      server.on('error', (err) => {
+        log('OAuth loopback server error: ' + err);
+        cleanupAndResolve(null);
+      });
+
+      // Timeout after 2 minutes if user abandons browser sign-in
+      setTimeout(() => {
+        if (!isResolved) {
+          log('OAuth loopback timed out after 120s');
+          cleanupAndResolve(null);
+        }
+      }, 120000);
+
+    } catch (err) {
+      log('Failed to create OAuth loopback server: ' + err);
+      cleanupAndResolve(null);
+    }
   });
 });
 
