@@ -276,38 +276,69 @@ ipcMain.handle('select-folder', async () => {
 ipcMain.handle('open-oauth-window', async (event, authUrl) => {
   return new Promise((resolve) => {
     const { BrowserWindow: BW } = require('electron');
+    const CHROME_UA =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
     const oauthWin = new BW({
       width: 520,
-      height: 680,
+      height: 700,
       title: 'Sign in with Google',
-      webPreferences: { nodeIntegration: false, contextIsolation: true },
+      autoHideMenuBar: true,
+      backgroundColor: '#ffffff',
       parent: mainWindow,
       modal: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true,
+      },
     });
 
-    oauthWin.loadURL(authUrl);
-    oauthWin.show();
+    oauthWin.webContents.setUserAgent(CHROME_UA);
+    oauthWin.setMenuBarVisibility(false);
+
+    oauthWin.loadURL(authUrl, { userAgent: CHROME_UA }).catch((err) => {
+      log('OAuth loadURL error: ' + err);
+    });
 
     const handleNavigation = (url) => {
-      if (!url || !url.startsWith('http://localhost')) return;
-      // Token is in the hash fragment: http://localhost#access_token=xxx&...
+      if (!url) return;
+      log('OAuth navigation detected: ' + url);
+      if (!url.startsWith('http://localhost') && !url.startsWith('https://localhost')) return;
+
       try {
-        const hash = new URL(url).hash.replace('#', '');
-        const params = new URLSearchParams(hash);
-        const token = params.get('access_token');
+        const parsed = new URL(url);
+        // Check hash: http://localhost#access_token=xxx&...
+        const hash = parsed.hash.replace(/^#/, '');
+        let params = new URLSearchParams(hash);
+        let token = params.get('access_token');
+
+        // Check query: http://localhost?code=xxx or ?access_token=xxx
+        if (!token) {
+          params = parsed.searchParams;
+          token = params.get('access_token');
+        }
+
         if (token) {
+          log('OAuth access token successfully intercepted');
           resolve(token);
           oauthWin.destroy();
         }
-      } catch {}
+      } catch (err) {
+        log('Error parsing OAuth redirect: ' + err);
+      }
     };
 
     oauthWin.webContents.on('will-navigate', (e, url) => handleNavigation(url));
     oauthWin.webContents.on('will-redirect', (e, url) => {
-      e.preventDefault();
       handleNavigation(url);
     });
     oauthWin.webContents.on('did-navigate', (e, url) => handleNavigation(url));
+
+    oauthWin.webContents.on('did-fail-load', (e, errorCode, errorDescription, validatedURL) => {
+      log(`OAuth did-fail-load: code=${errorCode} desc=${errorDescription} url=${validatedURL}`);
+      handleNavigation(validatedURL);
+    });
 
     oauthWin.on('closed', () => resolve(null));
   });

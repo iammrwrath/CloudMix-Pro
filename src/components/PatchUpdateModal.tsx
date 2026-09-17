@@ -101,8 +101,8 @@ function isNewer(latest: string, current: string): boolean {
     fetchGitHubReleaseInfo();
   };
 
-  const installedVersion = (status.version || '1.4.3').replace(/^v/i, '');
-  const latestVersion = (releaseName.match(/v?[0-9.]+/)?.[0] || '1.4.3').replace(/^v/i, '');
+  const installedVersion = (status.version || '1.4.4').replace(/^v/i, '');
+  const latestVersion = (releaseName.match(/v?[0-9.]+/)?.[0] || '1.4.4').replace(/^v/i, '');
   const hasNewerVersion = isNewer(latestVersion, installedVersion);
 
   const isDownloading = status.status === 'downloading';

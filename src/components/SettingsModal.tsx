@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
@@ -55,6 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const [ytConnected, setYtConnected] = useState(false);
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
+  const [ytError, setYtError] = useState<string | null>(null);
 
   // Load all persisted settings on mount
   useEffect(() => {
@@ -95,9 +96,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       setScanResult(null);
       try {
         const count = await musicLibraryService.refreshFromLocalPath(localDrivePath.trim());
-        setScanResult(`âœ“ Found ${count} tracks in ${localDrivePath}`);
+        setScanResult(`Loaded ${count} tracks from ${localDrivePath}`);
       } catch (e) {
-        setScanResult(`âš  Could not scan folder: ${e}`);
+        setScanResult(`Error: Could not scan folder (${e})`);
       } finally {
         setScanning(false);
       }
@@ -122,9 +123,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     setScanResult(null);
     try {
       const count = await musicLibraryService.refreshFromLocalPath(localDrivePath.trim());
-      setScanResult(`âœ“ Loaded ${count} tracks from ${localDrivePath}`);
-    } catch (e) {
-      setScanResult(`âš  Scan error: ${e}`);
+      setScanResult(`Loaded ${count} tracks from ${localDrivePath}`);
+    } catch (e: any) {
+      setScanResult(`Scan error: ${e?.message || e}`);
     } finally {
       setScanning(false);
     }
@@ -132,6 +133,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
   const handleYtConnect = async () => {
     setYtLoading(true);
+    setYtError(null);
     try {
       await youtubeMusicService.signIn();
       // After sign-in, check if token was stored
@@ -141,8 +143,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setYtConnected(true);
         setYtEmail(email);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('YouTube Music sign-in failed:', e);
+      setYtError(e?.message || 'Sign-in failed. Please verify your Client ID.');
     } finally {
       setYtLoading(false);
     }
@@ -169,7 +172,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         <div className="flex items-center justify-between p-4 border-b border-dj-border bg-dj-surface/90">
           <div className="flex items-center space-x-2">
             <Music className="w-5 h-5 text-cyan-400" />
-            <span className="font-bold text-base text-white">CloudMix Pro â€” Music Sources</span>
+            <span className="font-bold text-base text-white">CloudMix Pro - Music Sources</span>
           </div>
           <button
             onClick={onClose}
@@ -206,7 +209,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         {/* Tab Content */}
         <div className="p-5 space-y-4 overflow-y-auto">
 
-          {/* â”€â”€ LOCAL MUSIC TAB â”€â”€ */}
+          {/* -- LOCAL MUSIC TAB -- */}
           {activeTab === 'local' && (
             <>
               <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-3 text-xs text-blue-200 flex items-start space-x-2">
@@ -253,7 +256,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   <span>{scanning ? 'Scanning...' : 'Scan Now'}</span>
                 </button>
                 {scanResult && (
-                  <span className={`text-[11px] font-mono ${scanResult.startsWith('âœ“') ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <span className={`text-[11px] font-mono ${scanResult.toLowerCase().includes('error') ? 'text-amber-400' : 'text-emerald-400'}`}>
                     {scanResult}
                   </span>
                 )}
@@ -261,7 +264,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </>
           )}
 
-          {/* â”€â”€ GOOGLE DRIVE TAB â”€â”€ */}
+          {/* -- GOOGLE DRIVE TAB -- */}
           {activeTab === 'gdrive' && (
             <>
               <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-3 text-xs text-blue-200 flex items-start space-x-2">
@@ -301,7 +304,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </>
           )}
 
-          {/* â”€â”€ Music2 MUSIC TAB â”€â”€ */}
+          {/* -- YOUTUBE MUSIC TAB -- */}
           {activeTab === 'youtube' && (
             <>
               <div className="bg-rose-950/30 border border-rose-800/40 rounded-xl p-3 text-xs text-rose-200 flex items-start space-x-2">
@@ -358,6 +361,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     </label>
                     <YtClientIdInput />
                   </div>
+
+                  {ytError && (
+                    <div className="w-full bg-red-950/40 border border-red-800/60 rounded-lg p-2.5 text-[11px] font-mono text-red-300 text-center">
+                      {ytError}
+                    </div>
+                  )}
 
                   <button
                     onClick={handleYtConnect}
