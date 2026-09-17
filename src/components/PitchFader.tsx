@@ -45,7 +45,7 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-between bg-dj-surface/90 rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-[0_4px_16px_rgba(0,0,0,0.6)] w-24 sm:w-28 xl:w-32 shrink-0">
+    <div className="flex flex-col items-center justify-between bg-dj-surface/90 rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-[0_4px_16px_rgba(0,0,0,0.6)] w-20 sm:w-26 xl:w-30 shrink-0">
       {/* Top Controls: Key Lock & Range */}
       <div className="flex items-center justify-between w-full mb-1 px-0.5">
         <button
@@ -94,7 +94,7 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
       </button>
 
       {/* Vertical Slider Track with Calibrated Ticks */}
-      <div className="relative h-28 sm:h-36 md:h-44 xl:h-52 w-full flex items-center justify-center my-1">
+      <div className="relative h-24 sm:h-32 md:h-40 xl:h-48 w-full flex items-center justify-center my-1">
         {/* Pitch Scale Ticks on Left */}
         <div className="absolute left-1 inset-y-2 flex flex-col justify-between items-end pointer-events-none text-[7px] sm:text-[8px] font-mono text-slate-500 font-semibold pr-1">
           <span>+</span>
@@ -114,7 +114,7 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
           step="0.001"
           value={sliderVal}
           onChange={handleSliderChange}
-          className="w-24 sm:w-32 md:w-40 xl:w-48 h-2 appearance-none bg-slate-950 rounded-full outline-none cursor-pointer -rotate-90 pitch-thumb border border-slate-800 shadow-inner"
+          className="w-20 sm:w-28 md:w-36 xl:w-44 h-2 appearance-none bg-slate-950 rounded-full outline-none cursor-pointer -rotate-90 pitch-thumb border border-slate-800 shadow-inner"
         />
       </div>
 

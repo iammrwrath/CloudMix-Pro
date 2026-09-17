@@ -344,11 +344,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '1.4.2'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '1.4.3'} - Click to check GitHub for patches`}
               className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[10.5px] font-mono text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.4.2'}</span>
+              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.4.3'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}

@@ -2,6 +2,7 @@ import React from 'react';
 import { DeckState, MixerState, NeuralTransitionMode } from '../types/dj';
 import { RotaryKnob } from './RotaryKnob';
 import { VUMeter } from './VUMeter';
+import { ChannelFader } from './ChannelFader';
 import { Headphones, Sliders, Volume2, Sparkles } from 'lucide-react';
 
 interface MixerProps {
@@ -46,7 +47,7 @@ export const Mixer: React.FC<MixerProps> = ({
   onNeuralTransitionModeChange,
 }) => {
   return (
-    <div className="flex flex-col h-full bg-dj-panel rounded-xl p-2 border border-dj-border shadow-2xl w-80 min-w-[300px] max-w-[360px] overflow-hidden justify-between">
+    <div className="flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-2xl w-72 sm:w-80 min-w-[280px] max-w-[360px] overflow-hidden justify-between shrink-0">
       {/* 1. Mixer Header / Master Volume Section */}
       <div className="flex items-center justify-between bg-dj-surface/90 rounded-lg p-1.5 mb-1 border border-dj-border">
         <RotaryKnob
@@ -349,7 +350,7 @@ export const Mixer: React.FC<MixerProps> = ({
           {/* Channel Fader & Meter with Calibrated Scale */}
           <div className="flex items-end justify-center space-x-2 mt-auto pt-1 w-full px-1">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-32 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none select-none shrink-0">
+            <div className="flex flex-col justify-between h-28 sm:h-32 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none select-none shrink-0">
               <span className="text-emerald-500 font-bold">+6</span>
               <span className="text-slate-300 font-bold">0</span>
               <span>-6</span>
@@ -357,37 +358,17 @@ export const Mixer: React.FC<MixerProps> = ({
               <span>-∞</span>
             </div>
 
-            {/* Vertical fader track */}
-            <div className="relative flex items-center justify-center h-32 w-8">
-              {/* Fader track background */}
-              <div className="absolute left-1/2 -translate-x-1/2 w-1.5 h-full rounded-full bg-slate-950 border border-slate-800 shadow-inner" />
-              {/* Fill bar below thumb */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 w-1.5 rounded-full bg-gradient-to-t from-cyan-500/60 to-cyan-400/20 transition-all"
-                style={{ bottom: 0, height: `${deckA.volume * 100}%` }}
+            {/* Tactile Pro Vertical Fader */}
+            <div className="relative flex items-center justify-center h-28 sm:h-32 w-8">
+              <ChannelFader
+                volume={deckA.volume}
+                onChange={(v) => onFaderChange('A', v)}
+                accentColor="#00e5ff"
+                channelName="Channel 1"
               />
-              {/* Actual range input rendered vertically */}
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={deckA.volume}
-                onChange={(e) => onFaderChange('A', parseFloat(e.target.value))}
-                style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                title={`Channel A Volume: ${Math.round(deckA.volume * 100)}%`}
-              />
-              {/* Thumb cap visual */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 w-7 h-3.5 bg-gradient-to-b from-slate-300 to-slate-500 rounded-sm border border-slate-200 shadow-md shadow-black/60 pointer-events-none transition-all"
-                style={{ bottom: `calc(${deckA.volume * 100}% - 7px)` }}
-              >
-                <div className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-px bg-slate-600 opacity-60" />
-              </div>
             </div>
 
-            <VUMeter level={deckA.meterLevelL} height={64} segments={12} />
+            <VUMeter level={deckA.meterLevelL} height={56} segments={12} />
           </div>
         </div>
 
@@ -661,7 +642,7 @@ export const Mixer: React.FC<MixerProps> = ({
           {/* Channel Fader & Meter with Calibrated Scale */}
           <div className="flex items-end justify-center space-x-2 mt-auto pt-1 w-full px-1">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-32 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none select-none shrink-0">
+            <div className="flex flex-col justify-between h-28 sm:h-32 text-[6.5px] font-mono text-slate-500 text-right pr-0.5 pointer-events-none select-none shrink-0">
               <span className="text-emerald-500 font-bold">+6</span>
               <span className="text-slate-300 font-bold">0</span>
               <span>-6</span>
@@ -669,37 +650,17 @@ export const Mixer: React.FC<MixerProps> = ({
               <span>-∞</span>
             </div>
 
-            {/* Vertical fader track */}
-            <div className="relative flex items-center justify-center h-32 w-8">
-              {/* Fader track background */}
-              <div className="absolute left-1/2 -translate-x-1/2 w-1.5 h-full rounded-full bg-slate-950 border border-slate-800 shadow-inner" />
-              {/* Fill bar below thumb */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 w-1.5 rounded-full bg-gradient-to-t from-rose-500/60 to-rose-400/20 transition-all"
-                style={{ bottom: 0, height: `${deckB.volume * 100}%` }}
+            {/* Tactile Pro Vertical Fader */}
+            <div className="relative flex items-center justify-center h-28 sm:h-32 w-8">
+              <ChannelFader
+                volume={deckB.volume}
+                onChange={(v) => onFaderChange('B', v)}
+                accentColor="#ff2e88"
+                channelName="Channel 2"
               />
-              {/* Actual range input rendered vertically */}
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={deckB.volume}
-                onChange={(e) => onFaderChange('B', parseFloat(e.target.value))}
-                style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                title={`Channel B Volume: ${Math.round(deckB.volume * 100)}%`}
-              />
-              {/* Thumb cap visual */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 w-7 h-3.5 bg-gradient-to-b from-slate-300 to-slate-500 rounded-sm border border-slate-200 shadow-md shadow-black/60 pointer-events-none transition-all"
-                style={{ bottom: `calc(${deckB.volume * 100}% - 7px)` }}
-              >
-                <div className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-px bg-slate-600 opacity-60" />
-              </div>
             </div>
 
-            <VUMeter level={deckB.meterLevelR} height={64} segments={12} />
+            <VUMeter level={deckB.meterLevelR} height={56} segments={12} />
           </div>
         </div>
       </div>

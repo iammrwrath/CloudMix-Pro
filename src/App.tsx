@@ -993,7 +993,7 @@ export const App: React.FC = () => {
 
       {/* 2. Main DJ Decks & Mixer Workspace */}
       {drawerMode !== 'expanded' && (
-        <div className="flex-1 flex flex-col p-2 space-y-2 overflow-hidden relative z-10 min-h-[340px]">
+        <div className="flex-1 flex flex-col p-1.5 sm:p-2 space-y-1.5 sm:space-y-2 overflow-hidden relative z-10 min-h-0">
           {/* Stacked Vertical Waveforms (Rekordbox / Serato Pro mode) */}
           {layoutMode === 'vertical' && (
             <div className="w-full">
@@ -1103,12 +1103,12 @@ export const App: React.FC = () => {
 
       {/* 3. Bottom Pro DJ Workstation Drawer */}
       <div
-        className={`px-2 pb-1.5 flex flex-col ${
+        className={`px-1.5 sm:px-2 pb-1.5 flex flex-col ${
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[360px] shrink-0'
-            : 'h-[44px] shrink-0 overflow-hidden'
+            ? 'h-[min(38vh,320px)] min-h-[190px] shrink-0'
+            : 'h-[42px] shrink-0 overflow-hidden'
         }`}
       >
         {/* Drawer Tab Navigation Strip */}

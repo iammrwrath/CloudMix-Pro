@@ -455,9 +455,7 @@ export const Library: React.FC<LibraryProps> = ({
 
   return (
     <div
-      className={`flex w-full ${
-        isExpanded ? 'h-full flex-1 min-h-0' : 'h-[340px]'
-      } bg-dj-panel rounded-xl border border-dj-border shadow-2xl overflow-hidden select-none`}
+      className="flex w-full h-full flex-1 min-h-0 bg-dj-panel rounded-xl border border-dj-border shadow-2xl overflow-hidden select-none"
     >
       {/* 1. Crates & Playlists Sidebar (djay Pro Tree Layout) */}
       <div className="w-56 bg-dj-surface/95 border-r border-dj-border p-2.5 flex flex-col justify-between shrink-0 overflow-y-auto">
