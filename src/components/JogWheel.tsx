@@ -131,7 +131,7 @@ export const JogWheel: React.FC<JogWheelProps> = ({
       {/* Outer Pitch Bend Rim (Machined Aluminum Strobe Bezel) */}
       <div
         ref={wheelRef}
-        className="relative w-[min(26vh,260px,100%)] h-[min(26vh,260px,100%)] aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1.5 sm:p-2 shadow-[0_12px_32px_rgba(0,0,0,0.9)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
+        className="relative w-[min(38vh,380px,100%)] h-[min(38vh,380px,100%)] aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-2 sm:p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
       >
         {/* Outer Strobe Dot Ring (Pioneer CDJ / Technics Style) */}
         <div className="absolute inset-0 rounded-full border border-dashed border-slate-400/25 pointer-events-none" />
@@ -194,13 +194,13 @@ export const JogWheel: React.FC<JogWheelProps> = ({
             }}
           >
             {/* Curved Aluminum Tonearm Wand */}
-            <div className="w-1 h-36 sm:h-44 md:h-52 xl:h-60 bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[2px_4px_10px_rgba(0,0,0,0.7)]" />
+            <div className="w-1.5 h-44 sm:h-52 md:h-64 xl:h-72 bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[2px_4px_10px_rgba(0,0,0,0.7)]" />
 
             {/* Headshell & DJ Stylus Cartridge */}
-            <div className="absolute -bottom-5 -left-1.5 w-4 h-5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">
+            <div className="absolute -bottom-5 -left-1.5 w-4.5 h-6 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">
               {/* Illuminated Stylus / Needle Indicator */}
               <div
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                className="w-2 h-2 rounded-full animate-pulse"
                 style={{
                   backgroundColor: accentColor,
                   boxShadow: `0 0 6px ${accentColor}`,
@@ -212,7 +212,7 @@ export const JogWheel: React.FC<JogWheelProps> = ({
       </div>
 
       {/* Center Jog LCD Display HUD */}
-      <div className="relative z-10 w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 xl:w-36 xl:h-36 rounded-full bg-slate-950/95 border-2 border-slate-800 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
+      <div className="relative z-10 w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 xl:w-42 xl:h-42 rounded-full bg-slate-950/95 border-2 border-slate-800 flex flex-col items-center justify-center shadow-[0_0_24px_rgba(0,0,0,0.95)] text-center px-1.5 overflow-hidden">
         {coverArtUrl && (
           <div className="absolute inset-0 opacity-30 rounded-full overflow-hidden pointer-events-none">
             <img src={coverArtUrl} alt="Cover Art" className="w-full h-full object-cover" />
