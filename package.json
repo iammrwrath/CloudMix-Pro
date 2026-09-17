@@ -1,7 +1,7 @@
 {
   "name": "cloudmix-pro",
   "productName": "CloudMix Pro",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Next-Gen Cloud-Native DJ Application",
   "main": "main.cjs",
   "author": "iammrwrath",

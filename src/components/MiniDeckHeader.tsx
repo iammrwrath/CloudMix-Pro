@@ -192,22 +192,22 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
         </div>
 
         {/* Track Title, Artist, BPM & Key */}
-        <div className="flex flex-col min-w-0 w-36 xl:w-44 shrink-0">
-          <span className="text-xs font-bold text-white truncate" title={deck.track?.title || 'No Track Loaded'}>
+        <div className="flex flex-col min-w-0 w-40 xl:w-48 shrink-0">
+          <span className="text-xs sm:text-[13px] font-black text-white truncate" title={deck.track?.title || 'No Track Loaded'}>
             {deck.track?.title || 'No Track Loaded'}
           </span>
-          <span className="text-[10px] text-slate-400 truncate" title={deck.track?.artist || 'Load from Library'}>
+          <span className="text-[11px] text-slate-300 truncate" title={deck.track?.artist || 'Load from Library'}>
             {deck.track?.artist || 'Drag or click LOAD'}
           </span>
           <div className="flex items-center space-x-1.5 mt-0.5">
-            <span className={`font-mono text-[10px] font-extrabold ${accentText}`}>
-              {((deck.track?.bpm ? deck.track.bpm * deck.playbackRate : masterBpm) || 120.0).toFixed(1)} <span className="text-[8px] text-slate-500 font-normal">BPM</span>
+            <span className={`font-mono text-[11px] font-black ${accentText}`}>
+              {((deck.track?.bpm ? deck.track.bpm * deck.playbackRate : masterBpm) || 120.0).toFixed(1)} <span className="text-[9px] text-slate-400 font-normal">BPM</span>
             </span>
-            <span className="px-1 py-0.2 rounded bg-slate-800 border border-white/10 text-[9px] font-mono font-bold text-amber-300">
+            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-white/15 text-[10px] font-mono font-black text-amber-300">
               {deck.musicalKey || deck.track?.camelotKey || '8A'}
             </span>
             {deck.isSync && (
-              <span className="px-1 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/50 text-[8px] font-mono font-bold animate-pulse">
+              <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/60 text-[9px] font-mono font-black animate-pulse">
                 SYNC
               </span>
             )}
@@ -216,9 +216,9 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
 
         {/* Waveform Scrubber with Time Display */}
         <div className="flex-1 flex flex-col justify-center space-y-1 min-w-[140px]">
-          <div className="flex items-center justify-between text-[9px] font-mono">
-            <span className="text-slate-300 font-bold">{formatTime(deck.currentTime)}</span>
-            <span className="text-slate-500">-{formatTime(remainingTime)}</span>
+          <div className="flex items-center justify-between text-[10px] font-mono font-bold">
+            <span className="text-slate-200 font-black">{formatTime(deck.currentTime)}</span>
+            <span className="text-slate-400">-{formatTime(remainingTime)}</span>
           </div>
           <div className="relative h-7 w-full rounded-md overflow-hidden border border-white/10 cursor-pointer group">
             <canvas
@@ -230,11 +230,11 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
         </div>
 
         {/* Transport Actions: SYNC, LOOP, CUE, PLAY */}
-        <div className="flex items-center space-x-1 shrink-0">
+        <div className="flex items-center space-x-1.5 shrink-0">
           <button
             onClick={() => onSyncClick(deckId)}
             title="Beat Sync to Master Clock"
-            className={`px-2 py-1.5 rounded-lg text-[10px] font-mono font-extrabold border transition-all cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-mono font-black border transition-all cursor-pointer ${
               deck.isSync
                 ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.6)]'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-white/10'

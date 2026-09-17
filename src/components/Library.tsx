@@ -687,20 +687,20 @@ export const Library: React.FC<LibraryProps> = ({
 
         {/* Tracks Table */}
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead className="sticky top-0 bg-dj-surface text-slate-400 font-mono text-[10px] uppercase border-b border-dj-border z-10 shadow-sm">
+          <table className="w-full text-left border-collapse text-xs sm:text-[13px]">
+            <thead className="sticky top-0 bg-dj-surface text-slate-300 font-mono text-[11px] font-black uppercase tracking-wider border-b border-dj-border z-10 shadow-sm">
               <tr>
-                <th className="py-2 px-2.5 w-8">#</th>
-                <th className="py-2 px-2 w-10 text-center">Art</th>
-                <th className="py-2 px-3">Title</th>
-                <th className="py-2 px-3">Artist</th>
-                <th className="py-2 px-2">Genre</th>
-                <th className="py-2 px-2 text-center w-16">Time</th>
-                <th className="py-2 px-2 text-center w-16">BPM</th>
-                <th className="py-2 px-2 text-center w-16">Key</th>
-                <th className="py-2 px-2 text-center w-12 hidden md:table-cell">Year</th>
-                <th className="py-2 px-2 text-center w-16 hidden lg:table-cell">Date Added</th>
-                <th className="py-2 px-3 text-right w-48">Actions</th>
+                <th className="py-2.5 px-3 w-10">#</th>
+                <th className="py-2.5 px-2 w-12 text-center">Art</th>
+                <th className="py-2.5 px-3">Title</th>
+                <th className="py-2.5 px-3">Artist</th>
+                <th className="py-2.5 px-2.5">Genre</th>
+                <th className="py-2.5 px-2.5 text-center w-18">Time</th>
+                <th className="py-2.5 px-2.5 text-center w-20">BPM</th>
+                <th className="py-2.5 px-2.5 text-center w-20">Key</th>
+                <th className="py-2.5 px-2 text-center w-14 hidden md:table-cell">Year</th>
+                <th className="py-2.5 px-2.5 text-center w-24 hidden lg:table-cell">Date Added</th>
+                <th className="py-2.5 px-3 text-right w-52">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dj-border/50 font-sans">
@@ -711,40 +711,40 @@ export const Library: React.FC<LibraryProps> = ({
                   <tr
                     key={track.id}
                     onDoubleClick={() => onLoadTrack('A', track)}
-                    className="hover:bg-slate-800/70 transition-colors group cursor-pointer"
+                    className="hover:bg-slate-800/80 transition-colors group cursor-pointer"
                   >
-                    <td className="py-2 px-2.5 font-mono text-slate-500 text-[11px]">{idx + 1}</td>
+                    <td className="py-2.5 px-3 font-mono text-slate-400 font-bold text-xs">{idx + 1}</td>
 
                     {/* Artwork Thumbnail */}
-                    <td className="py-1 px-2 w-10 text-center">
-                      <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-900 border border-white/10 flex items-center justify-center mx-auto shadow-sm">
+                    <td className="py-1 px-2 w-12 text-center">
+                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex items-center justify-center mx-auto shadow-sm">
                         {track.coverArtUrl ? (
                           <img src={track.coverArtUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
-                            <Disc className="w-4 h-4 text-cyan-400/80" />
+                            <Disc className="w-5 h-5 text-cyan-400/80" />
                           </div>
                         )}
                       </div>
                     </td>
 
                     {/* Title */}
-                    <td className="py-2 px-3 font-bold text-white group-hover:text-cyan-400 transition-colors">
+                    <td className="py-2.5 px-3 font-black text-white group-hover:text-cyan-300 text-xs sm:text-[13.5px] transition-colors">
                       <div className="flex items-center space-x-1.5">
                         <span className="truncate">{track.title}</span>
                       </div>
                     </td>
 
                     {/* Artist */}
-                    <td className="py-2 px-3 text-slate-300 truncate">{track.artist}</td>
+                    <td className="py-2.5 px-3 text-slate-300 font-medium text-xs sm:text-[12.5px] truncate">{track.artist}</td>
 
                     {/* Genre */}
-                    <td className="py-2 px-2 text-slate-400 text-[11px] truncate">
+                    <td className="py-2.5 px-2.5 text-slate-400 text-xs truncate">
                       {track.genre || 'Music'}
                     </td>
 
                     {/* Duration */}
-                    <td className="py-2 px-2 text-center font-mono text-slate-400">
+                    <td className="py-2.5 px-2.5 text-center font-mono text-slate-300 font-bold text-xs">
                       {Math.floor(track.duration / 60)}:
                       {Math.floor(track.duration % 60)
                         .toString()
@@ -752,14 +752,14 @@ export const Library: React.FC<LibraryProps> = ({
                     </td>
 
                     {/* BPM */}
-                    <td className="py-2 px-2 text-center font-mono font-bold text-cyan-400">
+                    <td className="py-2.5 px-2.5 text-center font-mono font-black text-cyan-300 text-xs sm:text-[13px]">
                       {track.bpm.toFixed(1)}
                     </td>
 
                     {/* Camelot Key Badge & Harmonic Match */}
-                    <td className="py-2 px-2 text-center">
+                    <td className="py-2.5 px-2.5 text-center">
                       <div className="flex items-center justify-center space-x-1">
-                        <span className="font-mono text-[10.5px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800/60">
+                        <span className="font-mono text-xs font-black px-2 py-0.5 rounded-md bg-amber-950/90 text-amber-300 border border-amber-700/80 shadow-sm">
                           {track.camelotKey || track.key}
                         </span>
                         {(() => {
@@ -770,7 +770,7 @@ export const Library: React.FC<LibraryProps> = ({
                             return (
                               <span
                                 title="Harmonic Perfect Match"
-                                className="text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
+                                className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
                               >
                                 MATCH
                               </span>
@@ -787,7 +787,7 @@ export const Library: React.FC<LibraryProps> = ({
                               return (
                                 <span
                                   title="Harmonic Shift"
-                                  className="text-[8.5px] font-mono font-bold px-1 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
+                                  className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
                                 >
                                   {nK > nM ? '+1 E' : '-1 E'}
                                 </span>
@@ -800,24 +800,24 @@ export const Library: React.FC<LibraryProps> = ({
                     </td>
 
                     {/* Year */}
-                    <td className="py-2 px-2 text-center font-mono text-slate-400 text-[11px] hidden md:table-cell">
+                    <td className="py-2.5 px-2 text-center font-mono text-slate-400 text-xs hidden md:table-cell">
                       {track.year || 2026}
                     </td>
 
                     {/* Date Added */}
-                    <td className="py-2 px-2 text-center font-mono text-slate-400 text-[10.5px] hidden lg:table-cell">
+                    <td className="py-2.5 px-2.5 text-center font-mono text-slate-400 text-xs hidden lg:table-cell">
                       {track.dateAdded ? track.dateAdded.substring(0, 10) : '6/15/26'}
                     </td>
 
                     {/* Actions: LOAD A, LOAD B, +Q */}
-                    <td className="py-2 px-3 text-right space-x-1.5 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onLoadTrack('A', track);
                         }}
                         title="Load Track to Deck A"
-                        className="px-2 py-1 rounded-md bg-cyan-950/80 border border-cyan-500/60 text-cyan-300 hover:bg-cyan-400 hover:text-black font-mono font-extrabold text-[10px] transition-all cursor-pointer active:scale-95 shadow-[0_0_8px_rgba(0,240,255,0.2)]"
+                        className="px-2.5 py-1.5 rounded-md bg-cyan-950/90 border border-cyan-400/80 text-cyan-300 hover:bg-cyan-400 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,240,255,0.3)]"
                       >
                         LOAD A
                       </button>
@@ -827,7 +827,7 @@ export const Library: React.FC<LibraryProps> = ({
                           onLoadTrack('B', track);
                         }}
                         title="Load Track to Deck B"
-                        className="px-2 py-1 rounded-md bg-rose-950/80 border border-rose-500/60 text-rose-300 hover:bg-rose-500 hover:text-black font-mono font-extrabold text-[10px] transition-all cursor-pointer active:scale-95 shadow-[0_0_8px_rgba(255,46,136,0.2)]"
+                        className="px-2.5 py-1.5 rounded-md bg-rose-950/90 border border-rose-400/80 text-rose-300 hover:bg-rose-500 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,46,136,0.3)]"
                       >
                         LOAD B
                       </button>
@@ -837,7 +837,7 @@ export const Library: React.FC<LibraryProps> = ({
                           automixService.addToQueue(track);
                         }}
                         title="Add to Automix Queue"
-                        className="px-1.5 py-1 rounded-md bg-purple-950/80 border border-purple-500/60 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-extrabold text-[9.5px] transition-all cursor-pointer active:scale-95 shadow-[0_0_8px_rgba(168,85,247,0.2)]"
+                        className="px-2 py-1.5 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                       >
                         +Q
                       </button>

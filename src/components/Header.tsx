@@ -19,6 +19,8 @@ import {
   HelpCircle,
   BookOpen,
   Brain,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
@@ -46,6 +48,8 @@ interface HeaderProps {
   onOpenPatchModal?: () => void;
   drawerMode?: 'collapsed' | 'split' | 'expanded';
   onDrawerModeChange?: (mode: 'collapsed' | 'split' | 'expanded') => void;
+  uiZoom?: number;
+  onUiZoomChange?: (zoom: number) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,13 +67,15 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleStreamerHud,
   onToggleSettingsModal,
   isStreamerHudOpen,
-  isPulseDjOpen = false,
+  isPulseDjOpen,
   onTogglePulseDj,
   isCortexOpen,
   onToggleCortex,
   onOpenPatchModal,
   drawerMode = 'split',
   onDrawerModeChange,
+  uiZoom = 1.0,
+  onUiZoomChange,
 }) => {
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [quantize, setQuantize] = useState(true);
@@ -181,22 +187,22 @@ export const Header: React.FC<HeaderProps> = ({
       {/* 2. Master BPM & Quantize Hub */}
       <div className="flex items-center space-x-2.5 bg-slate-900/90 px-3 py-1 rounded-xl border border-white/10 shadow-inner">
         <div className="flex flex-col items-center">
-          <span className="text-[8px] font-mono text-slate-400 uppercase tracking-wider">
+          <span className="text-[9px] font-mono text-slate-400 font-bold uppercase tracking-wider">
             MASTER CLOCK
           </span>
           <div className="flex items-center space-x-1">
             <button
               onClick={() => onMasterBpmChange(Math.max(60, masterBpm - 0.5))}
-              className="w-4.5 h-4.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
+              className="w-5 h-5 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
             >
               -
             </button>
-            <span className="font-mono font-extrabold text-sm text-white min-w-[48px] text-center tracking-tight">
+            <span className="font-mono font-black text-base text-white min-w-[52px] text-center tracking-tight">
               {masterBpm.toFixed(1)}
             </span>
             <button
               onClick={() => onMasterBpmChange(Math.min(220, masterBpm + 0.5))}
-              className="w-4.5 h-4.5 rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
+              className="w-5 h-5 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
             >
               +
             </button>
@@ -205,14 +211,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={handleTapTempo}
-          className="px-2 py-1 text-xs font-mono font-extrabold rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+          className="px-2.5 py-1 text-xs font-mono font-black rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 active:scale-95 transition-all cursor-pointer shadow-sm"
         >
           TAP
         </button>
 
         <button
           onClick={() => setQuantize(!quantize)}
-          className={`px-2 py-1 text-xs font-mono font-extrabold rounded border transition-all cursor-pointer ${
+          className={`px-2.5 py-1 text-xs font-mono font-black rounded border transition-all cursor-pointer ${
             quantize
               ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.7)]'
               : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
@@ -234,7 +240,7 @@ export const Header: React.FC<HeaderProps> = ({
               : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400'
           }`}
         >
-          <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
+          <div className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
           <span>{isRecording ? formatDuration(recordingDuration) : 'REC MIX'}</span>
         </button>
 
@@ -242,13 +248,13 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleAutomix}
           title="Toggle Automix AI Autonomous Transition Engine"
-          className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
             isAutomixActive
               ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.7)] animate-pulse'
               : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-slate-800'
           }`}
         >
-          <Bot className="w-3.5 h-3.5" />
+          <Bot className="w-4 h-4" />
           <span className="hidden sm:inline">AUTOMIX</span>
         </button>
 
@@ -266,14 +272,42 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
               }`}
             >
-              <Brain className={`w-3.5 h-3.5 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
+              <Brain className={`w-4 h-4 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
               <span className="hidden sm:inline font-extrabold tracking-wide">CORTEX AI</span>
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
             </button>
           );
         })()}
+
+        {/* Interactive UI Zoom / Scale Controller */}
+        {onUiZoomChange && (
+          <div className="flex items-center space-x-1 bg-slate-900/90 px-1.5 py-0.5 rounded-lg border border-slate-800 shadow-sm" title="Global UI Zoom / Display Scale (Ctrl + / Ctrl -)">
+            <button
+              onClick={() => onUiZoomChange(Math.max(0.8, Math.round((uiZoom - 0.1) * 10) / 10))}
+              title="Zoom Out (Ctrl -)"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onUiZoomChange(1.0)}
+              title="Reset Zoom to 100% (Ctrl 0)"
+              className="px-1.5 py-0.5 text-[10.5px] font-mono font-black text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors"
+            >
+              {Math.round(uiZoom * 100)}%
+            </button>
+            <button
+              onClick={() => onUiZoomChange(Math.min(1.5, Math.round((uiZoom + 0.1) * 10) / 10))}
+              title="Zoom In (Ctrl +)"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Google Drive Status Badge */}
-        <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300">
+        <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-300">
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
           <Cloud className="w-3.5 h-3.5 text-blue-400" />
           <span>Drive:</span>
@@ -281,7 +315,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Real-time Cloud Progression Sync Badge */}
-        <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300">
+        <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-300">
           <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] animate-pulse" />
           <Wifi className="w-3.5 h-3.5 text-cyan-400" />
           <span>Sync:</span>
@@ -292,7 +326,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleMidiModal}
           title="Configure DJ Hardware / MIDI Mappings"
-          className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[10.5px] font-mono text-slate-200 transition-colors cursor-pointer"
+          className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[11px] font-mono text-slate-200 transition-colors cursor-pointer"
         >
           <Sliders className="w-3.5 h-3.5 text-amber-400" />
           <span className="max-w-[100px] truncate hidden xl:inline">{primaryMidiName}</span>
@@ -319,7 +353,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.startDownload())}
               title="A new patch is available on GitHub! Click to open patch downloader."
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-[10.5px] font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Patch v{updateStatus.version}</span>
@@ -327,7 +361,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : updateStatus.status === 'downloading' ? (
             <button
               onClick={() => onOpenPatchModal && onOpenPatchModal()}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[10.5px] font-mono text-purple-200 cursor-pointer"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[11px] font-mono text-purple-200 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" />
               <span>Patching: {updateStatus.percent || 0}%</span>
@@ -336,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.restartAndApply())}
               title="Patch downloaded. Click to review and apply."
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10.5px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.6)] cursor-pointer transition-all"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.6)] cursor-pointer transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Restart & Apply</span>
@@ -344,13 +378,13 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '1.4.5'} - Click to check GitHub for patches`}
-              className="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-[10px] font-mono text-slate-400 hover:text-white transition-all cursor-pointer"
+              title={`CloudMix Pro v${updateStatus.version || '1.4.6'} - Click to check GitHub for patches`}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-[10.5px] font-mono text-slate-300 hover:text-white transition-all cursor-pointer"
             >
-              <GitBranch className="w-3 h-3 text-cyan-400" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.4.5'}</span>
+              <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.4.6'}</span>
               {updateStatus.status === 'checking' && (
-                <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin ml-0.5" />
               )}
             </button>
           )}

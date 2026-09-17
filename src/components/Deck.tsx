@@ -164,42 +164,42 @@ export const Deck: React.FC<DeckProps> = ({
         </div>
       )}
       {/* 1. Deck Header: Track Info, BPM, Key, Time */}
-      <div className="flex items-center justify-between bg-dj-surface/80 rounded-lg p-1.5 mb-1 border border-dj-border">
+      <div className="flex items-center justify-between bg-dj-surface/80 rounded-lg p-2 mb-1 border border-dj-border">
         {/* Deck Identifier badge & Track Title */}
-        <div className="flex items-center space-x-2 overflow-hidden">
+        <div className="flex items-center space-x-2.5 overflow-hidden">
           <div
-            className="w-6 h-6 rounded flex items-center justify-center font-bold text-xs font-mono text-black shadow-md"
+            className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-sm font-mono text-black shadow-md"
             style={{ backgroundColor: accentColor }}
           >
             {deckId}
           </div>
           <div className="flex flex-col overflow-hidden">
             <div className="flex items-center space-x-1.5">
-              <span className="font-bold text-xs text-white truncate max-w-[170px]">
+              <span className="font-black text-xs sm:text-[13px] text-white truncate max-w-[200px]">
                 {track ? track.title : 'No Track Loaded'}
               </span>
               {deckState.sandboxMode && (
-                <span className="text-[8px] font-mono font-extrabold px-1 py-0.2 rounded bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse">
+                <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse">
                   SANDBOX
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-slate-400 truncate max-w-[170px]">
+            <span className="text-[11px] font-medium text-slate-300 truncate max-w-[200px]">
               {track ? track.artist : 'Drag track from Library or Google Drive'}
             </span>
           </div>
         </div>
 
         {/* BPM & Musical Key Badges with Harmonic Shift */}
-        <div className="flex items-center space-x-1.5">
+        <div className="flex items-center space-x-2">
           {/* Key with Camelot wheel color coding + Semitone Shift Controls */}
-          <div className="flex items-center space-x-1 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700">
+          <div className="flex items-center space-x-1.5 bg-slate-800/95 px-2 py-1 rounded-lg border border-slate-700 shadow-sm">
             <div className="flex flex-col items-center mr-0.5">
-              <span className="text-[8px] font-mono text-slate-400 uppercase">KEY</span>
-              <span className="text-[11px] font-mono font-bold text-amber-400 leading-none">
+              <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">KEY</span>
+              <span className="text-xs sm:text-[13px] font-mono font-black text-amber-300 leading-none">
                 {track?.camelotKey || track?.key || '--'}
                 {deckState.pitchSemitones !== 0 && (
-                  <span className="text-[8px] text-cyan-300 ml-0.5">
+                  <span className="text-[9px] text-cyan-300 ml-0.5">
                     {deckState.pitchSemitones > 0 ? `+${deckState.pitchSemitones}` : deckState.pitchSemitones}
                   </span>
                 )}
@@ -211,14 +211,14 @@ export const Deck: React.FC<DeckProps> = ({
               <button
                 onClick={() => onKeyShift?.((deckState.pitchSemitones || 0) + 1)}
                 title="Transpose Key Up 1 Semitone"
-                className="w-3.5 h-2.5 bg-slate-700 hover:bg-cyan-500 hover:text-black text-slate-300 rounded text-[7px] font-bold flex items-center justify-center cursor-pointer transition-colors"
+                className="w-4 h-3 bg-slate-700 hover:bg-cyan-500 hover:text-black text-slate-200 rounded text-[8px] font-black flex items-center justify-center cursor-pointer transition-colors"
               >
                 ▲
               </button>
               <button
                 onClick={() => onKeyShift?.((deckState.pitchSemitones || 0) - 1)}
                 title="Transpose Key Down 1 Semitone"
-                className="w-3.5 h-2.5 bg-slate-700 hover:bg-cyan-500 hover:text-black text-slate-300 rounded text-[7px] font-bold flex items-center justify-center cursor-pointer transition-colors"
+                className="w-4 h-3 bg-slate-700 hover:bg-cyan-500 hover:text-black text-slate-200 rounded text-[8px] font-black flex items-center justify-center cursor-pointer transition-colors"
               >
                 ▼
               </button>
@@ -229,10 +229,10 @@ export const Deck: React.FC<DeckProps> = ({
               <button
                 onClick={onKeySync}
                 title="Harmonic Key Match / Sync with other deck"
-                className={`px-1 py-0.5 rounded text-[8px] font-mono font-bold border transition-all cursor-pointer ${
+                className={`px-1.5 py-1 rounded text-[9px] font-mono font-black border transition-all cursor-pointer ${
                   deckState.pitchSemitones !== 0
-                    ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_6px_rgba(245,158,11,0.5)]'
-                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                    ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                    : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
                 }`}
               >
                 MATCH
@@ -241,9 +241,9 @@ export const Deck: React.FC<DeckProps> = ({
           </div>
 
           {/* BPM display */}
-          <div className="flex flex-col items-center bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700">
-            <span className="text-[8px] font-mono text-slate-400 uppercase">BPM</span>
-            <span className="text-[11px] font-mono font-bold text-cyan-400 leading-none">
+          <div className="flex flex-col items-center bg-slate-800/95 px-2.5 py-1 rounded-lg border border-slate-700 shadow-sm">
+            <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">BPM</span>
+            <span className="text-xs sm:text-[13px] font-mono font-black text-cyan-300 leading-none">
               {track ? (track.bpm * deckState.playbackRate).toFixed(1) : '--.-'}
             </span>
           </div>
@@ -267,41 +267,41 @@ export const Deck: React.FC<DeckProps> = ({
       </div>
 
       {/* 3. Pro Workstation Tactical Performance Bar: Quick Loop & Multi-FX Punch Buttons */}
-      <div className="flex items-center justify-between bg-slate-900/80 rounded-lg px-2 py-1 my-0.5 border border-white/5">
+      <div className="flex items-center justify-between bg-slate-900/90 rounded-lg px-2.5 py-1.5 my-1 border border-white/10 shadow-sm">
         {/* Quick Loop Controls (< 1 > with 1/2x and 2x) */}
-        <div className="flex items-center space-x-1">
-          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase mr-0.5">LOOP</span>
+        <div className="flex items-center space-x-1.5">
+          <span className="text-[9px] font-mono text-slate-400 font-bold uppercase mr-0.5">LOOP</span>
           <button
             onClick={halveLoop}
             title="Halve loop length (/2)"
-            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
+            className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
           >
             &lt;
           </button>
           <button
             onClick={toggleLoop}
             title="Toggle Quantized Auto-Loop"
-            className={`px-2 h-5 rounded font-mono text-[9px] font-bold border transition-all cursor-pointer active:scale-95 flex items-center space-x-1 ${
+            className={`px-2.5 h-6 rounded font-mono text-[10.5px] font-black border transition-all cursor-pointer active:scale-95 flex items-center space-x-1.5 ${
               deckState.activeLoop
-                ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.8)]'
-                : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
+                : 'bg-slate-800 text-slate-200 border-slate-700 hover:text-white'
             }`}
           >
-            <Repeat className="w-2.5 h-2.5" />
+            <Repeat className="w-3 h-3" />
             <span>{deckState.activeLoop ? `${deckState.activeLoop.beats}B` : `${selectedLoopBeats}B`}</span>
           </button>
           <button
             onClick={doubleLoop}
             title="Double loop length (x2)"
-            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
+            className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
           >
             &gt;
           </button>
         </div>
 
         {/* 3-Slot Multi-FX Instant Punch Bar */}
-        <div className="flex items-center space-x-1">
-          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase mr-0.5">FX</span>
+        <div className="flex items-center space-x-1.5">
+          <span className="text-[9px] font-mono text-slate-400 font-bold uppercase mr-0.5">FX</span>
           {(['echo', 'reverb', 'flanger'] as FXType[]).map((fxType) => {
             const isActive = deckState.fx.enabled && deckState.fx.type === fxType;
             return (
@@ -309,10 +309,10 @@ export const Deck: React.FC<DeckProps> = ({
                 key={fxType}
                 onClick={() => onToggleFX?.(fxType)}
                 title={`Instant ${fxType.toUpperCase()} FX Punch-In`}
-                className={`px-1.5 h-5 rounded font-mono text-[8px] font-bold uppercase border transition-all cursor-pointer active:scale-95 ${
+                className={`px-2 h-6 rounded font-mono text-[9.5px] font-black uppercase border transition-all cursor-pointer active:scale-95 ${
                   isActive
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.8)]'
-                    : 'bg-slate-800/80 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.8)]'
+                    : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white'
                 }`}
               >
                 {fxType === 'echo' ? 'ECHO 1/2' : fxType}
@@ -325,10 +325,10 @@ export const Deck: React.FC<DeckProps> = ({
         <button
           onClick={onToggleSlip}
           title="Slip Mode: Audio playhead continues in background during scratch or loops"
-          className={`px-1.5 h-5 rounded font-mono text-[8px] font-bold border transition-all cursor-pointer active:scale-95 ${
+          className={`px-2.5 h-6 rounded font-mono text-[9.5px] font-black border transition-all cursor-pointer active:scale-95 ${
             deckState.slipMode
-              ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.8)]'
-              : 'bg-slate-800/80 text-slate-400 border-slate-700/60 hover:text-white'
+              ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.8)]'
+              : 'bg-slate-800/90 text-slate-400 border-slate-700 hover:text-white'
           }`}
         >
           SLIP
@@ -340,8 +340,8 @@ export const Deck: React.FC<DeckProps> = ({
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
         <div className="flex flex-col justify-between h-36 sm:h-44 md:h-52 xl:h-60 bg-slate-950/70 rounded-xl p-1.5 sm:p-2 border border-white/5 w-20 sm:w-26 xl:w-30 shrink-0 shadow-inner">
           <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
-            <span className="text-[7.5px] sm:text-[9px] font-mono font-bold text-slate-400">STEMS</span>
-            <span className="text-[6.5px] sm:text-[8px] font-mono text-purple-400">4-WAY</span>
+            <span className="text-[8.5px] sm:text-[10px] font-mono font-bold text-slate-300">STEMS</span>
+            <span className="text-[7.5px] sm:text-[9px] font-mono text-purple-400 font-bold">4-WAY</span>
           </div>
 
           <div className="flex flex-col space-y-1.5 my-auto">
@@ -354,11 +354,11 @@ export const Deck: React.FC<DeckProps> = ({
                   {/* Stem Label / Color Dot */}
                   <div className="flex items-center space-x-1">
                     <div
-                      className="w-1.5 h-1.5 rounded-full"
+                      className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: isMuted ? '#64748b' : stem.color }}
                     />
                     <span
-                      className={`text-[8px] font-mono font-extrabold leading-none ${
+                      className={`text-[9.5px] font-mono font-extrabold leading-none ${
                         isMuted ? 'text-slate-500 line-through' : 'text-slate-200'
                       }`}
                     >
@@ -367,14 +367,14 @@ export const Deck: React.FC<DeckProps> = ({
                   </div>
 
                   {/* Micro Solo & Mute Buttons */}
-                  <div className="flex items-center space-x-0.5">
+                  <div className="flex items-center space-x-1">
                     <button
                       onClick={() => onStemMuteToggle?.(stem.id)}
                       title={`Mute ${stem.label}`}
-                      className={`w-3.5 h-3.5 rounded text-[7px] font-mono font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                      className={`w-4 h-4 rounded text-[8px] font-mono font-black border uppercase transition-colors flex items-center justify-center cursor-pointer ${
                         isMuted
-                          ? 'bg-rose-600 text-white shadow-[0_0_6px_rgba(225,29,72,0.8)]'
-                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       M
@@ -382,10 +382,10 @@ export const Deck: React.FC<DeckProps> = ({
                     <button
                       onClick={() => onStemSoloToggle?.(stem.id)}
                       title={`Solo ${stem.label}`}
-                      className={`w-3.5 h-3.5 rounded text-[7px] font-mono font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                      className={`w-4 h-4 rounded text-[8px] font-mono font-black border uppercase transition-colors flex items-center justify-center cursor-pointer ${
                         isSolo
-                          ? 'bg-amber-400 text-black font-extrabold shadow-[0_0_6px_rgba(251,191,36,0.8)]'
-                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-amber-400 border-amber-300 text-black shadow-[0_0_6px_rgba(251,191,36,0.7)]'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       S
@@ -396,7 +396,7 @@ export const Deck: React.FC<DeckProps> = ({
             })}
           </div>
 
-          <div className="text-[7px] font-mono text-center text-slate-500 pt-0.5 border-t border-white/5">
+          <div className="text-[8px] font-mono font-bold text-center text-slate-400 pt-0.5 border-t border-white/5">
             NEURAL MIX
           </div>
         </div>

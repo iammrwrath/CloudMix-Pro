@@ -21,6 +21,7 @@ import { broadcastService } from './services/BroadcastService';
 import { mixRecorder } from './audio/MixRecorder';
 import { samplerEngine } from './audio/SamplerEngine';
 import { automixService } from './services/AutomixService';
+import { storageCache } from './services/StorageCacheService';
 import { Header } from './components/Header';
 import { Deck } from './components/Deck';
 import { Mixer } from './components/Mixer';
@@ -212,6 +213,22 @@ export const App: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isAutomixActive, setIsAutomixActive] = useState(false);
+  const [uiZoom, setUiZoom] = useState<number>(1.0);
+
+  // Load persisted UI Zoom preference on startup
+  useEffect(() => {
+    storageCache.getSetting<number>('ui_zoom', 1.0).then((savedZoom) => {
+      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.8 && savedZoom <= 1.6) {
+        setUiZoom(savedZoom);
+      }
+    });
+  }, []);
+
+  const handleUiZoomChange = (zoom: number) => {
+    const clamped = Math.max(0.8, Math.min(1.5, Math.round(zoom * 10) / 10));
+    setUiZoom(clamped);
+    storageCache.setSetting('ui_zoom', clamped);
+  };
 
   // High-Efficiency Audio Clock & Meter Loop (Decoupled & Throttled to 30 FPS)
   useEffect(() => {
@@ -929,6 +946,18 @@ export const App: React.FC = () => {
         setIsKeyboardModalOpen((prev) => !prev);
       }
 
+      // Zoom Hotkeys: Ctrl + / Ctrl - / Ctrl 0
+      else if ((e.ctrlKey || e.metaKey) && (key === '=' || key === '+')) {
+        e.preventDefault();
+        handleUiZoomChange(uiZoom + 0.1);
+      } else if ((e.ctrlKey || e.metaKey) && key === '-') {
+        e.preventDefault();
+        handleUiZoomChange(uiZoom - 0.1);
+      } else if ((e.ctrlKey || e.metaKey) && key === '0') {
+        e.preventDefault();
+        handleUiZoomChange(1.0);
+      }
+
       // Library / Drawer Toggle: L (Toggles between djay Pro expanded library and split view)
       else if (key === 'l' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -938,10 +967,13 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [deckA, deckB]);
+  }, [deckA, deckB, uiZoom]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-dj-bg text-slate-100 overflow-hidden select-none relative">
+    <div
+      style={uiZoom !== 1.0 ? ({ zoom: uiZoom } as React.CSSProperties) : undefined}
+      className="flex flex-col h-screen w-screen bg-dj-bg text-slate-100 overflow-hidden select-none relative"
+    >
       {/* Ambient Cyberpunk Glow Atmosphere */}
       <div className="absolute top-1/6 -left-36 w-96 h-96 rounded-full bg-cyan-500/10 blur-[140px] pointer-events-none" />
       <div className="absolute top-1/6 -right-36 w-96 h-96 rounded-full bg-pink-500/10 blur-[140px] pointer-events-none" />
@@ -988,6 +1020,8 @@ export const App: React.FC = () => {
           onOpenPatchModal={() => setIsPatchModalOpen(true)}
           drawerMode={drawerMode}
           onDrawerModeChange={setDrawerMode}
+          uiZoom={uiZoom}
+          onUiZoomChange={handleUiZoomChange}
         />
       )}
 

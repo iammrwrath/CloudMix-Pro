@@ -207,7 +207,7 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
       </div>
 
       {/* Label */}
-      <span className="text-[9px] font-mono font-bold text-slate-400 group-hover:text-slate-200 uppercase mt-0.5 tracking-wider transition-colors">
+      <span className="text-[10.5px] font-mono font-extrabold text-slate-300 group-hover:text-cyan-300 uppercase mt-0.5 tracking-wider transition-colors">
         {label}
       </span>
     </div>

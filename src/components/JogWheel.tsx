@@ -246,35 +246,35 @@ export const JogWheel: React.FC<JogWheelProps> = ({
 
             {/* Status Pill */}
             <span
-              className={`text-[8px] sm:text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full ${
+              className={`text-[9.5px] sm:text-[10.5px] font-mono font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
                 isScratching
-                  ? 'bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                  ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.8)]'
                   : isPlaying
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                  : 'bg-slate-800 text-slate-400'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                  : 'bg-slate-800 text-slate-300'
               }`}
             >
               {isScratching ? 'SCRATCH' : isPlaying ? 'PLAY' : 'CUE'}
             </span>
 
             {/* Time Elapsed Readout */}
-            <span className="text-[12px] sm:text-[14px] font-mono font-extrabold text-white tracking-tight mt-0.5 leading-none">
+            <span className="text-[14px] sm:text-[16px] md:text-[17px] font-mono font-black text-white tracking-tight mt-1 leading-none drop-shadow-md">
               {formatTime(currentTime)}
             </span>
 
             {/* Remaining Time (Pulsing warning when track is ending) */}
             <span
-              className={`text-[9px] sm:text-[10px] font-mono font-bold leading-tight mt-0.5 ${
+              className={`text-[10px] sm:text-[11px] font-mono font-black leading-tight mt-0.5 ${
                 isNearEnd
-                  ? 'text-rose-400 animate-pulse drop-shadow-[0_0_4px_rgba(244,63,94,0.8)]'
-                  : 'text-slate-400'
+                  ? 'text-rose-400 animate-pulse drop-shadow-[0_0_6px_rgba(244,63,94,0.9)]'
+                  : 'text-slate-300'
               }`}
             >
               -{formatTime(remainingTime)}
             </span>
 
             {/* Live Virtual RPM */}
-            <span className="text-[7.5px] sm:text-[8px] font-mono text-slate-500 tracking-wider mt-0.5">
+            <span className="text-[9px] sm:text-[9.5px] font-mono font-bold text-slate-400 tracking-wider mt-0.5">
               {liveRpm} RPM
             </span>
           </div>

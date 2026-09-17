@@ -87,10 +87,10 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             <button
               key={mode}
               onClick={() => { setPadMode(mode); setDeleteMode(false); }}
-              className={`px-2 py-0.5 text-[9px] font-mono font-bold rounded tracking-wider transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-[10.5px] font-mono font-black rounded-md tracking-wider transition-all cursor-pointer ${
                 padMode === mode
-                  ? 'bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow-[0_0_8px_rgba(255,255,255,0.15)] border border-slate-600'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow-[0_0_8px_rgba(255,255,255,0.2)] border border-slate-500'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
               }`}
             >
               {mode}
@@ -101,7 +101,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
         {padMode === 'HOT CUE' && (
           <button
             onClick={() => setDeleteMode(!deleteMode)}
-            className={`px-2 py-0.5 text-[8px] font-mono font-bold rounded uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-2.5 py-1 text-[9.5px] font-mono font-black rounded uppercase tracking-wider transition-all cursor-pointer ${
               deleteMode
                 ? 'bg-rose-600 text-white animate-pulse shadow-[0_0_8px_rgba(225,29,72,0.8)]'
                 : 'text-slate-400 hover:text-rose-400 bg-slate-800/80 border border-slate-700'
@@ -123,10 +123,10 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <button
                 key={i}
                 onClick={() => handleCueClick(i)}
-                className={`relative h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[10px] transition-all cursor-pointer select-none active:scale-[0.95] ${
+                className={`relative h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-xs sm:text-[13px] transition-all cursor-pointer select-none active:scale-[0.95] ${
                   cue
                     ? 'text-black font-extrabold shadow-lg'
-                    : 'bg-slate-900/90 text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                    : 'bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-400'
                 }`}
                 style={
                   cue
@@ -143,10 +143,10 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               >
                 <div className="flex items-center space-x-1">
                   <span>{i + 1}</span>
-                  {cue && <span className="text-[8px] font-normal opacity-90">{cue.position.toFixed(1)}s</span>}
+                  {cue && <span className="text-[9px] font-semibold opacity-90">{cue.position.toFixed(1)}s</span>}
                 </div>
                 {deleteMode && cue && (
-                  <span className="absolute top-0 right-1 text-[10px] text-black font-extrabold">
+                  <span className="absolute top-0 right-1 text-xs text-black font-extrabold">
                     ×
                   </span>
                 )}
@@ -162,10 +162,10 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <button
                 key={i}
                 onClick={() => handleLoopClick(beats)}
-                className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex items-center justify-center space-x-1 font-mono font-bold text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
+                className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex items-center justify-center space-x-1 font-mono font-black text-xs sm:text-[13px] transition-all cursor-pointer active:scale-[0.95] ${
                   isCurrentActive
-                    ? 'bg-emerald-500 text-black border border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.7)] font-extrabold'
-                    : 'bg-slate-900/90 border border-emerald-500/30 text-emerald-400 hover:bg-slate-800 hover:border-emerald-400'
+                    ? 'bg-emerald-500 text-black border border-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.8)] font-extrabold'
+                    : 'bg-slate-900/90 border border-emerald-500/40 text-emerald-400 hover:bg-slate-800 hover:border-emerald-300'
                 }`}
                 style={{
                   boxShadow: isCurrentActive ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -182,7 +182,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             <button
               key={i}
               onClick={() => onBeatJump(beats)}
-              className="h-7 sm:h-8 md:h-9 xl:h-10 rounded flex items-center justify-center font-mono font-bold text-[10px] bg-slate-900/90 border border-cyan-500/30 text-cyan-400 hover:bg-slate-800 hover:border-cyan-400 active:scale-[0.95] transition-all cursor-pointer shadow-inner"
+              className="h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex items-center justify-center font-mono font-black text-xs sm:text-[13px] bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-slate-800 hover:border-cyan-300 active:scale-[0.95] transition-all cursor-pointer shadow-inner"
               style={{
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
               }}
@@ -197,99 +197,99 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             {/* Row 1: 4-Stem Mutes (Vocals, Melodics, Bass, Drums) */}
             <button
               onClick={() => onStemMuteToggle?.('vocals')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.vocalsMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-pink-600 text-white border border-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.6)]'
               }`}
             >
               <span>VOCAL</span>
-              <span className="text-[7px] opacity-90">{stems?.vocalsMuted ? 'MUTED' : 'ON'}</span>
+              <span className="text-[8px] opacity-90">{stems?.vocalsMuted ? 'MUTED' : 'ON'}</span>
             </button>
 
             <button
               onClick={() => onStemMuteToggle?.('harmonics')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.harmonicsMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-emerald-600 text-white border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.6)]'
               }`}
             >
               <span>MELODY</span>
-              <span className="text-[7px] opacity-90">{stems?.harmonicsMuted ? 'MUTED' : 'ON'}</span>
+              <span className="text-[8px] opacity-90">{stems?.harmonicsMuted ? 'MUTED' : 'ON'}</span>
             </button>
 
             <button
               onClick={() => onStemMuteToggle?.('bass')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.bassMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-blue-600 text-white border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.6)]'
               }`}
             >
               <span>BASS</span>
-              <span className="text-[7px] opacity-90">{stems?.bassMuted ? 'MUTED' : 'ON'}</span>
+              <span className="text-[8px] opacity-90">{stems?.bassMuted ? 'MUTED' : 'ON'}</span>
             </button>
 
             <button
               onClick={() => onStemMuteToggle?.('drums')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.drumsMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-amber-600 text-white border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.6)]'
               }`}
             >
               <span>DRUMS</span>
-              <span className="text-[7px] opacity-90">{stems?.drumsMuted ? 'MUTED' : 'ON'}</span>
+              <span className="text-[8px] opacity-90">{stems?.drumsMuted ? 'MUTED' : 'ON'}</span>
             </button>
 
             {/* Row 2: 4-Stem Solos (Vocals, Melodics, Bass, Drums) */}
             <button
               onClick={() => onStemSoloToggle?.('vocals')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.vocalsSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-pink-700/60 text-pink-400 hover:bg-pink-950/40'
               }`}
             >
               <span>VOC SOLO</span>
-              <span className="text-[7px] opacity-90">{stems?.vocalsSolo ? 'ACTIVE' : 'SOLO'}</span>
+              <span className="text-[8px] opacity-90">{stems?.vocalsSolo ? 'ACTIVE' : 'SOLO'}</span>
             </button>
 
             <button
               onClick={() => onStemSoloToggle?.('harmonics')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.harmonicsSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-emerald-700/60 text-emerald-400 hover:bg-emerald-950/40'
               }`}
             >
               <span>MEL SOLO</span>
-              <span className="text-[7px] opacity-90">{stems?.harmonicsSolo ? 'ACTIVE' : 'SOLO'}</span>
+              <span className="text-[8px] opacity-90">{stems?.harmonicsSolo ? 'ACTIVE' : 'SOLO'}</span>
             </button>
 
             <button
               onClick={() => onStemSoloToggle?.('bass')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.bassSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-blue-700/60 text-blue-400 hover:bg-blue-950/40'
               }`}
             >
               <span>BASS SOLO</span>
-              <span className="text-[7px] opacity-90">{stems?.bassSolo ? 'ACTIVE' : 'SOLO'}</span>
+              <span className="text-[8px] opacity-90">{stems?.bassSolo ? 'ACTIVE' : 'SOLO'}</span>
             </button>
 
             <button
               onClick={() => onStemSoloToggle?.('drums')}
-              className={`h-7 sm:h-8 md:h-9 xl:h-10 rounded flex flex-col items-center justify-center font-mono font-bold text-[9px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-8 sm:h-9 md:h-10 xl:h-11 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.drumsSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-amber-700/60 text-amber-400 hover:bg-amber-950/40'
               }`}
             >
               <span>DRM SOLO</span>
-              <span className="text-[7px] opacity-90">{stems?.drumsSolo ? 'ACTIVE' : 'SOLO'}</span>
+              <span className="text-[8px] opacity-90">{stems?.drumsSolo ? 'ACTIVE' : 'SOLO'}</span>
             </button>
           </>
         )}

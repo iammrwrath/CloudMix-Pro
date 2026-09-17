@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi } from 'lucide-react';
+import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
@@ -44,11 +44,12 @@ const YtClientIdInput: React.FC = () => {
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'local' | 'gdrive' | 'youtube'>('local');
+  const [activeTab, setActiveTab] = useState<'local' | 'gdrive' | 'youtube' | 'display'>('local');
   const [apiKey, setApiKey] = useState('');
   const [clientId, setClientId] = useState('');
   const [folderId, setFolderId] = useState('');
   const [localDrivePath, setLocalDrivePath] = useState('G:\\My Drive\\Music');
+  const [uiZoom, setUiZoom] = useState(1.0);
   const [saved, setSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
@@ -63,6 +64,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       // Load local path
       const savedPath = await storageCache.getSetting<string>('local_music_path', 'G:\\My Drive\\Music');
       setLocalDrivePath(savedPath);
+
+      // Load UI Zoom
+      const savedZoom = await storageCache.getSetting<number>('ui_zoom', 1.0);
+      if (savedZoom) setUiZoom(savedZoom);
 
       // Load Google Drive config
       const gdConfig = googleDriveService.getConfig();
@@ -87,6 +92,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     // 2. Persist Google Drive config
     googleDriveService.setConfig({ apiKey, clientId, folderId });
+
+    // 3. Persist UI Zoom
+    await storageCache.setSetting('ui_zoom', uiZoom);
 
     setSaved(true);
 
@@ -163,6 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     { id: 'local' as const, label: 'Local Music', icon: HardDrive },
     { id: 'gdrive' as const, label: 'Google Drive', icon: Cloud },
     { id: 'youtube' as const, label: 'YouTube Music', icon: Music2 },
+    { id: 'display' as const, label: 'Display & Zoom', icon: Monitor },
   ];
 
   return (
@@ -391,7 +400,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </>
           )}
 
-          {/* Footer Buttons (Local + GDrive tabs) */}
+          {/* -- DISPLAY & UI ZOOM TAB -- */}
+          {activeTab === 'display' && (
+            <>
+              <div className="bg-cyan-950/30 border border-cyan-800/40 rounded-xl p-3 text-xs text-cyan-200 flex items-start space-x-2">
+                <Monitor className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <span>
+                  Adjust the UI scale to fit your monitor resolution (1080p, 1440p, or 4K). You can also zoom anytime using the Header zoom buttons or keyboard shortcuts (<code className="text-cyan-300 font-mono">Ctrl +</code> / <code className="text-cyan-300 font-mono">Ctrl -</code>).
+                </span>
+              </div>
+
+              <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-bold text-white block">Workstation UI Scale</span>
+                    <span className="text-xs text-slate-400">Current scale: {Math.round(uiZoom * 100)}%</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5 bg-slate-900 px-2 py-1 rounded-xl border border-slate-700">
+                    <button
+                      onClick={() => setUiZoom((prev) => Math.max(0.8, Math.round((prev - 0.1) * 10) / 10))}
+                      title="Zoom Out"
+                      className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="font-mono font-black text-sm text-cyan-300 min-w-[50px] text-center">
+                      {Math.round(uiZoom * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setUiZoom((prev) => Math.min(1.5, Math.round((prev + 0.1) * 10) / 10))}
+                      title="Zoom In"
+                      className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preset Scale Buttons */}
+                <div className="grid grid-cols-4 gap-2 pt-2">
+                  {[
+                    { label: 'Compact', val: 0.9, pct: '90%' },
+                    { label: 'Standard', val: 1.0, pct: '100%' },
+                    { label: 'Comfort', val: 1.15, pct: '115%' },
+                    { label: 'Large (4K)', val: 1.3, pct: '130%' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.val}
+                      onClick={() => setUiZoom(preset.val)}
+                      className={`py-2 px-1.5 rounded-xl border font-mono text-xs flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        Math.abs(uiZoom - preset.val) < 0.05
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.3)] font-black'
+                          : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                      }`}
+                    >
+                      <span className="font-bold">{preset.pct}</span>
+                      <span className="text-[10px] text-slate-400">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Footer Buttons (Local, GDrive & Display tabs) */}
           {activeTab !== 'youtube' && (
             <div className="flex justify-end space-x-2 pt-2">
               <button
