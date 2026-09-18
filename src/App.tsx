@@ -217,22 +217,57 @@ export const App: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isAutomixActive, setIsAutomixActive] = useState(false);
-  const [uiZoom, setUiZoom] = useState<number>(1.0);
-
-  // Load persisted UI Zoom preference on startup
-  useEffect(() => {
-    storageCache.getSetting<number>('ui_zoom', 1.0).then((savedZoom) => {
-      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.8 && savedZoom <= 1.6) {
-        setUiZoom(savedZoom);
-      }
-    });
+  // Auto-detect optimal zoom for smaller displays (e.g. 1280x800, 1280x752, 1366x768)
+  const getAutoZoom = useCallback(() => {
+    if (typeof window === 'undefined') return 1.0;
+    const w = window.innerWidth || 1440;
+    const h = window.innerHeight || 900;
+    if (w <= 1280 || h <= 768) return 0.85;
+    if (w <= 1366 || h <= 820) return 0.90;
+    if (w < 1440 || h < 880) return 0.95;
+    return 1.0;
   }, []);
 
+  const [uiZoom, setUiZoom] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth || 1440;
+      const h = window.innerHeight || 900;
+      if (w <= 1280 || h <= 768) return 0.85;
+      if (w <= 1366 || h <= 820) return 0.90;
+      if (w < 1440 || h < 880) return 0.95;
+    }
+    return 1.0;
+  });
+
+  // Load persisted UI Zoom preference on startup or fall back to auto-fit
+  useEffect(() => {
+    storageCache.getSetting<number | null>('ui_zoom', null).then((savedZoom) => {
+      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.7 && savedZoom <= 1.6) {
+        setUiZoom(savedZoom);
+      } else {
+        const auto = getAutoZoom();
+        setUiZoom(auto);
+      }
+    });
+  }, [getAutoZoom]);
+
+  // Synchronize zoom factor with Electron webFrame
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.setZoomFactor) {
+      try {
+        (window as any).desktopAPI.setZoomFactor(uiZoom);
+      } catch (e) {
+        console.warn('Could not set desktop zoom factor:', e);
+      }
+    }
+  }, [uiZoom]);
+
   const handleUiZoomChange = (zoom: number) => {
-    const clamped = Math.max(0.8, Math.min(1.5, Math.round(zoom * 10) / 10));
+    const clamped = Math.max(0.7, Math.min(1.5, Math.round(zoom * 100) / 100));
     setUiZoom(clamped);
     storageCache.setSetting('ui_zoom', clamped);
   };
+
 
   const deckStateRef = useRef({ deckA, deckB, mixer });
   deckStateRef.current = { deckA, deckB, mixer };
@@ -1242,9 +1277,19 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deckA, deckB, uiZoom]);
 
+  const isDesktopZoom = typeof window !== 'undefined' && Boolean((window as any).desktopAPI?.setZoomFactor);
+
   return (
     <div
-      style={uiZoom !== 1.0 ? ({ zoom: uiZoom } as React.CSSProperties) : undefined}
+      style={
+        !isDesktopZoom && uiZoom !== 1.0
+          ? ({
+              zoom: uiZoom,
+              width: `${Math.round(10000 / uiZoom) / 100}vw`,
+              height: `${Math.round(10000 / uiZoom) / 100}vh`,
+            } as React.CSSProperties)
+          : undefined
+      }
       className="flex flex-col h-screen w-screen bg-dj-bg text-slate-100 overflow-hidden select-none relative"
     >
       {/* Ambient Cyberpunk Glow Atmosphere */}
@@ -1411,23 +1456,23 @@ export const App: React.FC = () => {
 
       {/* 3. Bottom Pro DJ Workstation Drawer */}
       <div
-        className={`px-1.5 sm:px-2 pb-1.5 flex flex-col ${
+        className={`px-1 sm:px-2 pb-1 flex flex-col ${
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[min(38vh,320px)] min-h-[190px] shrink-0'
-            : 'h-[42px] shrink-0 overflow-hidden'
+            ? 'h-[min(28vh,240px)] min-h-[160px] 2xl:h-[min(38vh,320px)] 2xl:min-h-[200px] shrink-0'
+            : 'h-[38px] shrink-0 overflow-hidden'
         }`}
       >
         {/* Drawer Tab Navigation Strip */}
-        <div className="flex items-center justify-between pb-1.5 px-1">
-          <div className="flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-white/10">
+        <div className="flex items-center justify-between pb-1 px-0.5">
+          <div className="flex items-center space-x-1 bg-slate-900/80 p-0.5 rounded-xl border border-white/10">
             <button
               onClick={() => {
                 setBottomDrawerTab('library');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'library'
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1442,7 +1487,7 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('fx');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'fx'
                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1457,14 +1502,14 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('sampler');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'sampler'
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Volume2 className="w-3.5 h-3.5" />
-              <span>8-PAD SAMPLER</span>
+              <span>SAMPLER</span>
             </button>
 
             <button
@@ -1472,14 +1517,14 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('automix');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'automix'
                   ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40 shadow-[0_0_12px_rgba(236,72,153,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Bot className="w-3.5 h-3.5" />
-              <span>AUTOMIX AI</span>
+              <span>AUTOMIX</span>
             </button>
 
             <button
@@ -1487,14 +1532,14 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('cortex');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && (bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj')
                   ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 text-purple-300 border border-purple-500/50 shadow-[0_0_14px_rgba(168,85,247,0.4)] font-black'
                   : 'text-slate-400 hover:text-purple-300'
               }`}
             >
               <Brain className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-              <span>MIXCORTEX AI</span>
+              <span>MIXCORTEX</span>
             </button>
           </div>
 

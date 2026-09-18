@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopAPI', {
   isDesktopApp: true,
@@ -6,4 +6,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   writeNowPlayingBroadcast: (info) => ipcRenderer.invoke('write-now-playing-broadcast', info),
+  setZoomFactor: (factor) => webFrame.setZoomFactor(factor),
+  getZoomFactor: () => webFrame.getZoomFactor(),
 });
+

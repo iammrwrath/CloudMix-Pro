@@ -490,7 +490,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
   return (
     <div className="flex flex-col w-full bg-dj-surface rounded-lg overflow-hidden border border-dj-border shadow-inner">
       {/* 1. Dynamic Scrolling Waveform (Tri-Band RGB) */}
-      <div className="relative h-20 sm:h-24 md:h-28 xl:h-32 w-full cursor-ew-resize">
+      <div className="relative h-14 sm:h-18 md:h-22 xl:h-28 w-full cursor-ew-resize">
         <canvas
           ref={scrollingCanvasRef}
           width={800}
@@ -511,7 +511,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
       </div>
 
       {/* 2. Overview Waveform (Full track seeker) */}
-      <div className="relative h-6 sm:h-7 xl:h-8 w-full cursor-pointer border-t border-dj-border/60">
+      <div className="relative h-5 sm:h-6 xl:h-7 w-full cursor-pointer border-t border-dj-border/60">
         <canvas
           ref={overviewCanvasRef}
           width={800}

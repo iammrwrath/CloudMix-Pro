@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -31,11 +31,16 @@ let mainWindow = null;
 
 function createWindow() {
   log('createWindow() called');
+  const primaryDisplay = screen ? screen.getPrimaryDisplay() : null;
+  const workArea = primaryDisplay ? primaryDisplay.workAreaSize : { width: 1440, height: 900 };
+  const initialWidth = Math.min(1440, workArea.width);
+  const initialHeight = Math.min(900, workArea.height);
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: initialWidth,
+    height: initialHeight,
     minWidth: 1024,
-    minHeight: 700,
+    minHeight: 620,
     backgroundColor: '#0a0d14',
     title: 'CloudMix Pro — Next-Gen Cloud DJ',
     autoHideMenuBar: true,
@@ -50,6 +55,10 @@ function createWindow() {
       backgroundThrottling: false,
     },
   });
+
+  if (workArea.width <= 1440 || workArea.height <= 850) {
+    mainWindow.maximize();
+  }
 
   const distPaths = [
     path.join(__dirname, 'dist', 'index.html'),

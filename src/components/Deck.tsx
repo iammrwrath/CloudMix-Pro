@@ -274,41 +274,41 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 3. Pro Workstation Tactical Performance Bar: Quick Loop & Multi-FX Punch Buttons */}
-      <div className="flex items-center justify-between bg-slate-900/90 rounded-lg px-2.5 py-1.5 my-1 border border-white/10 shadow-sm">
+      <div className="flex items-center justify-between bg-slate-900/90 rounded-lg px-2 py-0.5 my-0.5 border border-white/10 shadow-sm shrink-0">
         {/* Quick Loop Controls (< 1 > with 1/2x and 2x) */}
-        <div className="flex items-center space-x-1.5">
-          <span className="text-[9px] font-mono text-slate-400 font-bold uppercase mr-0.5">LOOP</span>
+        <div className="flex items-center space-x-1 sm:space-x-1.5">
+          <span className="text-[8.5px] font-mono text-slate-400 font-bold uppercase mr-0.5 hidden xs:inline">LOOP</span>
           <button
             onClick={halveLoop}
             title="Halve loop length (/2)"
-            className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
           >
             &lt;
           </button>
           <button
             onClick={toggleLoop}
             title="Toggle Quantized Auto-Loop"
-            className={`px-2.5 h-6 rounded font-mono text-[10.5px] font-black border transition-all cursor-pointer active:scale-95 flex items-center space-x-1.5 ${
+            className={`px-2 h-5 sm:h-6 rounded font-mono text-[10px] font-black border transition-all cursor-pointer active:scale-95 flex items-center space-x-1 ${
               deckState.activeLoop
                 ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
                 : 'bg-slate-800 text-slate-200 border-slate-700 hover:text-white'
             }`}
           >
-            <Repeat className="w-3 h-3" />
+            <Repeat className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             <span>{deckState.activeLoop ? `${deckState.activeLoop.beats}B` : `${selectedLoopBeats}B`}</span>
           </button>
           <button
             onClick={doubleLoop}
             title="Double loop length (x2)"
-            className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-mono font-bold flex items-center justify-center border border-slate-700 transition-colors cursor-pointer active:scale-95"
           >
             &gt;
           </button>
         </div>
 
         {/* 3-Slot Multi-FX Instant Punch Bar */}
-        <div className="flex items-center space-x-1.5">
-          <span className="text-[9px] font-mono text-slate-400 font-bold uppercase mr-0.5">FX</span>
+        <div className="flex items-center space-x-1">
+          <span className="text-[8.5px] font-mono text-slate-400 font-bold uppercase mr-0.5 hidden xs:inline">FX</span>
           {(['echo', 'reverb', 'flanger'] as FXType[]).map((fxType) => {
             const isActive = deckState.fx.enabled && deckState.fx.type === fxType;
             return (
@@ -316,13 +316,13 @@ export const Deck = React.memo<DeckProps>(({
                 key={fxType}
                 onClick={() => onToggleFX?.(fxType)}
                 title={`Instant ${fxType.toUpperCase()} FX Punch-In`}
-                className={`px-2 h-6 rounded font-mono text-[9.5px] font-black uppercase border transition-all cursor-pointer active:scale-95 ${
+                className={`px-1.5 h-5 sm:h-6 rounded font-mono text-[9px] font-black uppercase border transition-all cursor-pointer active:scale-95 ${
                   isActive
                     ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.8)]'
                     : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white'
                 }`}
               >
-                {fxType === 'echo' ? 'ECHO 1/2' : fxType}
+                {fxType === 'echo' ? 'ECHO' : fxType}
               </button>
             );
           })}
@@ -332,7 +332,7 @@ export const Deck = React.memo<DeckProps>(({
         <button
           onClick={onToggleSlip}
           title="Slip Mode: Audio playhead continues in background during scratch or loops"
-          className={`px-2.5 h-6 rounded font-mono text-[9.5px] font-black border transition-all cursor-pointer active:scale-95 ${
+          className={`px-2 h-5 sm:h-6 rounded font-mono text-[9px] font-black border transition-all cursor-pointer active:scale-95 ${
             deckState.slipMode
               ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.8)]'
               : 'bg-slate-800/90 text-slate-400 border-slate-700 hover:text-white'
@@ -343,9 +343,9 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader */}
-      <div className="flex items-center justify-between flex-1 my-0.5 sm:my-1 py-0.5 gap-1.5 sm:gap-2 min-h-0">
+      <div className="flex items-center justify-between flex-1 my-0.5 py-0.5 gap-1.5 sm:gap-2 min-h-0">
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
-        <div className="flex flex-col justify-between h-36 sm:h-44 md:h-52 xl:h-60 bg-slate-950/70 rounded-xl p-1.5 sm:p-2 border border-white/5 w-20 sm:w-26 xl:w-30 shrink-0 shadow-inner">
+        <div className="flex flex-col justify-between h-28 sm:h-32 md:h-38 xl:h-48 bg-slate-950/70 rounded-xl p-1 sm:p-1.5 border border-white/5 w-20 sm:w-24 xl:w-28 shrink-0 shadow-inner">
           <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
             <span className="text-[8.5px] sm:text-[10px] font-mono font-bold text-slate-300">STEMS</span>
             <span className="text-[7.5px] sm:text-[9px] font-mono text-purple-400 font-bold">4-WAY</span>
@@ -463,7 +463,7 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 5. Performance Pads Section (Hot Cues, Loops, Stems) */}
-      <div className="my-0.5">
+      <div className="my-0.5 shrink-0">
         <PerformancePads
           deckId={deckId}
           hotCues={track?.hotCues || []}
@@ -487,26 +487,26 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 6. Primary Transport Controls: Play, Cue, Sync, Sandbox Mode */}
-      <div className="flex items-center justify-between pt-1 border-t border-dj-border/60">
+      <div className="flex items-center justify-between pt-0.5 sm:pt-1 border-t border-dj-border/60 shrink-0">
         {/* VirtualDJ Sandbox Mode Toggle */}
         <button
           onClick={onToggleSandbox}
           title="VirtualDJ Sandbox Mode: Private Headphone Audition. Mutes master output for this deck while you prep your mix."
-          className={`h-8 sm:h-9 md:h-10 xl:h-11 px-2 sm:px-2.5 rounded-xl font-mono font-extrabold text-[9.5px] sm:text-[11px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none ${
+          className={`h-7 sm:h-8 md:h-9 xl:h-10 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl font-mono font-extrabold text-[9px] sm:text-[10.5px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none shrink-0 ${
             deckState.sandboxMode
               ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_16px_rgba(245,158,11,0.85)] animate-pulse'
               : 'bg-slate-900/90 border-amber-500/30 text-amber-400 hover:bg-slate-800 hover:border-amber-400'
           }`}
         >
-          <Headphones className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>SANDBOX</span>
+          <Headphones className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <span className="hidden xs:inline">SANDBOX</span>
         </button>
 
         {/* SYNC Button */}
         <button
           onClick={onSyncClick}
           title="Instant Beatgrid Sync"
-          className={`flex-1 h-8 sm:h-9 md:h-10 xl:h-11 rounded-xl font-mono font-extrabold text-[11px] sm:text-xs md:text-[13px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none ${
+          className={`flex-1 h-7 sm:h-8 md:h-9 xl:h-10 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none shrink-0 ${
             deckState.isSync
               ? 'bg-cyan-500 text-black border-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.8)]'
               : 'bg-slate-900/90 border-cyan-500/30 text-cyan-400 hover:bg-slate-800 hover:border-cyan-400'
@@ -515,7 +515,7 @@ export const Deck = React.memo<DeckProps>(({
             boxShadow: deckState.isSync ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
-          <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+          <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
           <span>SYNC</span>
         </button>
 
@@ -523,12 +523,12 @@ export const Deck = React.memo<DeckProps>(({
         <button
           onClick={onCueClick}
           title="Temporary Cue Playhead"
-          className="flex-1 h-8 sm:h-9 md:h-10 xl:h-11 rounded-xl font-mono font-extrabold text-[11px] sm:text-xs md:text-[13px] mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1 sm:space-x-1.5 cursor-pointer select-none"
+          className="flex-1 h-7 sm:h-8 md:h-9 xl:h-10 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1 sm:space-x-1.5 cursor-pointer select-none shrink-0"
           style={{
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
-          <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <Radio className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           <span>CUE</span>
         </button>
 
@@ -536,7 +536,7 @@ export const Deck = React.memo<DeckProps>(({
         <button
           onClick={onPlayToggle}
           title="Play / Pause"
-          className={`flex-1 h-8 sm:h-9 md:h-10 xl:h-11 rounded-xl font-mono font-extrabold text-[11px] sm:text-xs md:text-[13px] border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none ${
+          className={`flex-1 h-7 sm:h-8 md:h-9 xl:h-10 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none shrink-0 ${
             deckState.isPlaying
               ? 'bg-emerald-500 text-black border-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.85)]'
               : 'bg-slate-900/90 border-emerald-500/30 text-emerald-400 hover:bg-slate-800 hover:border-emerald-400'
@@ -546,9 +546,9 @@ export const Deck = React.memo<DeckProps>(({
           }}
         >
           {deckState.isPlaying ? (
-            <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 fill-current animate-pulse" />
+            <Pause className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 fill-current animate-pulse" />
           ) : (
-            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 fill-current" />
+            <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 fill-current" />
           )}
           <span>{deckState.isPlaying ? 'PAUSE' : 'PLAY'}</span>
         </button>

@@ -80,9 +80,9 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // SVG Arc calculation
-  const svgSize = size + 10;
+  const svgSize = size + 8;
   const center = svgSize / 2;
-  const radius = size / 2 + 2.5;
+  const radius = size / 2 + 2;
   const arcLength = 270; // degrees
   const circumference = 2 * Math.PI * radius;
   const totalArcDash = (arcLength / 360) * circumference;
@@ -207,7 +207,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
       </div>
 
       {/* Label */}
-      <span className="text-[10.5px] font-mono font-extrabold text-slate-300 group-hover:text-cyan-300 uppercase mt-0.5 tracking-wider transition-colors">
+      <span className="text-[8.5px] font-mono font-extrabold text-slate-300 group-hover:text-cyan-300 uppercase mt-0.5 tracking-wider transition-colors">
         {label}
       </span>
     </div>
