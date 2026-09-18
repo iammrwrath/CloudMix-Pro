@@ -364,18 +364,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   </div>
 
                   {/* Client ID input */}
-                  <div className="w-full space-y-1">
-                    <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
-                      Google OAuth Client ID
+                  <div className="w-full space-y-2">
+                    <label className="text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider block">
+                      Google OAuth 2.0 Client ID
                     </label>
                     <YtClientIdInput />
-                    <p className="text-[10px] text-slate-500 font-mono mt-1">
-                      Add <code className="text-cyan-400">http://127.0.0.1:42813/callback</code> to your Google Cloud Console Authorized redirect URIs.
-                    </p>
+                    <div className="p-3 bg-slate-900/90 border border-slate-700/80 rounded-xl space-y-2 mt-2 text-left">
+                      <div className="flex items-center space-x-2 text-amber-300 text-xs font-bold font-mono">
+                        <span>⚠️ Google Console Redirect URI Requirement:</span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        In your <span className="text-white font-semibold">Google Cloud Console</span> → <span className="text-white font-semibold">APIs & Services</span> → <span className="text-white font-semibold">Credentials</span> → select your OAuth Client ID → under <span className="text-cyan-300 font-semibold">"Authorized redirect URIs"</span>, you must add:
+                      </p>
+                      <div className="flex items-center justify-between bg-black/60 border border-cyan-500/30 rounded-lg px-3 py-1.5 font-mono text-xs text-cyan-300 select-all">
+                        <code>http://127.0.0.1:42813/callback</code>
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard?.writeText('http://127.0.0.1:42813/callback')}
+                          className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-0.5 rounded cursor-pointer transition-colors border border-slate-700"
+                        >
+                          Copy URI
+                        </button>
+                      </div>
+                      <p className="text-[10.5px] text-slate-400">
+                        Also make sure your OAuth client application type is set to <span className="text-white font-semibold">Web application</span> (or Desktop app with this loopback URI).
+                      </p>
+                    </div>
                   </div>
 
                   {ytError && (
-                    <div className="w-full bg-red-950/40 border border-red-800/60 rounded-lg p-2.5 text-[11px] font-mono text-red-300 text-center">
+                    <div className="w-full bg-red-950/50 border border-red-800/80 rounded-xl p-3 text-xs font-mono text-red-200 text-center">
                       {ytError}
                     </div>
                   )}
