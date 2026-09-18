@@ -49,15 +49,20 @@ export const CortexFloatingWindow: React.FC = () => {
     };
   }, []);
 
+  const nowPlayingRefId = nowPlaying.track?.id || `${nowPlaying.title}_${nowPlaying.artist}`;
+  const nowPlayingBpm = nowPlaying.bpm;
+  const nowPlayingKey = nowPlaying.camelotKey;
+  const nowPlayingEnergy = nowPlaying.energyLevel;
+
   useEffect(() => {
     if (!tracks || tracks.length === 0) return;
     const currentRef = nowPlaying.track || {
-      id: 'active_ref',
+      id: nowPlayingRefId,
       title: nowPlaying.title,
       artist: nowPlaying.artist,
-      bpm: nowPlaying.bpm,
-      camelotKey: nowPlaying.camelotKey,
-      energyLevel: nowPlaying.energyLevel,
+      bpm: nowPlayingBpm,
+      camelotKey: nowPlayingKey,
+      energyLevel: nowPlayingEnergy,
     };
 
     const recs = cortexAiService.getRecommendations(currentRef, tracks, {
@@ -69,7 +74,7 @@ export const CortexFloatingWindow: React.FC = () => {
       selectedCrate: 'all',
     });
     setRecommendations(recs);
-  }, [nowPlaying, tracks, strategy, searchQuery]);
+  }, [nowPlayingRefId, nowPlayingBpm, nowPlayingKey, nowPlayingEnergy, tracks, strategy, searchQuery]);
 
   const handleTogglePreview = (track: CortexTrack) => {
     cortexAuditionEngine.play(track, 0.25);

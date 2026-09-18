@@ -126,17 +126,22 @@ export const CortexDJCoPilot: React.FC<CortexDJCoPilotProps> = ({
     };
   }, []);
 
-  // 2. High-Speed Accelerated Recommendation Query
+  // 2. High-Speed Accelerated Recommendation Query (decoupled from live time ticks)
+  const nowPlayingRefId = nowPlaying.track?.id || `${nowPlaying.title}_${nowPlaying.artist}`;
+  const nowPlayingBpm = nowPlaying.bpm;
+  const nowPlayingKey = nowPlaying.camelotKey;
+  const nowPlayingEnergy = nowPlaying.energyLevel;
+
   useEffect(() => {
     if (!tracks || tracks.length === 0) return;
 
     const currentRef = nowPlaying.track || {
-      id: 'active_ref',
+      id: nowPlayingRefId,
       title: nowPlaying.title,
       artist: nowPlaying.artist,
-      bpm: nowPlaying.bpm,
-      camelotKey: nowPlaying.camelotKey,
-      energyLevel: nowPlaying.energyLevel,
+      bpm: nowPlayingBpm,
+      camelotKey: nowPlayingKey,
+      energyLevel: nowPlayingEnergy,
     };
 
     let recs = cortexAiService.getRecommendations(currentRef, tracks, {
@@ -155,7 +160,19 @@ export const CortexDJCoPilot: React.FC<CortexDJCoPilotProps> = ({
     setRecommendations(recs);
     setVisibleCount(30);
     setFocusedIndex(0);
-  }, [nowPlaying, tracks, strategy, bpmTolerance, allowHalfDouble, harmonicMode, searchQuery, selectedKeyFilter]);
+  }, [
+    nowPlayingRefId,
+    nowPlayingBpm,
+    nowPlayingKey,
+    nowPlayingEnergy,
+    tracks,
+    strategy,
+    bpmTolerance,
+    allowHalfDouble,
+    harmonicMode,
+    searchQuery,
+    selectedKeyFilter,
+  ]);
 
   // 3. Pro DJ Keyboard Shortcuts Listener
   useEffect(() => {

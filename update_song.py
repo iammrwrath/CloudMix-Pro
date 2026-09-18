@@ -944,27 +944,12 @@ class DjayEngine:
 djay_engine = DjayEngine()
 
 # ==============================================================================
-# MIDI IN LISTENER THREAD
+# MIDI LISTENER (Disabled to prevent loopback driver conflicts with djay Pro)
 # ==============================================================================
 def start_midi_listener():
+    # Native pure mtime-gated polling & OBS seek/nudge handles all sync with 0.00% audio CPU
     while True:
-        try:
-            port_candidates = [p for p in mido.get_input_names() if 'djay_sync' in p]
-            if not port_candidates:
-                time.sleep(2.0)
-                continue
-
-            target_port = port_candidates[0]
-            log(f"[MIDI] Connected to loopback port: {target_port}")
-
-            with mido.open_input(target_port) as inport:
-                for msg in inport:
-                    if msg.type in ('note_on', 'note_off') and msg.note in (1, 2):
-                        is_play = (msg.type == 'note_on' and msg.velocity > 0)
-                        clock.on_midi_play_state(is_play)
-                        log(f"[MIDI EVENT] Deck {'1' if msg.note == 1 else '2'} Play State -> {is_play}")
-        except Exception as e:
-            time.sleep(3.0)
+        time.sleep(3600)
 
 # ==============================================================================
 # EMBEDDED MULTI-THREADED HTTP SERVER (Delta Sync + Keep-Alive)
@@ -1178,10 +1163,11 @@ def main_loop():
             if current_song != last_current_song:
                 last_current_song = current_song
                 
-                # Account for any initial seconds between track start and DB write
+                # Guard initial offset: tracks in live DJ sets start from the beginning (0.0s).
+                # Only compensate for loop poll latency (< 0.5s) if DB write was immediate.
                 initial_offset = 0.0
-                if start_ts > 0 and (now - start_ts) < 600.0:
-                    initial_offset = max(0.0, now - start_ts)
+                if start_ts > 0 and 0.0 < (now - start_ts) < 2.0:
+                    initial_offset = min(0.5, now - start_ts)
 
                 clock.on_track_change(current_song, initial_offset_sec=initial_offset)
                 log(f"[TRACK CHANGE] Now Playing: {current_song} (Deck {deck_num}, initial offset {initial_offset:.1f}s, dur {track_dur:.1f}s)")

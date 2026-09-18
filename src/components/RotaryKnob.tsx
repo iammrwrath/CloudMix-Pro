@@ -13,7 +13,7 @@ interface RotaryKnobProps {
   size?: number;
 }
 
-export const RotaryKnob: React.FC<RotaryKnobProps> = ({
+export const RotaryKnob = React.memo<RotaryKnobProps>(({
   label,
   value,
   min = -1.0,
@@ -212,5 +212,5 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
       </span>
     </div>
   );
-};
+});
 

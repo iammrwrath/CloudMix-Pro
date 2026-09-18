@@ -26,7 +26,7 @@ interface MixerProps {
   onNeuralTransitionModeChange?: (mode: NeuralTransitionMode) => void;
 }
 
-export const Mixer: React.FC<MixerProps> = ({
+export const Mixer = React.memo<MixerProps>(({
   deckA,
   deckB,
   mixer,
@@ -747,4 +747,4 @@ export const Mixer: React.FC<MixerProps> = ({
       </div>
     </div>
   );
-};
+});

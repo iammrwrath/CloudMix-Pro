@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { DeckState, WaveformData } from '../types/dj';
+import { audioEngine } from '../audio/AudioEngine';
 
 interface VerticalWaveformsProps {
   deckA: DeckState;
@@ -9,7 +10,7 @@ interface VerticalWaveformsProps {
   masterBpm: number;
 }
 
-export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
+export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = React.memo(({
   deckA,
   deckB,
   waveformA,
@@ -17,6 +18,10 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
   masterBpm,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const deckARef = useRef(deckA);
+  const deckBRef = useRef(deckB);
+  deckARef.current = deckA;
+  deckBRef.current = deckB;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -27,6 +32,11 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
     let animId: number;
 
     const render = () => {
+      const curA = deckARef.current;
+      const curB = deckBRef.current;
+      const liveTimeA = curA.isPlaying ? audioEngine.getCurrentTime('A') : curA.currentTime;
+      const liveTimeB = curB.isPlaying ? audioEngine.getCurrentTime('B') : curB.currentTime;
+
       const w = canvas.width;
       const h = canvas.height;
       const centerY = h / 2;
@@ -49,31 +59,33 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
       // Render Vertical Deck A (Left)
       renderVerticalLane(
         ctx,
-        deckA,
+        curA,
         waveformA,
         0,
         centerY,
         colWidth,
         h,
         '#00f0ff',
-        'rgba(0, 240, 255, 0.4)'
+        'rgba(0, 240, 255, 0.4)',
+        liveTimeA
       );
 
       // Render Vertical Deck B (Right)
       renderVerticalLane(
         ctx,
-        deckB,
+        curB,
         waveformB,
         colWidth + 24,
         centerY,
         colWidth,
         h,
         '#ff2e88',
-        'rgba(255, 46, 136, 0.4)'
+        'rgba(255, 46, 136, 0.4)',
+        liveTimeB
       );
 
       // Render Center Phase Meter (Between the two columns)
-      renderPhaseMeter(ctx, colWidth, centerY, 24, h, deckA, deckB);
+      renderPhaseMeter(ctx, colWidth, centerY, 24, h, curA, curB, liveTimeA, liveTimeB);
 
       // Center Laser Playhead (Horizontal Red/White Laser Bar)
       ctx.shadowColor = '#ffffff';
@@ -98,7 +110,7 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [deckA, deckB, waveformA, waveformB, masterBpm]);
+  }, [waveformA, waveformB, masterBpm]);
 
   const renderVerticalLane = (
     ctx: CanvasRenderingContext2D,
@@ -109,41 +121,50 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
     width: number,
     height: number,
     accentColor: string,
-    glowColor: string
+    glowColor: string,
+    liveTime: number
   ) => {
     const laneCenterX = xOffset + width / 2;
     const pixelsPerSecond = 80; // Vertical scroll speed
 
     if (waveform && waveform.lowPeaks && waveform.lowPeaks.length > 0) {
       const samplesPerSec = waveform.lowPeaks.length / waveform.duration;
-      const currentSample = deck.currentTime * samplesPerSec;
+      const currentSample = liveTime * samplesPerSec;
+      const halfWidth = (width / 2) * 0.9;
 
       ctx.save();
-      // Multi-band frequency separation render
+      // Pass 1: Bass / Lows
+      ctx.fillStyle = glowColor;
       for (let y = 0; y < height; y += 2) {
         const timeOffsetSec = (centerY - y) / pixelsPerSecond;
         const sampleIdx = Math.floor(currentSample + timeOffsetSec * samplesPerSec);
-
         if (sampleIdx >= 0 && sampleIdx < waveform.lowPeaks.length) {
           const low = waveform.lowPeaks[sampleIdx] || 0;
-          const mid = waveform.midPeaks ? waveform.midPeaks[sampleIdx] || 0 : 0;
-          const high = waveform.highPeaks ? waveform.highPeaks[sampleIdx] || 0 : 0;
-
-          const halfWidth = (width / 2) * 0.9;
-
-          // Bass / Lows (Deepest width)
           const lowW = low * halfWidth;
-          ctx.fillStyle = glowColor;
           ctx.fillRect(laneCenterX - lowW, y, lowW * 2, 2);
+        }
+      }
 
-          // Mid / Vocals
+      // Pass 2: Mid / Vocals
+      ctx.fillStyle = accentColor;
+      for (let y = 0; y < height; y += 2) {
+        const timeOffsetSec = (centerY - y) / pixelsPerSecond;
+        const sampleIdx = Math.floor(currentSample + timeOffsetSec * samplesPerSec);
+        if (sampleIdx >= 0 && sampleIdx < waveform.lowPeaks.length) {
+          const mid = waveform.midPeaks ? waveform.midPeaks[sampleIdx] || 0 : 0;
           const midW = mid * halfWidth * 0.75;
-          ctx.fillStyle = accentColor;
           ctx.fillRect(laneCenterX - midW, y, midW * 2, 1.5);
+        }
+      }
 
-          // High / Transients
+      // Pass 3: High / Transients
+      ctx.fillStyle = '#ffffff';
+      for (let y = 0; y < height; y += 2) {
+        const timeOffsetSec = (centerY - y) / pixelsPerSecond;
+        const sampleIdx = Math.floor(currentSample + timeOffsetSec * samplesPerSec);
+        if (sampleIdx >= 0 && sampleIdx < waveform.lowPeaks.length) {
+          const high = waveform.highPeaks ? waveform.highPeaks[sampleIdx] || 0 : 0;
           const highW = high * halfWidth * 0.45;
-          ctx.fillStyle = '#ffffff';
           ctx.fillRect(laneCenterX - highW, y, highW * 2, 1);
         }
       }
@@ -170,7 +191,7 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
     if (deck.track && deck.track.bpm > 0) {
       const secPerBeat = 60 / deck.track.bpm;
       const beatPixels = secPerBeat * pixelsPerSecond;
-      const beatOffset = (deck.currentTime % secPerBeat) * pixelsPerSecond;
+      const beatOffset = (liveTime % secPerBeat) * pixelsPerSecond;
 
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
       ctx.lineWidth = 1;
@@ -196,7 +217,9 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
     width: number,
     height: number,
     deckA: DeckState,
-    deckB: DeckState
+    deckB: DeckState,
+    liveTimeA: number,
+    liveTimeB: number
   ) => {
     // Center phase channel strip
     ctx.fillStyle = '#0f172a';
@@ -209,8 +232,8 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
     if (deckA.isPlaying && deckB.isPlaying && deckA.track && deckB.track) {
       const beatSecA = 60 / deckA.track.bpm;
       const beatSecB = 60 / deckB.track.bpm;
-      const phaseA = (deckA.currentTime % beatSecA) / beatSecA;
-      const phaseB = (deckB.currentTime % beatSecB) / beatSecB;
+      const phaseA = (liveTimeA % beatSecA) / beatSecA;
+      const phaseB = (liveTimeB % beatSecB) / beatSecB;
       let phaseDiff = phaseA - phaseB;
       if (phaseDiff > 0.5) phaseDiff -= 1.0;
       if (phaseDiff < -0.5) phaseDiff += 1.0;
@@ -247,4 +270,4 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = ({
       </div>
     </div>
   );
-};
+});

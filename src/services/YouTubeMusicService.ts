@@ -301,7 +301,7 @@ class YouTubeMusicService {
     }
 
     // 2. Fetch remote stream
-    const res = await fetch(track.fileUrl);
+    const res = await fetch(track.fileUrl, { signal: AbortSignal.timeout(4000) });
     if (!res.ok) {
       throw new Error(`Failed to stream audio from YouTube Music (${res.status} ${res.statusText})`);
     }

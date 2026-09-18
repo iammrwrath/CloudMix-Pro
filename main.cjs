@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
+const { startStreamingServer, updateBroadcastState, getBroadcastState } = require('./streamingServer.cjs');
 
 const logFile = path.join(os.tmpdir(), 'cloudmix_electron.log');
 function log(msg) {
@@ -204,6 +205,25 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    try {
+      startStreamingServer(8088, {
+        onStreamerbotRequest: (reqData) => {
+          log('[STREAM SERVER] Received viewer request: ' + JSON.stringify(reqData));
+          mainWindow?.webContents.send('streamerbot-request', reqData);
+        },
+        onSamplerPadTrigger: (padNumber) => {
+          log('[STREAM SERVER] Remote sampler pad trigger: ' + padNumber);
+          mainWindow?.webContents.send('trigger-sampler-pad', padNumber);
+        },
+        onStreamdeckAction: (actionData) => {
+          log('[STREAM SERVER] Remote Stream Deck action: ' + JSON.stringify(actionData));
+          mainWindow?.webContents.send('streamdeck-action', actionData);
+        },
+      });
+    } catch (e) {
+      log('[STREAM SERVER INIT ERROR] ' + e.message);
+    }
+
     if (isStandaloneCortex) {
       createStandaloneCortexWindow();
     } else {
@@ -401,24 +421,28 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
   });
 });
 
-ipcMain.handle('write-now-playing-broadcast', async (event, { title, artist, bpm, key, deck }) => {
+ipcMain.handle('write-now-playing-broadcast', async (event, payload) => {
   try {
-    const streamerDir = 'C:\\StreamerBot';
-    const nowPlayingFile = path.join(streamerDir, 'nowplaying.txt');
-    const triggerFile = path.join(streamerDir, 'trigger.txt');
-
-    if (!fs.existsSync(streamerDir)) {
-      try { fs.mkdirSync(streamerDir, { recursive: true }); } catch {}
-    }
-
-    const content = `${artist} - ${title} [${bpm} BPM | ${key}] (Deck ${deck})`;
-    fs.writeFileSync(nowPlayingFile, content, 'utf8');
-    fs.writeFileSync(triggerFile, Date.now().toString(), 'utf8');
+    updateBroadcastState(payload);
     return true;
   } catch (err) {
     log('Failed to write now playing trigger: ' + err);
     return false;
   }
+});
+
+ipcMain.handle('update-streaming-broadcast', async (event, payload) => {
+  try {
+    updateBroadcastState(payload);
+    return true;
+  } catch (err) {
+    log('Failed to update streaming broadcast: ' + err);
+    return false;
+  }
+});
+
+ipcMain.handle('get-streaming-broadcast-state', () => {
+  return getBroadcastState();
 });
 
 // ==============================================================================

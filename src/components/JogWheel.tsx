@@ -15,7 +15,7 @@ interface JogWheelProps {
   coverArtUrl?: string;
 }
 
-export const JogWheel: React.FC<JogWheelProps> = ({
+export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   deckId,
   currentTime,
   duration,
@@ -28,11 +28,23 @@ export const JogWheel: React.FC<JogWheelProps> = ({
   coverArtUrl,
 }) => {
   const wheelRef = useRef<HTMLDivElement | null>(null);
-  const [rotationDeg, setRotationDeg] = useState(0);
+  const platterRotatorRef = useRef<HTMLDivElement | null>(null);
+  const sheenRef = useRef<HTMLDivElement | null>(null);
+  const rotationDegRef = useRef(0);
   const [isScratching, setIsScratching] = useState(false);
   const [lastAngle, setLastAngle] = useState(0);
 
-  // Rotate platter while playing (33.3 RPM vinyl emulation)
+  const applyRotation = useCallback((deg: number) => {
+    rotationDegRef.current = deg;
+    if (platterRotatorRef.current) {
+      platterRotatorRef.current.style.transform = `rotate(${deg}deg)`;
+    }
+    if (sheenRef.current) {
+      sheenRef.current.style.background = `conic-gradient(from ${deg * 0.5}deg, transparent 0deg, rgba(255,255,255,0.15) 45deg, transparent 90deg, rgba(255,255,255,0.15) 135deg, transparent 180deg, rgba(255,255,255,0.15) 225deg, transparent 270deg, rgba(255,255,255,0.15) 315deg, transparent 360deg)`;
+    }
+  }, []);
+
+  // Rotate platter while playing (33.3 RPM vinyl emulation via direct 60/120 FPS DOM transform)
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
@@ -44,7 +56,8 @@ export const JogWheel: React.FC<JogWheelProps> = ({
       if (isPlaying && !isScratching) {
         // 33.3 RPM = 0.555 revolutions/sec = ~200 deg/sec
         const degPerSec = 200 * playbackRate;
-        setRotationDeg((prev) => (prev + degPerSec * dt) % 360);
+        const newDeg = (rotationDegRef.current + degPerSec * dt) % 360;
+        applyRotation(newDeg);
       }
 
       animId = requestAnimationFrame(updateRotation);
@@ -52,7 +65,7 @@ export const JogWheel: React.FC<JogWheelProps> = ({
 
     animId = requestAnimationFrame(updateRotation);
     return () => cancelAnimationFrame(animId);
-  }, [isPlaying, playbackRate, isScratching]);
+  }, [isPlaying, playbackRate, isScratching, applyRotation]);
 
   const getAngle = (e: React.MouseEvent | MouseEvent): number => {
     if (!wheelRef.current) return 0;
@@ -81,13 +94,14 @@ export const JogWheel: React.FC<JogWheelProps> = ({
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
 
-    setRotationDeg((prev) => (prev + delta) % 360);
+    const nextDeg = (rotationDegRef.current + delta) % 360;
+    applyRotation(nextDeg);
     setLastAngle(currentAngle);
 
     // Map degrees to seconds: 360 deg = ~1.8 seconds of audio
     const deltaSec = (delta / 360) * 1.8;
     onScratch(deltaSec);
-  }, [isScratching, lastAngle, onScratch]);
+  }, [isScratching, lastAngle, onScratch, applyRotation]);
 
   const handleMouseUp = useCallback(() => {
     if (isScratching) {
@@ -153,16 +167,18 @@ export const JogWheel: React.FC<JogWheelProps> = ({
 
           {/* Anisotropic Light Sheen (Cross flare reflection) */}
           <div
+            ref={sheenRef}
             className="absolute inset-0 pointer-events-none opacity-20"
             style={{
-              background: `conic-gradient(from ${rotationDeg * 0.5}deg, transparent 0deg, rgba(255,255,255,0.15) 45deg, transparent 90deg, rgba(255,255,255,0.15) 135deg, transparent 180deg, rgba(255,255,255,0.15) 225deg, transparent 270deg, rgba(255,255,255,0.15) 315deg, transparent 360deg)`,
+              background: `conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.15) 45deg, transparent 90deg, rgba(255,255,255,0.15) 135deg, transparent 180deg, rgba(255,255,255,0.15) 225deg, transparent 270deg, rgba(255,255,255,0.15) 315deg, transparent 360deg)`,
             }}
           />
 
           {/* Rotating Platter Marker / Needle Indicator */}
           <div
+            ref={platterRotatorRef}
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{ transform: `rotate(${rotationDeg}deg)` }}
+            style={{ transform: `rotate(0deg)` }}
           >
             {/* Illuminated Needle Position Marker with Comet Glow */}
             <div
@@ -282,4 +298,4 @@ export const JogWheel: React.FC<JogWheelProps> = ({
       </div>
     </div>
   );
-};
+});

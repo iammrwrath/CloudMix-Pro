@@ -141,6 +141,8 @@ export class CortexMonitorService {
     const remaining = Math.max(0, Math.round(duration - currentLiveTime));
     const isPlaying = activeDeckId === 'A' ? isPlayingA : isPlayingB;
 
+    let hasChanged = false;
+
     if (activeDeck.track) {
       const cortexT = musicLibraryService.convertDjTrackToPulse(activeDeck.track);
 
@@ -149,6 +151,13 @@ export class CortexMonitorService {
         cortexAiService.recordTransition(this.nowPlaying.track, cortexT);
       }
       this.lastTrackId = cortexT.id;
+
+      hasChanged =
+        this.nowPlaying.track?.id !== cortexT.id ||
+        this.nowPlaying.deckId !== activeDeckId ||
+        this.nowPlaying.isPlaying !== isPlaying ||
+        this.nowPlaying.bpm !== cortexT.bpm ||
+        this.nowPlaying.camelotKey !== cortexT.camelotKey;
 
       this.nowPlaying = {
         track: cortexT,
@@ -168,6 +177,12 @@ export class CortexMonitorService {
         coverArtUrl: cortexT.coverArtUrl,
       };
     } else {
+      hasChanged =
+        this.nowPlaying.track !== null ||
+        this.nowPlaying.deckId !== activeDeckId ||
+        this.nowPlaying.isPlaying !== isPlaying;
+
+      this.nowPlaying.track = null;
       this.nowPlaying.currentTime = currentLiveTime;
       this.nowPlaying.duration = duration;
       this.nowPlaying.remainingTime = remaining;
@@ -175,7 +190,9 @@ export class CortexMonitorService {
       this.nowPlaying.deckId = activeDeckId;
     }
 
-    this.notify();
+    if (hasChanged) {
+      this.notify();
+    }
   }
 
   // 2. Algoriddim djay Pro Database / Trigger Polling

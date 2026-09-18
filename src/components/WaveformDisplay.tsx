@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { DeckId, HotCue, TrackMetadata, WaveformData } from '../types/dj';
+import { DeckId, HotCue, StemState, TrackMetadata, WaveformData } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
 
 interface WaveformDisplayProps {
@@ -12,10 +12,11 @@ interface WaveformDisplayProps {
   hotCues: HotCue[];
   activeLoop: { start: number; end: number } | null;
   onSeek: (seconds: number) => void;
+  stems?: StemState;
   accentColor?: string;
 }
 
-export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
+export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
   deckId,
   track,
   waveformData,
@@ -25,18 +26,99 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
   hotCues,
   activeLoop,
   onSeek,
+  stems,
   accentColor = '#00e5ff',
 }) => {
   const scrollingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const overviewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const overviewBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const currentTimeRef = useRef<number>(currentTime);
+  currentTimeRef.current = currentTime;
+
   const [isDragging, setIsDragging] = useState(false);
   const [zoomSeconds, setZoomSeconds] = useState(5.5);
 
-  // 1. Draw Overview Waveform (Full track summary with cues & loop)
+  // 1. Pre-render & Cache Static Overview Peaks onto Offscreen Canvas
   useEffect(() => {
-    const canvas = overviewCanvasRef.current;
-    if (!canvas || !waveformData || duration <= 0) return;
+    if (!waveformData || duration <= 0) {
+      overviewBgCanvasRef.current = null;
+      return;
+    }
 
+    const canvas = overviewCanvasRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas?.clientWidth || 800;
+    const displayHeight = canvas?.clientHeight || 24;
+
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = displayWidth * dpr;
+    bgCanvas.height = displayHeight * dpr;
+    const bgCtx = bgCanvas.getContext('2d');
+    if (!bgCtx) return;
+
+    bgCtx.scale(dpr, dpr);
+    const width = displayWidth;
+    const height = displayHeight;
+
+    // Background gradient
+    const bgGrad = bgCtx.createLinearGradient(0, 0, 0, height);
+    bgGrad.addColorStop(0, '#0f1420');
+    bgGrad.addColorStop(1, '#080b12');
+    bgCtx.fillStyle = bgGrad;
+    bgCtx.fillRect(0, 0, width, height);
+
+    // Center divider
+    bgCtx.strokeStyle = '#1e293b';
+    bgCtx.lineWidth = 1;
+    bgCtx.beginPath();
+    bgCtx.moveTo(0, height / 2);
+    bgCtx.lineTo(width, height / 2);
+    bgCtx.stroke();
+
+    // Tri-band overview draw (done ONCE per track / size change)
+    const centerY = height / 2;
+    const totalPoints = waveformData.overviewPeaks.length;
+
+    // Pass 1: Low / Bass frequency (Coral Red)
+    bgCtx.fillStyle = '#ff3366';
+    for (let x = 0; x < width; x++) {
+      const pointIndex = Math.floor((x / width) * totalPoints);
+      const lowVal = waveformData.lowPeaks[pointIndex] || 0;
+      const midVal = waveformData.midPeaks[pointIndex] || 0;
+      const highVal = waveformData.highPeaks[pointIndex] || 0;
+      const totalH = Math.max(2, (lowVal + midVal + highVal) * 0.45 * (height / 2));
+      bgCtx.fillRect(x, centerY - totalH * 0.5, 1, totalH);
+    }
+
+    // Pass 2: Mid frequency (Cyan)
+    bgCtx.fillStyle = '#00e5ff';
+    for (let x = 0; x < width; x++) {
+      const pointIndex = Math.floor((x / width) * totalPoints);
+      const lowVal = waveformData.lowPeaks[pointIndex] || 0;
+      const midVal = waveformData.midPeaks[pointIndex] || 0;
+      const highVal = waveformData.highPeaks[pointIndex] || 0;
+      const totalH = Math.max(2, (lowVal + midVal + highVal) * 0.45 * (height / 2));
+      bgCtx.fillRect(x, centerY - totalH * 0.35, 1, totalH * 0.7);
+    }
+
+    // Pass 3: High frequency (Bright White)
+    bgCtx.fillStyle = '#ffffff';
+    for (let x = 0; x < width; x++) {
+      const pointIndex = Math.floor((x / width) * totalPoints);
+      const lowVal = waveformData.lowPeaks[pointIndex] || 0;
+      const midVal = waveformData.midPeaks[pointIndex] || 0;
+      const highVal = waveformData.highPeaks[pointIndex] || 0;
+      const totalH = Math.max(2, (lowVal + midVal + highVal) * 0.45 * (height / 2));
+      bgCtx.fillRect(x, centerY - totalH * 0.15, 1, totalH * 0.3);
+    }
+
+    overviewBgCanvasRef.current = bgCanvas;
+  }, [waveformData, duration]);
+
+  // Fast Overview Render (Blits pre-rendered background in 1 draw call + playhead/cues)
+  const drawOverview = useCallback((liveTime: number) => {
+    const canvas = overviewCanvasRef.current;
+    if (!canvas || duration <= 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -53,48 +135,13 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
     ctx.scale(dpr, dpr);
     const width = displayWidth;
     const height = displayHeight;
-    ctx.clearRect(0, 0, width, height);
 
-    // Background gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
-    bgGrad.addColorStop(0, '#0f1420');
-    bgGrad.addColorStop(1, '#080b12');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, width, height);
-
-    // Draw full overview peaks
-    const peaks = waveformData.overviewPeaks;
-    const centerY = height / 2;
-    const totalPoints = peaks.length;
-
-    // Center divider
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(width, centerY);
-    ctx.stroke();
-
-    // Tri-band overview draw
-    for (let x = 0; x < width; x++) {
-      const pointIndex = Math.floor((x / width) * totalPoints);
-      const lowVal = waveformData.lowPeaks[pointIndex] || 0;
-      const midVal = waveformData.midPeaks[pointIndex] || 0;
-      const highVal = waveformData.highPeaks[pointIndex] || 0;
-
-      const totalH = Math.max(2, (lowVal + midVal + highVal) * 0.45 * (height / 2));
-
-      // Low / Bass frequency (Red / Coral)
-      ctx.fillStyle = '#ff3366';
-      ctx.fillRect(x, centerY - totalH * 0.5, 1, totalH);
-
-      // Mid frequency (Cyan / Green)
-      ctx.fillStyle = '#00e5ff';
-      ctx.fillRect(x, centerY - totalH * 0.35, 1, totalH * 0.7);
-
-      // High frequency (White / Bright)
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x, centerY - totalH * 0.15, 1, totalH * 0.3);
+    const bgCanvas = overviewBgCanvasRef.current;
+    if (bgCanvas) {
+      ctx.drawImage(bgCanvas, 0, 0, width, height);
+    } else {
+      ctx.fillStyle = '#080b12';
+      ctx.fillRect(0, 0, width, height);
     }
 
     // Draw active loop region if any
@@ -128,7 +175,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
     });
 
     // Draw Playhead progress bar
-    const progressX = (currentTime / duration) * width;
+    const progressX = (liveTime / duration) * width;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.fillRect(0, 0, progressX, height);
 
@@ -140,9 +187,16 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
     ctx.stroke();
 
     ctx.restore();
-  }, [waveformData, currentTime, duration, hotCues, activeLoop]);
+  }, [duration, hotCues, activeLoop]);
 
-  // 2. Draw Dynamic Scrolling Tri-Band Waveform (60-120 FPS)
+  // Update overview when paused or on seek
+  useEffect(() => {
+    if (!isPlaying) {
+      drawOverview(currentTime);
+    }
+  }, [currentTime, isPlaying, drawOverview]);
+
+  // 2. Dynamic Scrolling Tri-Band Waveform Loop (60-144 FPS Hardware-Accelerated)
   useEffect(() => {
     let animId: number;
 
@@ -152,6 +206,13 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      const liveTime = isPlaying ? audioEngine.getCurrentTime(deckId) : currentTimeRef.current;
+
+      // Update overview playhead in the same rAF tick
+      if (isPlaying) {
+        drawOverview(liveTime);
+      }
 
       const dpr = window.devicePixelRatio || 1;
       const displayWidth = canvas.clientWidth || 800;
@@ -171,12 +232,10 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
 
       ctx.clearRect(0, 0, width, height);
 
-      // Background
-      // 1. Crisp dark background with subtle center guide
+      // 1. Dark background with subtle center guide
       ctx.fillStyle = '#06080e';
       ctx.fillRect(0, 0, width, height);
 
-      // Subtle horizontal center line
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -186,6 +245,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
 
       if (!waveformData || duration <= 0) {
         ctx.restore();
+        if (isPlaying) animId = requestAnimationFrame(renderScrolling);
         return;
       }
 
@@ -198,15 +258,15 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       const bpm = track?.bpm || 120;
       if (bpm > 0) {
         const beatIntervalSec = 60.0 / bpm;
-        const visibleStartSec = currentTime - zoomSeconds / 2;
-        const visibleEndSec = currentTime + zoomSeconds / 2;
+        const visibleStartSec = liveTime - zoomSeconds / 2;
+        const visibleEndSec = liveTime + zoomSeconds / 2;
 
         const firstBeatNum = Math.floor(visibleStartSec / beatIntervalSec);
         const lastBeatNum = Math.ceil(visibleEndSec / beatIntervalSec);
 
         for (let b = firstBeatNum; b <= lastBeatNum; b++) {
           const beatTime = b * beatIntervalSec;
-          const beatX = centerX + (beatTime - currentTime) * pixelsPerSecond;
+          const beatX = centerX + (beatTime - liveTime) * pixelsPerSecond;
           if (beatX < 0 || beatX > width) continue;
 
           const isDownbeat = b % 4 === 0;
@@ -226,44 +286,86 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
         }
       }
 
-      // Draw Tri-band waveform slices with vertical gradient & mirrored reflection
-      for (let x = 0; x < width; x += 2) {
-        const timeAtX = currentTime + (x - centerX) / pixelsPerSecond;
-        if (timeAtX < 0 || timeAtX > duration) continue;
+      const maxH = (height / 2) * 0.94;
 
+      // Stem-Aware Visual Feedback (Serato / VirtualDJ style)
+      const isSoloActive = stems && (stems.vocalsSolo || stems.drumsSolo || stems.bassSolo || stems.harmonicsSolo);
+      const bassAlpha = stems?.bassMuted
+        ? 0.08
+        : stems?.bassSolo
+        ? 1.0
+        : isSoloActive
+        ? 0.12
+        : Math.max(0.1, Math.min(1.0, stems?.bass ?? 1.0));
+
+      const vocalsAlpha = stems?.vocalsMuted
+        ? 0.08
+        : stems?.vocalsSolo
+        ? 1.0
+        : isSoloActive
+        ? 0.12
+        : Math.max(0.1, Math.min(1.0, stems?.vocals ?? 1.0));
+
+      const trebleAlpha = stems?.harmonicsMuted
+        ? 0.08
+        : stems?.harmonicsSolo
+        ? 1.0
+        : isSoloActive
+        ? 0.12
+        : Math.max(0.1, Math.min(1.0, stems?.harmonics ?? 1.0));
+
+      // Batch Pass 1: Low Freq (Bass) - Hot Coral / Pink Glow
+      ctx.fillStyle = `rgba(255, 46, 136, ${bassAlpha})`;
+      for (let x = 0; x < width; x += 2) {
+        const timeAtX = liveTime + (x - centerX) / pixelsPerSecond;
+        if (timeAtX < 0 || timeAtX > duration) continue;
         const pIdx = Math.floor(timeAtX * pointsPerSecond);
         if (pIdx < 0 || pIdx >= totalPoints) continue;
-
         const lowVal = waveformData.lowPeaks[pIdx] || 0;
-        const midVal = waveformData.midPeaks[pIdx] || 0;
-        const highVal = waveformData.highPeaks[pIdx] || 0;
-
-        const maxH = (height / 2) * 0.94;
-
-        // 1. Low Freq (Bass) - Hot Coral / Pink Glow
         const hLow = lowVal * maxH;
-        ctx.fillStyle = '#ff2e88';
         ctx.fillRect(x, centerY - hLow, 1.6, hLow * 1.6);
+      }
 
-        // 2. Mid Freq (Vocals/Mids) - Electric Cyan Glow
+      // Batch Pass 2: Mid Freq (Vocals/Mids) - Electric Cyan Glow
+      ctx.fillStyle = `rgba(0, 240, 255, ${vocalsAlpha})`;
+      for (let x = 0; x < width; x += 2) {
+        const timeAtX = liveTime + (x - centerX) / pixelsPerSecond;
+        if (timeAtX < 0 || timeAtX > duration) continue;
+        const pIdx = Math.floor(timeAtX * pointsPerSecond);
+        if (pIdx < 0 || pIdx >= totalPoints) continue;
+        const midVal = waveformData.midPeaks[pIdx] || 0;
         const hMid = midVal * maxH * 0.72;
-        ctx.fillStyle = '#00f0ff';
         ctx.fillRect(x, centerY - hMid, 1.6, hMid * 1.6);
+      }
 
-        // 3. High Freq (Treble/Hi-hats) - Brilliant Crisp White
+      // Batch Pass 3: High Freq (Treble/Hi-hats) - Brilliant Crisp White
+      ctx.fillStyle = `rgba(255, 255, 255, ${trebleAlpha})`;
+      for (let x = 0; x < width; x += 2) {
+        const timeAtX = liveTime + (x - centerX) / pixelsPerSecond;
+        if (timeAtX < 0 || timeAtX > duration) continue;
+        const pIdx = Math.floor(timeAtX * pointsPerSecond);
+        if (pIdx < 0 || pIdx >= totalPoints) continue;
+        const highVal = waveformData.highPeaks[pIdx] || 0;
         const hHigh = highVal * maxH * 0.42;
-        ctx.fillStyle = '#ffffff';
         ctx.fillRect(x, centerY - hHigh, 1.6, hHigh * 1.6);
+      }
 
-        // 4. Subtle mirrored reflection below baseline
-        ctx.fillStyle = 'rgba(0, 240, 255, 0.18)';
+      // Batch Pass 4: Subtle mirrored reflection below baseline
+      ctx.fillStyle = `rgba(0, 240, 255, ${vocalsAlpha * 0.2})`;
+      for (let x = 0; x < width; x += 2) {
+        const timeAtX = liveTime + (x - centerX) / pixelsPerSecond;
+        if (timeAtX < 0 || timeAtX > duration) continue;
+        const pIdx = Math.floor(timeAtX * pointsPerSecond);
+        if (pIdx < 0 || pIdx >= totalPoints) continue;
+        const midVal = waveformData.midPeaks[pIdx] || 0;
+        const hMid = midVal * maxH * 0.72;
         ctx.fillRect(x, centerY + 2, 1.6, hMid * 0.4);
       }
 
       // Draw active loop shading with candy-stripe glow
       if (activeLoop) {
-        const loopStartX = centerX + (activeLoop.start - currentTime) * pixelsPerSecond;
-        const loopEndX = centerX + (activeLoop.end - currentTime) * pixelsPerSecond;
+        const loopStartX = centerX + (activeLoop.start - liveTime) * pixelsPerSecond;
+        const loopEndX = centerX + (activeLoop.end - liveTime) * pixelsPerSecond;
         ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
         ctx.fillRect(loopStartX, 0, loopEndX - loopStartX, height);
         ctx.strokeStyle = '#10b981';
@@ -274,7 +376,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       // Draw Hot Cues on scrolling waveform with illuminated flag pins
       hotCues.forEach((cue) => {
         if (!cue.active) return;
-        const cueX = centerX + (cue.position - currentTime) * pixelsPerSecond;
+        const cueX = centerX + (cue.position - liveTime) * pixelsPerSecond;
         if (cueX >= -20 && cueX <= width + 20) {
           ctx.fillStyle = cue.color || '#f59e0b';
           ctx.beginPath();
@@ -343,7 +445,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
 
     renderScrolling();
     return () => cancelAnimationFrame(animId);
-  }, [waveformData, currentTime, duration, isPlaying, track, hotCues, activeLoop, accentColor, zoomSeconds]);
+  }, [deckId, waveformData, duration, isPlaying, track, hotCues, activeLoop, accentColor, zoomSeconds, drawOverview]);
 
   // Handle overview click seeking
   const handleOverviewClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -420,4 +522,4 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = ({
       </div>
     </div>
   );
-};
+});

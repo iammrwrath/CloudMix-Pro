@@ -41,6 +41,7 @@ interface HeaderProps {
   onToggleStreamerHud: () => void;
   onToggleSettingsModal: () => void;
   isStreamerHudOpen: boolean;
+  requestCount?: number;
   isPulseDjOpen?: boolean;
   onTogglePulseDj?: () => void;
   isCortexOpen?: boolean;
@@ -67,7 +68,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleStreamerHud,
   onToggleSettingsModal,
   isStreamerHudOpen,
-  isPulseDjOpen,
+  requestCount = 0,
+  isPulseDjOpen = false,
   onTogglePulseDj,
   isCortexOpen,
   onToggleCortex,
@@ -336,15 +338,20 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Streamer HUD / Lyrics Overlay Button */}
         <button
           onClick={onToggleStreamerHud}
-          title="Toggle StreamerBot / OBS Live Lyrics HUD"
-          className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+          title="Toggle StreamerBot / OBS Live Overlay & Requests Hub"
+          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
             isStreamerHudOpen
               ? 'bg-purple-600 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.7)]'
               : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-slate-800'
           }`}
         >
           <Tv className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Streamer HUD</span>
+          <span className="hidden sm:inline">OBS / Stream</span>
+          {requestCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white text-[9px] font-mono animate-pulse shadow-[0_0_8px_rgba(236,72,153,0.8)]">
+              {requestCount}
+            </span>
+          )}
         </button>
 
         {/* GitHub & In-App Patch Updates Widget */}

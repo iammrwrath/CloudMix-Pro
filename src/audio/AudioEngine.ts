@@ -1,6 +1,7 @@
 import { DeckId, FXType, FXUnit, HotCue, NeuralTransitionMode, StemState, TrackMetadata } from '../types/dj';
 import { mixRecorder } from './MixRecorder';
 import { samplerEngine } from './SamplerEngine';
+import { DiscreteStems } from '../services/StemSeparatorService';
 
 export interface DeckAudioNodes {
   deckId: DeckId;
@@ -46,6 +47,12 @@ export interface DeckAudioNodes {
   analyser: AnalyserNode;
   analyserData: Uint8Array;
   sourceNode: AudioBufferSourceNode | null;
+  // True Discrete 4-Stem Audio Buffers & Synchronized Sources
+  stemBuffers: DiscreteStems | null;
+  stemVocalsSource: AudioBufferSourceNode | null;
+  stemDrumsSource: AudioBufferSourceNode | null;
+  stemBassSource: AudioBufferSourceNode | null;
+  stemHarmonicsSource: AudioBufferSourceNode | null;
   audioBuffer: AudioBuffer | null;
   startTime: number;
   pauseOffset: number;
@@ -381,6 +388,11 @@ class AudioEngine {
       analyser,
       analyserData,
       sourceNode: null,
+      stemBuffers: null,
+      stemVocalsSource: null,
+      stemDrumsSource: null,
+      stemBassSource: null,
+      stemHarmonicsSource: null,
       audioBuffer: null,
       startTime: 0,
       pauseOffset: 0,
@@ -410,7 +422,7 @@ class AudioEngine {
     return await this.ctx.decodeAudioData(arrayBuffer);
   }
 
-  public loadTrackToDeck(deckId: DeckId, buffer: AudioBuffer) {
+  public loadTrackToDeck(deckId: DeckId, buffer: AudioBuffer, stems?: DiscreteStems) {
     this.init();
     const deck = this.decks.get(deckId);
     if (!deck) return;
@@ -420,9 +432,25 @@ class AudioEngine {
     }
 
     deck.audioBuffer = buffer;
+    deck.stemBuffers = stems || null;
     deck.pauseOffset = 0;
     deck.startTime = 0;
     deck.loopRegion = null;
+  }
+
+  public setDeckStems(deckId: DeckId, stems: DiscreteStems) {
+    const deck = this.decks.get(deckId);
+    if (!deck) return;
+    deck.stemBuffers = stems;
+    // If playing, seamlessly hot-swap from single buffer to discrete 4-stem synchronized sources
+    if (deck.isPlaying) {
+      const currentPos = this.getCurrentTime(deckId);
+      this.playDeck(deckId, currentPos);
+    }
+  }
+
+  public getDeckStems(deckId: DeckId): DiscreteStems | null {
+    return this.decks.get(deckId)?.stemBuffers || null;
   }
 
   public playDeck(deckId: DeckId, startOffsetSec?: number) {
@@ -431,6 +459,7 @@ class AudioEngine {
     const deck = this.decks.get(deckId);
     if (!deck || !deck.audioBuffer || !this.ctx) return;
 
+    // Clean up any existing active audio sources
     if (deck.sourceNode) {
       try {
         deck.sourceNode.stop();
@@ -438,37 +467,105 @@ class AudioEngine {
       } catch {}
       deck.sourceNode = null;
     }
+    if (deck.stemVocalsSource) {
+      try {
+        deck.stemVocalsSource.stop();
+        deck.stemVocalsSource.disconnect();
+        deck.stemDrumsSource?.stop();
+        deck.stemDrumsSource?.disconnect();
+        deck.stemBassSource?.stop();
+        deck.stemBassSource?.disconnect();
+        deck.stemHarmonicsSource?.stop();
+        deck.stemHarmonicsSource?.disconnect();
+      } catch {}
+      deck.stemVocalsSource = null;
+      deck.stemDrumsSource = null;
+      deck.stemBassSource = null;
+      deck.stemHarmonicsSource = null;
+    }
 
     const offset = startOffsetSec !== undefined ? startOffsetSec : deck.pauseOffset;
     const clampedOffset = Math.max(0, Math.min(offset, deck.audioBuffer.duration));
 
-    const source = this.ctx.createBufferSource();
-    source.buffer = deck.audioBuffer;
-    source.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
-    source.detune.setValueAtTime(deck.pitchSemitones * 100, this.ctx.currentTime);
+    // =========================================================================
+    // TRUE 4-TRACK DISCRETE NEURAL STEM PLAYBACK ENGINE
+    // When discrete stems are present, 4 independent audio buffer sources
+    // play in sample-accurate lockstep into dedicated discrete gain nodes.
+    // Soloing vocals produces 100% clean acapella with ZERO instrument bleed!
+    // =========================================================================
+    if (deck.stemBuffers) {
+      const vSrc = this.ctx.createBufferSource();
+      const dSrc = this.ctx.createBufferSource();
+      const bSrc = this.ctx.createBufferSource();
+      const hSrc = this.ctx.createBufferSource();
 
-    // Looping if active
-    if (deck.loopRegion) {
-      source.loop = true;
-      source.loopStart = deck.loopRegion.start;
-      source.loopEnd = deck.loopRegion.end;
+      vSrc.buffer = deck.stemBuffers.vocals;
+      dSrc.buffer = deck.stemBuffers.drums;
+      bSrc.buffer = deck.stemBuffers.bass;
+      hSrc.buffer = deck.stemBuffers.harmonics;
+
+      const stemSources = [vSrc, dSrc, bSrc, hSrc];
+      for (const s of stemSources) {
+        s.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+        s.detune.setValueAtTime(deck.pitchSemitones * 100, this.ctx.currentTime);
+        if (deck.loopRegion) {
+          s.loop = true;
+          s.loopStart = deck.loopRegion.start;
+          s.loopEnd = deck.loopRegion.end;
+        }
+      }
+
+      // Route discrete stems directly into their respective stem gain nodes
+      vSrc.connect(deck.stemVocalsGain);
+      dSrc.connect(deck.stemDrumsGain);
+      bSrc.connect(deck.stemBassGain);
+      hSrc.connect(deck.stemHarmonicsGain);
+
+      // Start all 4 in sample-accurate lockstep
+      vSrc.start(0, clampedOffset);
+      dSrc.start(0, clampedOffset);
+      bSrc.start(0, clampedOffset);
+      hSrc.start(0, clampedOffset);
+
+      deck.stemVocalsSource = vSrc;
+      deck.stemDrumsSource = dSrc;
+      deck.stemBassSource = bSrc;
+      deck.stemHarmonicsSource = hSrc;
+
+      vSrc.onended = () => {
+        if (deck.isPlaying && this.ctx && (this.getCurrentTime(deckId) >= (deck.audioBuffer?.duration || 0) - 0.1)) {
+          deck.isPlaying = false;
+          deck.pauseOffset = 0;
+        }
+      };
+    } else {
+      // Fallback: single master track buffer
+      const source = this.ctx.createBufferSource();
+      source.buffer = deck.audioBuffer;
+      source.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      source.detune.setValueAtTime(deck.pitchSemitones * 100, this.ctx.currentTime);
+
+      if (deck.loopRegion) {
+        source.loop = true;
+        source.loopStart = deck.loopRegion.start;
+        source.loopEnd = deck.loopRegion.end;
+      }
+
+      source.connect(deck.gainTrim);
+      source.start(0, clampedOffset);
+      deck.sourceNode = source;
+
+      source.onended = () => {
+        if (deck.isPlaying && this.ctx && (this.getCurrentTime(deckId) >= (deck.audioBuffer?.duration || 0) - 0.1)) {
+          deck.isPlaying = false;
+          deck.pauseOffset = 0;
+        }
+      };
     }
 
-    source.connect(deck.gainTrim);
-    source.start(0, clampedOffset);
-
-    deck.sourceNode = source;
     deck.startTime = this.ctx.currentTime - (clampedOffset / deck.playbackRate);
     deck.pauseOffset = clampedOffset;
     deck.isPlaying = true;
-
-    source.onended = () => {
-      // If stopped naturally at track end
-      if (deck.isPlaying && this.ctx && (this.getCurrentTime(deckId) >= (deck.audioBuffer?.duration || 0) - 0.1)) {
-        deck.isPlaying = false;
-        deck.pauseOffset = 0;
-      }
-    };
   }
 
   public pauseDeck(deckId: DeckId) {
@@ -482,6 +579,22 @@ class AudioEngine {
         deck.sourceNode.disconnect();
       } catch {}
       deck.sourceNode = null;
+    }
+    if (deck.stemVocalsSource) {
+      try {
+        deck.stemVocalsSource.stop();
+        deck.stemVocalsSource.disconnect();
+        deck.stemDrumsSource?.stop();
+        deck.stemDrumsSource?.disconnect();
+        deck.stemBassSource?.stop();
+        deck.stemBassSource?.disconnect();
+        deck.stemHarmonicsSource?.stop();
+        deck.stemHarmonicsSource?.disconnect();
+      } catch {}
+      deck.stemVocalsSource = null;
+      deck.stemDrumsSource = null;
+      deck.stemBassSource = null;
+      deck.stemHarmonicsSource = null;
     }
     deck.isPlaying = false;
   }
@@ -529,10 +642,17 @@ class AudioEngine {
     if (!deck || !this.ctx) return;
     deck.playbackRate = Math.max(0.1, Math.min(rate, 2.0));
 
-    if (deck.isPlaying && deck.sourceNode) {
-      // Adjust start time to maintain current playback position smoothly
+    if (deck.isPlaying) {
       const currentPos = this.getCurrentTime(deckId);
-      deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      if (deck.sourceNode) {
+        deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      }
+      if (deck.stemVocalsSource) {
+        deck.stemVocalsSource.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+        deck.stemDrumsSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+        deck.stemBassSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+        deck.stemHarmonicsSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      }
       deck.startTime = this.ctx.currentTime - (currentPos / deck.playbackRate);
     }
   }
@@ -541,22 +661,48 @@ class AudioEngine {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
     deck.pitchSemitones = Math.max(-12, Math.min(12, semitones));
-    if (deck.isPlaying && deck.sourceNode) {
-      deck.sourceNode.detune.setTargetAtTime(deck.pitchSemitones * 100, this.ctx.currentTime, 0.01);
+    const detuneVal = deck.pitchSemitones * 100;
+    if (deck.isPlaying) {
+      if (deck.sourceNode) {
+        deck.sourceNode.detune.setTargetAtTime(detuneVal, this.ctx.currentTime, 0.01);
+      }
+      if (deck.stemVocalsSource) {
+        deck.stemVocalsSource.detune.setTargetAtTime(detuneVal, this.ctx.currentTime, 0.01);
+        deck.stemDrumsSource?.detune.setTargetAtTime(detuneVal, this.ctx.currentTime, 0.01);
+        deck.stemBassSource?.detune.setTargetAtTime(detuneVal, this.ctx.currentTime, 0.01);
+        deck.stemHarmonicsSource?.detune.setTargetAtTime(detuneVal, this.ctx.currentTime, 0.01);
+      }
     }
   }
 
   // Live pitch bend (nudge forwards or backwards)
   public nudge(deckId: DeckId, factor: number) {
     const deck = this.decks.get(deckId);
-    if (!deck || !deck.sourceNode || !this.ctx) return;
-    deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate * factor, this.ctx.currentTime);
+    if (!deck || !this.ctx) return;
+    const targetRate = deck.playbackRate * factor;
+    if (deck.sourceNode) {
+      deck.sourceNode.playbackRate.setValueAtTime(targetRate, this.ctx.currentTime);
+    }
+    if (deck.stemVocalsSource) {
+      deck.stemVocalsSource.playbackRate.setValueAtTime(targetRate, this.ctx.currentTime);
+      deck.stemDrumsSource?.playbackRate.setValueAtTime(targetRate, this.ctx.currentTime);
+      deck.stemBassSource?.playbackRate.setValueAtTime(targetRate, this.ctx.currentTime);
+      deck.stemHarmonicsSource?.playbackRate.setValueAtTime(targetRate, this.ctx.currentTime);
+    }
   }
 
   public releaseNudge(deckId: DeckId) {
     const deck = this.decks.get(deckId);
-    if (!deck || !deck.sourceNode || !this.ctx) return;
-    deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+    if (!deck || !this.ctx) return;
+    if (deck.sourceNode) {
+      deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+    }
+    if (deck.stemVocalsSource) {
+      deck.stemVocalsSource.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      deck.stemDrumsSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      deck.stemBassSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      deck.stemHarmonicsSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+    }
   }
 
   // 3-Band Isolator EQ (-1.0 to +1.0)
@@ -673,6 +819,98 @@ class AudioEngine {
   public getStemState(deckId: DeckId): StemState | null {
     const deck = this.decks.get(deckId);
     return deck ? { ...deck.stemState } : null;
+  }
+
+  /**
+   * Instant Acapella 1-Tap Toggle (djay Pro / Serato Stems style)
+   * Solos vocals with 100% clean isolation; toggling again restores all stems.
+   */
+  public isolateAcapella(deckId: DeckId): boolean {
+    const deck = this.decks.get(deckId);
+    if (!deck) return false;
+    const isAlreadyAcapella = deck.stemState.vocalsSolo && !deck.stemState.vocalsMuted;
+    if (isAlreadyAcapella) {
+      this.resetStems(deckId);
+      return false;
+    } else {
+      deck.stemState.vocalsMuted = false;
+      deck.stemState.vocalsSolo = true;
+      deck.stemState.drumsSolo = false;
+      deck.stemState.bassSolo = false;
+      deck.stemState.harmonicsSolo = false;
+      deck.stemState.drumsMuted = false;
+      deck.stemState.bassMuted = false;
+      deck.stemState.harmonicsMuted = false;
+      this.recalculateStemGains(deck);
+      return true;
+    }
+  }
+
+  /**
+   * Instant Instrumental 1-Tap Toggle
+   * Completely cuts vocals with 0% bleed while drums, bass & melody play; toggling restores vocals.
+   */
+  public isolateInstrumental(deckId: DeckId): boolean {
+    const deck = this.decks.get(deckId);
+    if (!deck) return false;
+    const isAlreadyInst = deck.stemState.vocalsMuted && !deck.stemState.drumsMuted;
+    if (isAlreadyInst) {
+      this.resetStems(deckId);
+      return false;
+    } else {
+      deck.stemState.vocalsMuted = true;
+      deck.stemState.vocalsSolo = false;
+      deck.stemState.drumsSolo = false;
+      deck.stemState.bassSolo = false;
+      deck.stemState.harmonicsSolo = false;
+      deck.stemState.drumsMuted = false;
+      deck.stemState.bassMuted = false;
+      deck.stemState.harmonicsMuted = false;
+      this.recalculateStemGains(deck);
+      return true;
+    }
+  }
+
+  /**
+   * Instant Drum Break 1-Tap Toggle
+   */
+  public isolateDrums(deckId: DeckId): boolean {
+    const deck = this.decks.get(deckId);
+    if (!deck) return false;
+    const isAlreadyDrums = deck.stemState.drumsSolo && !deck.stemState.drumsMuted;
+    if (isAlreadyDrums) {
+      this.resetStems(deckId);
+      return false;
+    } else {
+      deck.stemState.drumsMuted = false;
+      deck.stemState.drumsSolo = true;
+      deck.stemState.vocalsSolo = false;
+      deck.stemState.bassSolo = false;
+      deck.stemState.harmonicsSolo = false;
+      this.recalculateStemGains(deck);
+      return true;
+    }
+  }
+
+  /**
+   * Reset all stems to unity gain and unmute
+   */
+  public resetStems(deckId: DeckId) {
+    const deck = this.decks.get(deckId);
+    if (!deck) return;
+    deck.stemState.vocals = 1.0;
+    deck.stemState.harmonics = 1.0;
+    deck.stemState.bass = 1.0;
+    deck.stemState.drums = 1.0;
+    deck.stemState.vocalsMuted = false;
+    deck.stemState.harmonicsMuted = false;
+    deck.stemState.bassMuted = false;
+    deck.stemState.drumsMuted = false;
+    deck.stemState.vocalsSolo = false;
+    deck.stemState.harmonicsSolo = false;
+    deck.stemState.bassSolo = false;
+    deck.stemState.drumsSolo = false;
+    this.recalculateStemGains(deck);
   }
 
   // VirtualDJ Sandbox Mode: Private Headphone Transition Auditioning

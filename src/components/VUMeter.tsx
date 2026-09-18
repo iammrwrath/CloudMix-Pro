@@ -6,36 +6,46 @@ interface VUMeterProps {
   segments?: number;
 }
 
-export const VUMeter: React.FC<VUMeterProps> = ({ level, height = 140, segments = 16 }) => {
-  const activeCount = Math.round(Math.min(1.0, Math.max(0, level)) * segments);
+export const VUMeter: React.FC<VUMeterProps> = React.memo(
+  ({ level, height = 140, segments = 16 }) => {
+    const activeCount = Math.round(Math.min(1.0, Math.max(0, level)) * segments);
 
-  return (
-    <div
-      style={{ height }}
-      className="w-3 bg-slate-950 rounded p-0.5 flex flex-col-reverse justify-between border border-slate-800 shadow-inner"
-    >
-      {Array.from({ length: segments }).map((_, i) => {
-        const isActive = i < activeCount;
-        // Color mapping: bottom 65% green, next 25% amber/orange, top 10% red
-        const isRed = i >= segments - 2;
-        const isOrange = i >= segments - 5 && i < segments - 2;
+    return (
+      <div
+        style={{ height }}
+        className="w-3 bg-slate-950 rounded p-0.5 flex flex-col-reverse justify-between border border-slate-800 shadow-inner"
+      >
+        {Array.from({ length: segments }).map((_, i) => {
+          const isActive = i < activeCount;
+          // Color mapping: bottom 65% green, next 25% amber/orange, top 10% red
+          const isRed = i >= segments - 2;
+          const isOrange = i >= segments - 5 && i < segments - 2;
 
-        let activeColor = '#10b981'; // Emerald
-        if (isOrange) activeColor = '#f59e0b'; // Amber
-        if (isRed) activeColor = '#ef4444'; // Red
+          let activeColor = '#10b981'; // Emerald
+          if (isOrange) activeColor = '#f59e0b'; // Amber
+          if (isRed) activeColor = '#ef4444'; // Red
 
-        return (
-          <div
-            key={i}
-            className="w-full h-1 rounded-[1px] transition-opacity duration-75"
-            style={{
-              backgroundColor: isActive ? activeColor : '#1e293b',
-              boxShadow: isActive ? `0 0 4px ${activeColor}` : 'none',
-              opacity: isActive ? 1 : 0.35,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-};
+          return (
+            <div
+              key={i}
+              className="w-full h-1 rounded-[1px]"
+              style={{
+                backgroundColor: isActive ? activeColor : '#1e293b',
+                boxShadow: isActive ? `0 0 4px ${activeColor}` : 'none',
+                opacity: isActive ? 1 : 0.35,
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  },
+  (prev, next) => {
+    const prevSegs = prev.segments ?? 16;
+    const nextSegs = next.segments ?? 16;
+    if (prev.height !== next.height || prevSegs !== nextSegs) return false;
+    const prevCount = Math.round(Math.min(1.0, Math.max(0, prev.level)) * prevSegs);
+    const nextCount = Math.round(Math.min(1.0, Math.max(0, next.level)) * nextSegs);
+    return prevCount === nextCount;
+  }
+);

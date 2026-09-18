@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TrackMetadata, Playlist, DeckId, AutomixQueueItem, HistoryItem } from '../types/dj';
 import { storageCache } from '../services/StorageCacheService';
 import { googleDriveService } from '../services/GoogleDriveService';
@@ -61,7 +61,7 @@ const DEFAULT_PLAYLIST_NAMES = [
   'Bonobo',
 ];
 
-export const Library: React.FC<LibraryProps> = ({
+export const Library = React.memo<LibraryProps>(({
   onLoadTrack,
   onOpenDjayImport,
   onOpenGDriveSettings,
@@ -427,27 +427,30 @@ export const Library: React.FC<LibraryProps> = ({
     }
   };
 
-  // Filter Tracks
-  const filteredTracks = selectedCrate === 'youtube'
-    ? ytResults
-    : tracks.filter((t) => {
-        if (selectedCrate === 'gdrive' && t.fileSource !== 'drive') return false;
-        if (selectedCrate === 'prep' && (t.rating || 0) < 4) return false;
-        if (selectedCrate === 'playlist' && selectedPlaylistId) {
-          const pl = playlists.find((p) => p.id === selectedPlaylistId);
-          if (pl && pl.name !== 'Music' && !pl.trackIds.includes(t.id)) return false;
-        }
-        const q = searchQuery.toLowerCase();
-        return (
-          t.title.toLowerCase().includes(q) ||
-          t.artist.toLowerCase().includes(q) ||
-          (t.genre && t.genre.toLowerCase().includes(q)) ||
-          (t.camelotKey && t.camelotKey.toLowerCase().includes(q)) ||
-          t.bpm.toString().includes(q)
-        );
-      });
+  // Filter Tracks (memoized to prevent expensive re-filtering 6,000+ tracks on re-renders)
+  const filteredTracks = useMemo(() => {
+    if (selectedCrate === 'youtube') return ytResults;
+    return tracks.filter((t) => {
+      if (selectedCrate === 'gdrive' && t.fileSource !== 'drive') return false;
+      if (selectedCrate === 'prep' && (t.rating || 0) < 4) return false;
+      if (selectedCrate === 'playlist' && selectedPlaylistId) {
+        const pl = playlists.find((p) => p.id === selectedPlaylistId);
+        if (pl && pl.name !== 'Music' && !pl.trackIds.includes(t.id)) return false;
+      }
+      const q = searchQuery.toLowerCase();
+      return (
+        t.title.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q) ||
+        (t.genre && t.genre.toLowerCase().includes(q)) ||
+        (t.camelotKey && t.camelotKey.toLowerCase().includes(q)) ||
+        t.bpm.toString().includes(q)
+      );
+    });
+  }, [selectedCrate, ytResults, tracks, selectedPlaylistId, playlists, searchQuery]);
 
-  const totalDurationSecs = filteredTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
+  const totalDurationSecs = useMemo(() => {
+    return filteredTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
+  }, [filteredTracks]);
   const totalHours = Math.floor(totalDurationSecs / 3600);
   const totalMins = Math.floor((totalDurationSecs % 3600) / 60);
   const formattedDuration = totalHours > 0 ? `${totalHours} h ${totalMins} min` : `${totalMins} min`;
@@ -614,10 +617,11 @@ export const Library: React.FC<LibraryProps> = ({
         <div className="space-y-1.5 pt-2 border-t border-dj-border/60">
           <button
             onClick={onOpenDjayImport}
-            className="w-full py-1.5 px-2 rounded bg-indigo-950/60 border border-indigo-700/60 text-indigo-300 hover:bg-indigo-900/60 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+            title="Import libraries from djay Pro, Rekordbox, Serato, VirtualDJ, & Traktor"
+            className="w-full py-1.5 px-2 rounded bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border border-indigo-500/60 text-indigo-200 hover:text-white hover:border-indigo-400 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-sm"
           >
-            <Database className="w-3 h-3 text-indigo-400" />
-            <span>Import djay Pro DB</span>
+            <Database className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Universal DJ Migration</span>
           </button>
 
           <button
@@ -670,6 +674,17 @@ export const Library: React.FC<LibraryProps> = ({
                 className="hidden"
               />
             </label>
+
+            {/* Universal DJ Migration Hub Button */}
+            <button
+              onClick={onOpenDjayImport}
+              title="Migrate Cues, Loops & Playlists from djay Pro, Rekordbox, Serato, VirtualDJ, & Traktor"
+              className="cursor-pointer px-2.5 py-1 rounded-lg bg-indigo-950/90 hover:bg-indigo-900/90 text-indigo-300 hover:text-white border border-indigo-600/70 text-xs font-bold flex items-center space-x-1.5 transition-colors shadow-sm"
+            >
+              <Database className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden md:inline">Universal DJ Migration</span>
+              <span className="md:hidden">Migrate</span>
+            </button>
 
             {/* Expand / Minimize Drawer Toggle Button */}
             {onToggleExpand && (
@@ -1041,4 +1056,4 @@ export const Library: React.FC<LibraryProps> = ({
       )}
     </div>
   );
-};
+});

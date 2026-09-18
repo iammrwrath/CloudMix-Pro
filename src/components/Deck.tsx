@@ -31,6 +31,9 @@ interface DeckProps {
   onStemGainChange?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => void;
   onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
   onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
+  onIsolateAcapella?: () => void;
+  onIsolateInstrumental?: () => void;
+  onResetStems?: () => void;
   onKeyShift?: (semitones: number) => void;
   onKeySync?: () => void;
   onToggleSlip?: () => void;
@@ -38,7 +41,7 @@ interface DeckProps {
   onToggleFX?: (type: FXType) => void;
 }
 
-export const Deck: React.FC<DeckProps> = ({
+export const Deck = React.memo<DeckProps>(({
   deckId,
   deckState,
   waveformData,
@@ -61,6 +64,9 @@ export const Deck: React.FC<DeckProps> = ({
   onStemGainChange,
   onStemMuteToggle,
   onStemSoloToggle,
+  onIsolateAcapella,
+  onIsolateInstrumental,
+  onResetStems,
   onKeyShift,
   onKeySync,
   onToggleSlip,
@@ -262,6 +268,7 @@ export const Deck: React.FC<DeckProps> = ({
           hotCues={track?.hotCues || []}
           activeLoop={deckState.activeLoop}
           onSeek={onSeek}
+          stems={deckState.stems}
           accentColor={accentColor}
         />
       </div>
@@ -396,8 +403,30 @@ export const Deck: React.FC<DeckProps> = ({
             })}
           </div>
 
-          <div className="text-[8px] font-mono font-bold text-center text-slate-400 pt-0.5 border-t border-white/5">
-            NEURAL MIX
+          {/* Quick Acapella / Instrumental 1-Tap Buttons */}
+          <div className="grid grid-cols-2 gap-1 pt-1 border-t border-white/5">
+            <button
+              onClick={() => onIsolateAcapella?.()}
+              title="1-Tap Acapella: Pure vocals isolation with 0% instrument bleed"
+              className={`py-0.5 rounded text-[7px] font-mono font-extrabold transition-all cursor-pointer ${
+                deckState.stems.vocalsSolo && !deckState.stems.vocalsMuted
+                  ? 'bg-pink-500 text-white shadow-[0_0_8px_rgba(236,72,153,0.9)]'
+                  : 'bg-slate-800 text-pink-400 hover:bg-slate-700'
+              }`}
+            >
+              ACAP
+            </button>
+            <button
+              onClick={() => onIsolateInstrumental?.()}
+              title="1-Tap Instrumental: Pure instruments with 0% vocals"
+              className={`py-0.5 rounded text-[7px] font-mono font-extrabold transition-all cursor-pointer ${
+                deckState.stems.vocalsMuted && !deckState.stems.drumsMuted
+                  ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(6,182,212,0.9)]'
+                  : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
+              }`}
+            >
+              INST
+            </button>
           </div>
         </div>
 
@@ -450,6 +479,9 @@ export const Deck: React.FC<DeckProps> = ({
           stems={deckState.stems}
           onStemMuteToggle={onStemMuteToggle}
           onStemSoloToggle={onStemSoloToggle}
+          onIsolateAcapella={onIsolateAcapella}
+          onIsolateInstrumental={onIsolateInstrumental}
+          onResetStems={onResetStems}
           accentColor={accentColor}
         />
       </div>
@@ -523,4 +555,4 @@ export const Deck: React.FC<DeckProps> = ({
       </div>
     </div>
   );
-};
+});

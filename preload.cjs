@@ -28,7 +28,24 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
   restartAndInstallPatch: () => ipcRenderer.invoke('restart-and-install-patch'),
-  checkGitHubReleases: () => ipcRenderer.invoke('check-github-releases'),
+  // Live Streaming (OBS, Streamer.bot, Stream Deck) Hub
+  updateStreamingBroadcast: (payload) => ipcRenderer.invoke('update-streaming-broadcast', payload),
+  getStreamingBroadcastState: () => ipcRenderer.invoke('get-streaming-broadcast-state'),
+  onStreamerbotRequest: (callback) => {
+    const subscription = (event, value) => callback(value);
+    ipcRenderer.on('streamerbot-request', subscription);
+    return () => ipcRenderer.removeListener('streamerbot-request', subscription);
+  },
+  onTriggerSamplerPad: (callback) => {
+    const subscription = (event, value) => callback(value);
+    ipcRenderer.on('trigger-sampler-pad', subscription);
+    return () => ipcRenderer.removeListener('trigger-sampler-pad', subscription);
+  },
+  onStreamdeckAction: (callback) => {
+    const subscription = (event, value) => callback(value);
+    ipcRenderer.on('streamdeck-action', subscription);
+    return () => ipcRenderer.removeListener('streamdeck-action', subscription);
+  },
   onUpdaterStatus: (callback) => {
     const subscription = (event, value) => callback(value);
     ipcRenderer.on('updater-status', subscription);

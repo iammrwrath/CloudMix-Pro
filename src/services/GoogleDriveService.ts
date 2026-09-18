@@ -64,7 +64,7 @@ export class GoogleDriveService {
       }
     }
 
-    const response = await fetch(fetchUrl, { headers });
+    const response = await fetch(fetchUrl, { headers, signal: AbortSignal.timeout(4000) });
     if (!response.ok) {
       throw new Error(`Failed to load audio from Google Drive: HTTP ${response.status} ${response.statusText}`);
     }

@@ -29,16 +29,34 @@ export class BroadcastService {
     this.listeners.forEach((cb) => cb(this.currentState));
 
     // Native Desktop StreamerBot / OBS writer
-    if (typeof window !== 'undefined' && (window as any).desktopAPI?.writeNowPlayingBroadcast) {
+    if (typeof window !== 'undefined' && (window as any).desktopAPI) {
       const activeTrack = this.currentState.activeDeck === 'B' ? this.currentState.trackB : this.currentState.trackA;
+      const isPlaying = this.currentState.activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
+      const elapsedSec = this.currentState.activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA;
       if (activeTrack) {
-        (window as any).desktopAPI.writeNowPlayingBroadcast({
-          title: activeTrack.title,
-          artist: activeTrack.artist,
-          bpm: activeTrack.bpm,
-          key: activeTrack.camelotKey || activeTrack.key,
-          deck: this.currentState.activeDeck || 'A',
-        });
+        if ((window as any).desktopAPI.writeNowPlayingBroadcast) {
+          (window as any).desktopAPI.writeNowPlayingBroadcast({
+            title: activeTrack.title,
+            artist: activeTrack.artist,
+            bpm: activeTrack.bpm,
+            key: activeTrack.camelotKey || activeTrack.key,
+            deck: this.currentState.activeDeck || 'A',
+          });
+        }
+        if ((window as any).desktopAPI.updateStreamingBroadcast) {
+          (window as any).desktopAPI.updateStreamingBroadcast({
+            activeDeck: this.currentState.activeDeck || 'A',
+            title: activeTrack.title,
+            artist: activeTrack.artist,
+            bpm: activeTrack.bpm,
+            key: activeTrack.camelotKey || activeTrack.key,
+            deck: this.currentState.activeDeck || 'A',
+            elapsedSec,
+            duration: activeTrack.duration || 180,
+            isPlaying,
+            coverArtUrl: activeTrack.coverArtUrl || '',
+          });
+        }
       }
     }
   }

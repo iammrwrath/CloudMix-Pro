@@ -16,6 +16,9 @@ interface PerformancePadsProps {
   stems?: StemState;
   onStemMuteToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
   onStemSoloToggle?: (stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => void;
+  onIsolateAcapella?: () => void;
+  onIsolateInstrumental?: () => void;
+  onResetStems?: () => void;
   accentColor?: string;
 }
 
@@ -47,6 +50,9 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
   stems,
   onStemMuteToggle,
   onStemSoloToggle,
+  onIsolateAcapella,
+  onIsolateInstrumental,
+  onResetStems,
   accentColor = '#00e5ff',
 }) => {
   const [padMode, setPadMode] = useState<PadMode>('HOT CUE');
@@ -109,6 +115,40 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
           >
             {deleteMode ? 'Delete' : 'Clear'}
           </button>
+        )}
+
+        {padMode === 'STEMS' && (
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => onIsolateAcapella?.()}
+              title="1-Tap Acapella: Pure vocals isolation with 0% instrument bleed"
+              className={`px-1.5 py-0.5 text-[8px] font-mono font-bold rounded uppercase tracking-wider transition-all cursor-pointer ${
+                stems?.vocalsSolo && !stems?.vocalsMuted
+                  ? 'bg-pink-600 text-white shadow-[0_0_8px_rgba(236,72,153,0.8)]'
+                  : 'bg-slate-800 text-pink-400 hover:text-white border border-slate-700'
+              }`}
+            >
+              Acapella
+            </button>
+            <button
+              onClick={() => onIsolateInstrumental?.()}
+              title="1-Tap Instrumental: Pure instruments with 0% vocals"
+              className={`px-1.5 py-0.5 text-[8px] font-mono font-bold rounded uppercase tracking-wider transition-all cursor-pointer ${
+                stems?.vocalsMuted && !stems?.drumsMuted
+                  ? 'bg-cyan-600 text-white shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                  : 'bg-slate-800 text-cyan-400 hover:text-white border border-slate-700'
+              }`}
+            >
+              Inst
+            </button>
+            <button
+              onClick={() => onResetStems?.()}
+              title="Reset all stems to 100%"
+              className="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded uppercase text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700 cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
         )}
       </div>
 
