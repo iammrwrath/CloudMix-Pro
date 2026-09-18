@@ -175,40 +175,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-dj-panel border border-dj-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+      <div className="bg-dj-panel border border-dj-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-dj-border bg-dj-surface/90">
-          <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-dj-border bg-dj-surface/90">
+          <div className="flex items-center space-x-2.5">
             <Music className="w-5 h-5 text-cyan-400" />
-            <span className="font-bold text-base text-white">CloudMix Pro - Music Sources</span>
+            <span className="font-bold text-lg text-white font-sans">CloudMix Pro - Settings & Sources</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Bar */}
-        <div className="flex border-b border-dj-border bg-dj-surface/60">
+        <div className="flex border-b border-dj-border bg-dj-surface/60 px-2">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center space-x-1.5 py-2.5 text-xs font-mono font-bold transition-all ${
+                className={`flex-1 flex items-center justify-center space-x-2 py-3 px-2 text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                   activeTab === tab.id
-                    ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-950/20'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-cyan-300 border-b-2 border-cyan-400 bg-cyan-950/30 font-bold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-4 h-4 shrink-0" />
                 <span>{tab.label}</span>
                 {tab.id === 'youtube' && ytConnected && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-1" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 ml-1 shrink-0" />
                 )}
               </button>
             );
@@ -216,7 +216,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <div className="p-6 space-y-5 overflow-y-auto">
 
           {/* -- LOCAL MUSIC TAB -- */}
           {activeTab === 'local' && (
@@ -438,7 +438,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 </div>
 
                 {/* Preset Scale Buttons */}
-                <div className="grid grid-cols-4 gap-2 pt-2">
+                <div className="grid grid-cols-4 gap-3 pt-2">
                   {[
                     { label: 'Compact', val: 0.9, pct: '90%' },
                     { label: 'Standard', val: 1.0, pct: '100%' },
@@ -448,14 +448,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     <button
                       key={preset.val}
                       onClick={() => setUiZoom(preset.val)}
-                      className={`py-2 px-1.5 rounded-xl border font-mono text-xs flex flex-col items-center justify-center transition-all cursor-pointer ${
+                      className={`py-3 px-3 rounded-xl border font-mono text-sm flex flex-col items-center justify-center transition-all cursor-pointer ${
                         Math.abs(uiZoom - preset.val) < 0.05
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.3)] font-black'
-                          : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500 shadow-[0_0_14px_rgba(6,182,212,0.35)] font-black'
+                          : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-800/60'
                       }`}
                     >
-                      <span className="font-bold">{preset.pct}</span>
-                      <span className="text-[10px] text-slate-400">{preset.label}</span>
+                      <span className="font-bold text-base">{preset.pct}</span>
+                      <span className="text-xs text-slate-400 mt-0.5">{preset.label}</span>
                     </button>
                   ))}
                 </div>
