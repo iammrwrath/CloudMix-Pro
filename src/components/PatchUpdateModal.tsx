@@ -85,11 +85,7 @@ function isNewer(latest: string, current: string): boolean {
 }
 
   const handleDownload = () => {
-    if (downloadUrl) {
-      window.open(downloadUrl, '_blank');
-    } else {
-      updateService.startDownload();
-    }
+    updateService.startDownload();
   };
 
   const handleApply = () => {

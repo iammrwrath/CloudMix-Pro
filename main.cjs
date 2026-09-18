@@ -1021,13 +1021,15 @@ ipcMain.handle('start-update-download', async () => {
       }).on('error', reject);
     });
 
-    const asset = releaseData?.assets?.find((a) => a.name.endsWith('Setup.exe') || a.name.endsWith('.exe'));
+    const asset =
+      releaseData?.assets?.find((a) => a.name.toLowerCase().endsWith('setup.exe')) ||
+      releaseData?.assets?.find((a) => a.name.toLowerCase().endsWith('.exe') && !a.name.toLowerCase().includes('portable'));
     if (!asset || !asset.browser_download_url) {
-      throw new Error('No executable setup asset found in latest GitHub release');
+      throw new Error('No installer setup asset found in latest GitHub release');
     }
 
     const downloadUrl = asset.browser_download_url;
-    log('Downloading release asset from: ' + downloadUrl);
+    log('Downloading release asset from: ' + downloadUrl + ' (Asset name: ' + asset.name + ')');
 
     const tempFile = path.join(os.tmpdir(), `CloudMix-Pro-Setup-${releaseData.tag_name || 'latest'}.exe`);
     const fileStream = fs.createWriteStream(tempFile);
@@ -1093,10 +1095,21 @@ ipcMain.handle('restart-and-install-patch', async () => {
   if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
     log('Launching downloaded setup executable silently: ' + downloadedInstallerPath);
     const { spawn } = require('child_process');
-    // Launch NSIS silent install flag (/S)
-    spawn(downloadedInstallerPath, ['/S'], { detached: true, stdio: 'ignore' }).unref();
-    app.quit();
-    return { success: true };
+    try {
+      // Launch NSIS silent install flag (/S) detached so process survives after app quits
+      const child = spawn(downloadedInstallerPath, ['/S'], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      setTimeout(() => {
+        app.quit();
+      }, 500);
+      return { success: true };
+    } catch (spawnErr) {
+      log('Failed to spawn installer silently: ' + spawnErr.message);
+      return { success: false, error: spawnErr.message };
+    }
   }
 
   if (autoUpdater) {
