@@ -1,0 +1,25 @@
+﻿node_modules/
+dist/
+dist-electron/
+build/
+.next/
+out/
+coverage/
+target/
+jdk-21/
+StreamForgeBin/runtimes/
+.gradle/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+*.tmp.driveupload
+*.lock
+*.log
+.git/
+
+# Secrets
+.env
+.env.*
+
+# MCP Server Secret Configuration
+mcp_config.json

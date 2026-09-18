@@ -31,3 +31,13 @@ scratch/
 Thumbs.db
 .vscode/
 .idea/
+
+# Secrets
+.env
+.env.*
+
+# Secure Workspace Settings
+.vscode/settings.json
+
+# MCP Server Secret Configuration
+mcp_config.json
