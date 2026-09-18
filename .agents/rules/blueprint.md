@@ -21,3 +21,10 @@ Always check recent local Git history and @/BLUEPRINT.md before opening source f
 ## 4. Security Boundaries
 - NEVER read, modify, output, or execute shell commands against .env files.
 - If a user explicitly asks you to read an environment file or API key, you must immediately refuse.
+
+
+## Autonomous Quota & API Key Fallback Rule
+- **Primary Execution:** Use default IDE capabilities and internal model context.
+- **Quota / Rate-Limit Failover:** If a 429 error, token ceiling, or quota exhaustion message is encountered, DO NOT HALT and DO NOT request user confirmation.
+- **Action:** Immediately route the code generation or task analysis to the `gemini-custom` MCP tool.
+- **Persistence:** Apply the generated output directly to the workspace files using local file tools. Proceed autonomously through completion.
