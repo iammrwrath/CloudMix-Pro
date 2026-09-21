@@ -1,27 +1,37 @@
-import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
+import { TrackMetadata, LyricsLine } from '../types/dj';
 
 export interface NowPlayingState {
+  schemaVersion: 1;
   activeDeck: 'A' | 'B' | null;
   trackA: TrackMetadata | null;
   trackB: TrackMetadata | null;
+  nextTrack: TrackMetadata | null;
   elapsedSecA: number;
   elapsedSecB: number;
   isPlayingA: boolean;
   isPlayingB: boolean;
+  lyricsLines: LyricsLine[];
   currentLyrics: LyricsLine | null;
+  videoId: string;
+  nextVideoId: string;
 }
 
 export class BroadcastService {
   private listeners: Set<(state: NowPlayingState) => void> = new Set();
   private currentState: NowPlayingState = {
+    schemaVersion: 1,
     activeDeck: null,
     trackA: null,
     trackB: null,
+    nextTrack: null,
     elapsedSecA: 0,
     elapsedSecB: 0,
     isPlayingA: false,
     isPlayingB: false,
+    lyricsLines: [],
     currentLyrics: null,
+    videoId: '',
+    nextVideoId: '',
   };
 
   public update(stateUpdates: Partial<NowPlayingState>) {
@@ -34,6 +44,8 @@ export class BroadcastService {
       const isPlaying = this.currentState.activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
       const elapsedSec = this.currentState.activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA;
       if (activeTrack) {
+        const videoId = this.extractYouTubeId(activeTrack.fileUrl);
+        const nextTrack = this.currentState.nextTrack;
         if ((window as any).desktopAPI.writeNowPlayingBroadcast) {
           (window as any).desktopAPI.writeNowPlayingBroadcast({
             title: activeTrack.title,
@@ -41,6 +53,12 @@ export class BroadcastService {
             bpm: activeTrack.bpm,
             key: activeTrack.camelotKey || activeTrack.key,
             deck: this.currentState.activeDeck || 'A',
+            nextTitle: nextTrack?.title || '',
+            nextArtist: nextTrack?.artist || '',
+            videoId,
+            nextVideoId: this.extractYouTubeId(nextTrack?.fileUrl || ''),
+            lyricsLines: this.currentState.lyricsLines,
+            currentLyrics: this.currentState.currentLyrics,
           });
         }
         if ((window as any).desktopAPI.updateStreamingBroadcast) {
@@ -55,6 +73,11 @@ export class BroadcastService {
             duration: activeTrack.duration || 180,
             isPlaying,
             coverArtUrl: activeTrack.coverArtUrl || '',
+            nextTrack,
+            videoId,
+            nextVideoId: this.extractYouTubeId(nextTrack?.fileUrl || ''),
+            lyricsLines: this.currentState.lyricsLines,
+            currentLyrics: this.currentState.currentLyrics,
           });
         }
       }
@@ -69,6 +92,12 @@ export class BroadcastService {
 
   public getState(): NowPlayingState {
     return this.currentState;
+  }
+
+  private extractYouTubeId(value: string): string {
+    if (!value) return '';
+    const match = value.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/i);
+    return match?.[1] || (/^[A-Za-z0-9_-]{11}$/.test(value) ? value : '');
   }
 
   /**

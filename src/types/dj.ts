@@ -216,3 +216,9 @@ export interface LyricsLine {
   translation?: string;
 }
 
+export interface LyricsDocument {
+  lines: LyricsLine[];
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  provider?: string;
+}

@@ -1,7 +1,7 @@
 {
   "name": "cloudmix-pro",
   "productName": "CloudMix Pro",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Next-Gen Cloud-Native DJ Application",
   "main": "main.cjs",
   "author": "iammrwrath",
@@ -19,7 +19,8 @@
     "pack:cortex": "electron-builder --config electron-builder.cortex.json --win --dir",
     "dist": "electron-builder --win portable nsis",
     "dist:cortex": "electron-builder --config electron-builder.cortex.json --win portable nsis",
-    "dist:all": "npm run dist && npm run dist:cortex"
+    "dist:all": "npm run dist && npm run dist:cortex",
+    "release:build": "npm run build && npm run dist:all"
   },
   "build": {
     "appId": "com.cloudmix.pro",

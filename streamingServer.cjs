@@ -13,6 +13,7 @@ const os = require('os');
  */
 
 let currentBroadcastState = {
+  schemaVersion: 1,
   activeDeck: 'A',
   title: 'CloudMix Pro DJ',
   artist: 'Ready for Playback',
@@ -23,6 +24,11 @@ let currentBroadcastState = {
   duration: 180,
   isPlaying: false,
   coverArtUrl: '',
+  nextTrack: null,
+  lyricsLines: [],
+  currentLyrics: null,
+  videoId: '',
+  nextVideoId: '',
   stems: {
     vocalsSolo: false,
     vocalsMuted: false,
@@ -369,6 +375,78 @@ function getObsOverlayHtml() {
       0% { height: 4px; }
       100% { height: 22px; }
     }
+
+    .supplemental {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.1fr);
+      gap: 12px;
+      width: 640px;
+      margin-top: 12px;
+    }
+
+    .panel {
+      min-height: 180px;
+      background: rgba(9, 12, 18, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #official-video {
+      width: 100%;
+      height: 100%;
+      min-height: 180px;
+      border: 0;
+      display: none;
+    }
+
+    #video-empty {
+      height: 100%;
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+      color: var(--subtext);
+      font-size: 12px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #lyrics-panel {
+      padding: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    #lyrics-current {
+      font-size: 21px;
+      font-weight: 800;
+      line-height: 1.25;
+      color: var(--primary);
+      text-shadow: 0 0 14px rgba(0, 229, 255, 0.35);
+    }
+
+    #lyrics-translation {
+      margin-top: 8px;
+      font-size: 14px;
+      font-style: italic;
+      color: var(--accent);
+      line-height: 1.25;
+    }
+
+    #next-track {
+      position: absolute;
+      left: 20px;
+      bottom: 8px;
+      color: var(--subtext);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 440px;
+    }
   </style>
 </head>
 <body>
@@ -402,6 +480,19 @@ function getObsOverlayHtml() {
     </div>
   </div>
 
+  <div class="supplemental">
+    <div class="panel">
+      <iframe id="official-video" title="Official YouTube video" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+      <div id="video-empty">Official YouTube video will appear when the active track provides a verified video URL.</div>
+    </div>
+    <div class="panel" id="lyrics-panel">
+      <div>
+        <div id="lyrics-current">Waiting for synchronized lyrics...</div>
+        <div id="lyrics-translation"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Theme support via ?theme=cyberpunk|neon|minimal|retro
     const params = new URLSearchParams(window.location.search);
@@ -418,6 +509,14 @@ function getObsOverlayHtml() {
     const vinylEl = document.getElementById('vinyl');
     const hypeBannerEl = document.getElementById('hypeBanner');
     const eqBarsEl = document.getElementById('eqBars');
+    const videoEl = document.getElementById('official-video');
+    const videoEmptyEl = document.getElementById('video-empty');
+    const lyricsPanelEl = document.getElementById('lyrics-panel');
+    const lyricsCurrentEl = document.getElementById('lyrics-current');
+    const lyricsTranslationEl = document.getElementById('lyrics-translation');
+    const nextTrackEl = document.createElement('div');
+    nextTrackEl.id = 'next-track';
+    document.getElementById('widget').appendChild(nextTrackEl);
 
     function updateHUD(data) {
       if (!data) return;
@@ -437,6 +536,32 @@ function getObsOverlayHtml() {
       if (data.duration && data.duration > 0) {
         const pct = Math.min(100, Math.max(0, ((data.elapsedSec || 0) / data.duration) * 100));
         progressFillEl.style.width = pct + '%';
+      }
+
+      const nextTrack = data.nextTrack;
+      nextTrackEl.innerText = nextTrack
+        ? 'NEXT: ' + (nextTrack.artist || '') + ' - ' + (nextTrack.title || 'Unknown')
+        : 'NEXT: Waiting for queued track...';
+
+      const videoId = data.videoId || '';
+      if (videoId) {
+        const requestedSrc = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&mute=1&controls=0&playsinline=1&rel=0';
+        if (videoEl.src !== requestedSrc) videoEl.src = requestedSrc;
+        videoEl.style.display = 'block';
+        videoEmptyEl.style.display = 'none';
+      } else {
+        videoEl.removeAttribute('src');
+        videoEl.style.display = 'none';
+        videoEmptyEl.style.display = 'grid';
+      }
+
+      const lyric = data.currentLyrics;
+      if (lyric && lyric.text) {
+        lyricsPanelEl.style.display = 'flex';
+        lyricsCurrentEl.innerText = lyric.text;
+        lyricsTranslationEl.innerText = lyric.translation || '';
+      } else {
+        lyricsPanelEl.style.display = 'none';
       }
 
       if (data.isPlaying) {

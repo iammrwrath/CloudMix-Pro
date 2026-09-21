@@ -85,7 +85,7 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
             </div>
           </div>
 
-          {/* 2. Synced Lyrics & Live Translation (Matches user's update_song.py) */}
+          {/* 2. Synced Lyrics & Live Translation */}
           <div className="bg-dj-surface rounded-xl p-4 border border-dj-border">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-slate-300 flex items-center space-x-1.5">

@@ -1,0 +1,43 @@
+name: Validate CloudMix Pro
+
+on:
+  push:
+    branches:
+      - main
+      - 'iammrwrath-*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Validate Electron entry points
+        shell: pwsh
+        run: |
+          node --check main.cjs
+          node --check streamingServer.cjs
+          node --check preload.cjs
