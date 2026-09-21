@@ -60,9 +60,7 @@ jobs:
           name: cloudmix-pro-windows-installers
           path: |
             dist-electron/*.exe
-            dist-electron/*.yml
             dist-electron-cortex/*.exe
-            dist-electron-cortex/*.yml
           if-no-files-found: error
           retention-days: 14
 
@@ -77,5 +75,5 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "CloudMix Pro $RELEASE_TAG" \
             --generate-notes \
-            dist-electron/*.exe dist-electron/*.yml \
-            dist-electron-cortex/*.exe dist-electron-cortex/*.yml
+            dist-electron/*.exe \
+            dist-electron-cortex/*.exe
