@@ -5,6 +5,17 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create (for example v1.5.2)
+        required: true
+        default: v1.5.2
+        type: string
+      publish:
+        description: Publish the generated installers to the GitHub release
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -31,22 +42,40 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Build & Publish CloudMix Pro Release
+      - name: Build CloudMix Pro installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EP_GH_IGNORE_TIME: true
-        run: npx electron-builder --win nsis portable --publish always
+        run: npx electron-builder --win nsis portable --publish never
 
-      - name: Build & Publish MixCortex AI Standalone Release
+      - name: Build MixCortex AI standalone installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EP_GH_IGNORE_TIME: true
-        run: npx electron-builder --config electron-builder.cortex.json --win nsis portable --publish always
+        run: npx electron-builder --config electron-builder.cortex.json --win nsis portable --publish never
 
-      - name: Undraft GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudmix-pro-windows-installers
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.yml
+            dist-electron-cortex/*.exe
+            dist-electron-cortex/*.yml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish installers to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.publish == true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
         shell: bash
         run: |
-          gh release edit ${{ github.ref_name }} --draft=false || true
+          gh release create "$RELEASE_TAG" \
+            --repo "${{ github.repository }}" \
+            --title "CloudMix Pro $RELEASE_TAG" \
+            --generate-notes \
+            dist-electron/*.exe dist-electron/*.yml \
+            dist-electron-cortex/*.exe dist-electron-cortex/*.yml

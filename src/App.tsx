@@ -10,6 +10,7 @@ import {
   BottomDrawerTab,
   FXUnit,
   FXType,
+  LyricsLine,
 } from './types/dj';
 import { audioEngine } from './audio/AudioEngine';
 import { AudioAnalyzer } from './audio/AudioAnalyzer';
@@ -18,6 +19,7 @@ import { youtubeMusicService } from './services/YouTubeMusicService';
 import { cloudProgression } from './services/CloudProgressionService';
 import { midiControllerService } from './services/MidiControllerService';
 import { broadcastService } from './services/BroadcastService';
+import { lyricsService } from './services/LyricsService';
 import { mixRecorder } from './audio/MixRecorder';
 import { samplerEngine } from './audio/SamplerEngine';
 import { automixService } from './services/AutomixService';
@@ -271,6 +273,7 @@ export const App: React.FC = () => {
 
   const deckStateRef = useRef({ deckA, deckB, mixer });
   deckStateRef.current = { deckA, deckB, mixer };
+  const lyricsByTrackRef = useRef(new Map<string, LyricsLine[]>());
 
   // High-Efficiency Audio Clock & Meter Loop (Decoupled & Throttled to ~8 FPS for UI Clocks)
   // Waveforms, JogWheels, and Vertical Waveforms run at hardware 60-144 FPS directly from WebAudio
@@ -316,6 +319,29 @@ export const App: React.FC = () => {
             masterMeterL: masterMeter,
             masterMeterR: masterMeter,
           };
+        });
+
+        const current = deckStateRef.current;
+        const activeDeck = current.deckB.isPlaying && !current.deckA.isPlaying ? 'B' : 'A';
+        const activeState = activeDeck === 'B' ? current.deckB : current.deckA;
+        const nextTrack = activeDeck === 'B' ? current.deckA.track : current.deckB.track;
+        const lyricLines = activeState.track ? lyricsByTrackRef.current.get(activeState.track.id) || [] : [];
+        let currentLyrics: LyricsLine | null = null;
+        for (const line of lyricLines) {
+          if (activeState.currentTime * 1000 >= line.timestampMs) currentLyrics = line;
+          else break;
+        }
+        broadcastService.update({
+          activeDeck,
+          trackA: current.deckA.track,
+          trackB: current.deckB.track,
+          nextTrack,
+          elapsedSecA: timeA,
+          elapsedSecB: timeB,
+          isPlayingA: current.deckA.isPlaying,
+          isPlayingB: current.deckB.isPlaying,
+          lyricsLines: lyricLines,
+          currentLyrics,
         });
       }
 
@@ -503,6 +529,22 @@ export const App: React.FC = () => {
         }));
         broadcastService.update({ trackB: track, isPlayingB: false });
       }
+
+      const loadedTrackId = track.id;
+      lyricsService
+        .load(track)
+        .then((document) => {
+          if (!document || !lyricsByTrackRef.current) return;
+          lyricsByTrackRef.current.set(loadedTrackId, document.lines);
+          const currentDeck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+          if (currentDeck.track?.id !== loadedTrackId) return;
+          const updatedTrack = { ...currentDeck.track, lyricsLrc: currentDeck.track.lyricsLrc || document.lines.map((line) => `[${Math.floor(line.timestampMs / 60000).toString().padStart(2, '0')}:${((line.timestampMs % 60000) / 1000).toFixed(3).padStart(6, '0')}]${line.text}`).join('\n') };
+          if (deckId === 'A') setDeckA((prev) => ({ ...prev, track: updatedTrack }));
+          else setDeckB((prev) => ({ ...prev, track: updatedTrack }));
+        })
+        .catch((lyricsError) => {
+          console.warn('Lyrics lookup unavailable:', lyricsError);
+        });
     } catch (err) {
       console.warn('Network audio load failed, deploying emergency offline synth groove:', err);
       try {

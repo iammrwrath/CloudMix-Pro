@@ -69,6 +69,49 @@ Head over to the **[Latest GitHub Releases](https://github.com/iammrwrath/CloudM
 - **`MixCortex-AI-Setup.exe`**: Dedicated standalone installer for MixCortex AI companion app.
 - **`MixCortex-AI-Portable.exe`**: Lightweight portable version to keep on a USB drive alongside your music crate.
 
+## 🤖 Automated Build & Release
+
+The repository includes end-to-end GitHub Actions automation:
+
+- Every push to `main` and pull request runs `npm ci`, the production TypeScript/Vite build, and Electron entry-point syntax checks.
+- Pushing a semantic version tag such as `v1.5.2` builds the CloudMix Pro `Setup.exe` and portable executable plus the standalone MixCortex AI installer and portable executable.
+- The generated installers are uploaded as workflow artifacts and attached to a generated GitHub Release.
+- The release workflow can also be started manually from the Actions tab with a release tag.
+
+```powershell
+git tag v1.5.2
+git push origin v1.5.2
+```
+
+This project currently targets Windows Electron packages. It does not contain
+an Android/Capacitor target, so APK compilation is not enabled; adding APK
+support would require a separate mobile application target and signing setup.
+
+## 🎥 One-Source OBS & Stream Deck Broadcast Hub
+
+CloudMix Pro starts a local broadcast hub with the desktop app. Add a single OBS
+**Browser Source** pointing to:
+
+```text
+http://127.0.0.1:8088/obs-overlay
+```
+
+That source receives live updates over WebSocket (with HTTP polling fallback) for:
+
+- current deck, artist, title, BPM, key, progress, and play state;
+- the next loaded deck track;
+- the active track's verified YouTube video when its metadata contains a YouTube URL;
+- synchronized lyrics and English translation when lyrics are available;
+- stem/drop status indicators and the active deck theme.
+
+The same hub exposes a machine-readable state endpoint at
+`http://127.0.0.1:8088/api/nowplaying`. Stream Deck plugins, Bitfocus Companion,
+and Streamer.bot can trigger actions through
+`/api/streamdeck/<action>` (for example `playPause`, `cue`, `sync`, `hotcue`,
+`loop`, `exitLoop`, `sampler`, and stem isolation actions). Streamer.bot song
+requests use `/api/streamerbot/request`, and sampler triggers use
+`/api/sampler/trigger?pad=1`.
+
 ---
 
 ## ⌨️ Global DJ Keyboard Controls
