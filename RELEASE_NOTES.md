@@ -23,3 +23,9 @@
 #### 📦 Included Binaries
 - **`MixCortex-AI-Setup.exe`**: Full Windows installer with auto-update capability.
 - **`MixCortex-AI-Portable.exe`**: Zero-install standalone executable for gig rigs and USB drives.
+## v1.5.2 — Automated Creator Broadcast & Release Pipeline
+
+- Unified OBS browser source support for current/next track metadata, YouTube video identity, synchronized lyrics, and translation.
+- Added LRCLIB lyric lookup and translation fallback in the app.
+- Added CI validation and automated Windows installer publishing for CloudMix Pro and MixCortex AI.
+- Documented Stream Deck, Streamer.bot, OBS, and GitHub release setup.
