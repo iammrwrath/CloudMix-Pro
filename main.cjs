@@ -916,6 +916,15 @@ ipcMain.handle('close-window', (event) => {
   return { success: false };
 });
 
+ipcMain.handle('set-zoom-factor', (event, factor) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && win.webContents) {
+    win.webContents.setZoomFactor(Number(factor) || 1.0);
+    return { success: true, zoomFactor: win.webContents.getZoomFactor() };
+  }
+  return { success: false };
+});
+
 // Auto-Updater & GitHub Patch Engine
 let autoUpdater = null;
 try {

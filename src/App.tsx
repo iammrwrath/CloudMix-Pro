@@ -33,9 +33,7 @@ import { AutomixHud } from './components/AutomixHud';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { StreamerOverlay } from './components/StreamerOverlay';
 import { MidiModal } from './components/MidiModal';
-import { UniversalDjImportModal } from './components/migration/UniversalDjImportModal';
-import { StreamRequestQueue, StreamSongRequest } from './components/streaming/StreamRequestQueue';
-import { stemSeparatorService } from './services/StemSeparatorService';
+import { DjayImportModal } from './components/DjayImportModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MiniDeckHeader } from './components/MiniDeckHeader';
 import { CortexDJCoPilot } from './components/cortex/CortexDJCoPilot';
@@ -202,8 +200,6 @@ export const App: React.FC = () => {
   // Modals & UI state
   const [isMidiModalOpen, setIsMidiModalOpen] = useState(false);
   const [isStreamerHudOpen, setIsStreamerHudOpen] = useState(false);
-  const [isStreamRequestQueueOpen, setIsStreamRequestQueueOpen] = useState(false);
-  const [streamRequests, setStreamRequests] = useState<StreamSongRequest[]>([]);
   const [isDjayImportOpen, setIsDjayImportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
@@ -217,70 +213,45 @@ export const App: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isAutomixActive, setIsAutomixActive] = useState(false);
-  // Auto-detect optimal zoom for smaller displays (e.g. 1280x800, 1280x752, 1366x768)
-  const getAutoZoom = useCallback(() => {
-    if (typeof window === 'undefined') return 1.0;
-    const w = window.innerWidth || 1440;
-    const h = window.innerHeight || 900;
-    if (w <= 1280 || h <= 768) return 0.85;
-    if (w <= 1366 || h <= 820) return 0.90;
-    if (w < 1440 || h < 880) return 0.95;
-    return 1.0;
-  }, []);
+  const [uiZoom, setUiZoom] = useState<number>(1.0);
 
-  const [uiZoom, setUiZoom] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const w = window.innerWidth || 1440;
-      const h = window.innerHeight || 900;
-      if (w <= 1280 || h <= 768) return 0.85;
-      if (w <= 1366 || h <= 820) return 0.90;
-      if (w < 1440 || h < 880) return 0.95;
+  const applyZoom = (factor: number) => {
+    // 1. Electron webContents native zoom
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.setZoomFactor) {
+      (window as any).desktopAPI.setZoomFactor(factor).catch(() => {});
     }
-    return 1.0;
-  });
+    // 2. DOM root zoom
+    if (typeof document !== 'undefined' && document.documentElement) {
+      (document.documentElement.style as any).zoom = `${factor}`;
+    }
+  };
 
-  // Load persisted UI Zoom preference on startup or fall back to auto-fit
+  // Load persisted UI Zoom preference on startup
   useEffect(() => {
-    storageCache.getSetting<number | null>('ui_zoom', null).then((savedZoom) => {
-      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.7 && savedZoom <= 1.6) {
+    storageCache.getSetting<number>('ui_zoom', 1.0).then((savedZoom) => {
+      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.8 && savedZoom <= 1.6) {
         setUiZoom(savedZoom);
-      } else {
-        const auto = getAutoZoom();
-        setUiZoom(auto);
+        applyZoom(savedZoom);
       }
     });
-  }, [getAutoZoom]);
-
-  // Synchronize zoom factor with Electron webFrame
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).desktopAPI?.setZoomFactor) {
-      try {
-        (window as any).desktopAPI.setZoomFactor(uiZoom);
-      } catch (e) {
-        console.warn('Could not set desktop zoom factor:', e);
-      }
-    }
-  }, [uiZoom]);
+  }, []);
 
   const handleUiZoomChange = (zoom: number) => {
-    const clamped = Math.max(0.7, Math.min(1.5, Math.round(zoom * 100) / 100));
+    const clamped = Math.max(0.8, Math.min(1.5, Math.round(zoom * 10) / 10));
     setUiZoom(clamped);
+    applyZoom(clamped);
     storageCache.setSetting('ui_zoom', clamped);
   };
 
-
-  const deckStateRef = useRef({ deckA, deckB, mixer });
-  deckStateRef.current = { deckA, deckB, mixer };
-
-  // High-Efficiency Audio Clock & Meter Loop (Decoupled & Throttled to ~8 FPS for UI Clocks)
-  // Waveforms, JogWheels, and Vertical Waveforms run at hardware 60-144 FPS directly from WebAudio
+  // High-Efficiency Audio Clock & Meter Loop (Decoupled & Throttled to 30 FPS)
   useEffect(() => {
     let animId: number;
     let lastUiTick = 0;
     let lastBroadcastTick = 0;
 
     const tick = (now: number) => {
-      if (now - lastUiTick >= 125) {
+      // Throttle React state re-renders to 30 FPS (~33.3ms) to eliminate main-thread stutter
+      if (now - lastUiTick >= 33.3) {
         lastUiTick = now;
 
         const timeA = audioEngine.getCurrentTime('A');
@@ -290,7 +261,7 @@ export const App: React.FC = () => {
         const masterMeter = audioEngine.getMasterLevel();
 
         setDeckA((prev) => {
-          if (Math.abs(prev.currentTime - timeA) < 0.05 && Math.abs(prev.meterLevelL - meterA) < 0.04) return prev;
+          if (prev.currentTime === timeA && prev.meterLevelL === meterA) return prev;
           return {
             ...prev,
             currentTime: timeA,
@@ -300,7 +271,7 @@ export const App: React.FC = () => {
         });
 
         setDeckB((prev) => {
-          if (Math.abs(prev.currentTime - timeB) < 0.05 && Math.abs(prev.meterLevelL - meterB) < 0.04) return prev;
+          if (prev.currentTime === timeB && prev.meterLevelL === meterB) return prev;
           return {
             ...prev,
             currentTime: timeB,
@@ -310,7 +281,7 @@ export const App: React.FC = () => {
         });
 
         setMixer((prev) => {
-          if (Math.abs(prev.masterMeterL - masterMeter) < 0.04) return prev;
+          if (prev.masterMeterL === masterMeter) return prev;
           return {
             ...prev,
             masterMeterL: masterMeter,
@@ -337,16 +308,16 @@ export const App: React.FC = () => {
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  // Provide live deck status to MixCortex AI Co-Pilot Monitor via stable ref
+  // Provide live deck status to MixCortex AI Co-Pilot Monitor
   useEffect(() => {
     const provider = () => ({
-      deckA: deckStateRef.current.deckA,
-      deckB: deckStateRef.current.deckB,
-      crossfader: deckStateRef.current.mixer.crossfader,
+      deckA,
+      deckB,
+      crossfader: mixer.crossfader,
     });
     cortexMonitorService.setDeckStateProvider(provider);
     pulseMonitorService.setDeckStateProvider(provider);
-  }, []);
+  }, [deckA, deckB, mixer.crossfader]);
 
   const handleToggleCortex = () => {
     if ((bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed') {
@@ -402,15 +373,15 @@ export const App: React.FC = () => {
 
       // Loop Encoder / Controls
       else if (controlName === 'DeckA_Loop_Toggle' && value > 0.5) {
-        if (deckStateRef.current.deckA.activeLoop) handleExitLoop('A');
+        if (deckA.activeLoop) handleExitLoop('A');
         else handleSetAutoLoop('A', 4);
       } else if (controlName === 'DeckB_Loop_Toggle' && value > 0.5) {
-        if (deckStateRef.current.deckB.activeLoop) handleExitLoop('B');
+        if (deckB.activeLoop) handleExitLoop('B');
         else handleSetAutoLoop('B', 4);
       } else if (controlName === 'DeckA_Loop_Halve' && value > 0.5) {
-        handleSetAutoLoop('A', Math.max(0.25, (deckStateRef.current.deckA.activeLoop?.beats || 4) / 2));
+        handleSetAutoLoop('A', Math.max(0.25, (deckA.activeLoop?.beats || 4) / 2));
       } else if (controlName === 'DeckB_Loop_Halve' && value > 0.5) {
-        handleSetAutoLoop('B', Math.max(0.25, (deckStateRef.current.deckB.activeLoop?.beats || 4) / 2));
+        handleSetAutoLoop('B', Math.max(0.25, (deckB.activeLoop?.beats || 4) / 2));
       }
 
       // FX Paddles
@@ -447,10 +418,10 @@ export const App: React.FC = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [deckA, deckB]);
 
   // Load Track to Deck
-  const handleLoadTrack = useCallback(async (deckId: DeckId, track: TrackMetadata) => {
+  const handleLoadTrack = async (deckId: DeckId, track: TrackMetadata) => {
     try {
       // Decode audio (supports Google Drive, YouTube Music / AuraMusic, local audio, stream)
       let arrayBuffer: ArrayBuffer;
@@ -469,16 +440,6 @@ export const App: React.FC = () => {
       }
 
       audioEngine.loadTrackToDeck(deckId, audioBuffer);
-
-      // Algoriddim djay Pro / Serato grade 4-track discrete stem separation in background
-      stemSeparatorService
-        .separateTrack(track.id, audioBuffer)
-        .then((stems) => {
-          audioEngine.setDeckStems(deckId, stems);
-        })
-        .catch((stemErr) => {
-          console.warn('Stem separation background worker notice:', stemErr);
-        });
 
       if (deckId === 'A') {
         setWaveformDataA(wf);
@@ -511,13 +472,6 @@ export const App: React.FC = () => {
         track.bpm = track.bpm || 126.0;
         audioEngine.loadTrackToDeck(deckId, audioBuffer);
 
-        stemSeparatorService
-          .separateTrack(`offline-${track.id || Date.now()}`, audioBuffer)
-          .then((stems) => {
-            audioEngine.setDeckStems(deckId, stems);
-          })
-          .catch(() => {});
-
         if (deckId === 'A') {
           setWaveformDataA(wf);
           setDeckA((prev) => ({
@@ -546,46 +500,42 @@ export const App: React.FC = () => {
         alert('Error loading track: ' + err);
       }
     }
-  }, []);
+  };
 
   // Play / Pause Toggle
-  const handlePlayToggle = useCallback((deckId: DeckId) => {
+  const handlePlayToggle = (deckId: DeckId) => {
     const isPlaying = audioEngine.togglePlayPause(deckId);
     if (deckId === 'A') {
-      setDeckA((prev) => {
-        if (isPlaying && prev.track) {
-          automixService.addHistory({
-            id: `${prev.track.id}-${Date.now()}`,
-            track: prev.track,
-            playedAt: new Date().toISOString(),
-            durationSec: prev.duration || 0,
-            deckId: 'A',
-          });
-        }
-        return { ...prev, isPlaying };
-      });
+      setDeckA((prev) => ({ ...prev, isPlaying }));
       broadcastService.update({ isPlayingA: isPlaying, activeDeck: 'A' });
+      if (isPlaying && deckA.track) {
+        automixService.addHistory({
+          id: `${deckA.track.id}-${Date.now()}`,
+          track: deckA.track,
+          playedAt: new Date().toISOString(),
+          durationSec: deckA.duration || 0,
+          deckId: 'A',
+        });
+      }
     } else {
-      setDeckB((prev) => {
-        if (isPlaying && prev.track) {
-          automixService.addHistory({
-            id: `${prev.track.id}-${Date.now()}`,
-            track: prev.track,
-            playedAt: new Date().toISOString(),
-            durationSec: prev.duration || 0,
-            deckId: 'B',
-          });
-        }
-        return { ...prev, isPlaying };
-      });
+      setDeckB((prev) => ({ ...prev, isPlaying }));
       broadcastService.update({ isPlayingB: isPlaying, activeDeck: 'B' });
+      if (isPlaying && deckB.track) {
+        automixService.addHistory({
+          id: `${deckB.track.id}-${Date.now()}`,
+          track: deckB.track,
+          playedAt: new Date().toISOString(),
+          durationSec: deckB.duration || 0,
+          deckId: 'B',
+        });
+      }
     }
-  }, []);
+  };
 
   // Cue Button Click
-  const handleCueClick = useCallback((deckId: DeckId) => {
-    const isPlaying = deckId === 'A' ? deckStateRef.current.deckA.isPlaying : deckStateRef.current.deckB.isPlaying;
-    if (isPlaying) {
+  const handleCueClick = (deckId: DeckId) => {
+    const deck = deckId === 'A' ? deckA : deckB;
+    if (deck.isPlaying) {
       audioEngine.pauseDeck(deckId);
       audioEngine.seekDeck(deckId, 0);
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: false, currentTime: 0 }));
@@ -595,16 +545,15 @@ export const App: React.FC = () => {
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: true }));
       else setDeckB((prev) => ({ ...prev, isPlaying: true }));
     }
-  }, []);
+  };
 
   // Beatgrid Sync Click
-  const handleSyncClick = useCallback((deckId: DeckId) => {
-    const otherDeck = deckId === 'A' ? deckStateRef.current.deckB : deckStateRef.current.deckA;
+  const handleSyncClick = (deckId: DeckId) => {
+    const otherDeck = deckId === 'A' ? deckB : deckA;
     if (!otherDeck.track) return;
 
     const targetBpm = otherDeck.track.bpm * otherDeck.playbackRate;
-    const thisDeck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
-    const thisTrackBpm = thisDeck.track?.bpm || 120;
+    const thisTrackBpm = (deckId === 'A' ? deckA.track : deckB.track)?.bpm || 120;
     const newRate = targetBpm / thisTrackBpm;
 
     audioEngine.setPlaybackRate(deckId, newRate);
@@ -613,57 +562,57 @@ export const App: React.FC = () => {
     } else {
       setDeckB((prev) => ({ ...prev, playbackRate: newRate, isSync: true }));
     }
-  }, []);
+  };
 
   // Pitch Rate Change
-  const handleRateChange = useCallback((deckId: DeckId, rate: number) => {
+  const handleRateChange = (deckId: DeckId, rate: number) => {
     audioEngine.setPlaybackRate(deckId, rate);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, playbackRate: rate }));
     else setDeckB((prev) => ({ ...prev, playbackRate: rate }));
-  }, []);
+  };
 
   // Real-Time Harmonic Key Shift (Semitone Detune)
-  const handleKeyShift = useCallback((deckId: DeckId, semitones: number) => {
+  const handleKeyShift = (deckId: DeckId, semitones: number) => {
     const targetSemitones = Math.max(-12, Math.min(12, semitones));
     audioEngine.setDeckPitchSemitones(deckId, targetSemitones);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, pitchSemitones: targetSemitones }));
     else setDeckB((prev) => ({ ...prev, pitchSemitones: targetSemitones }));
-  }, []);
+  };
 
   // 1-Click Harmonic Key Match / Sync
-  const handleKeySync = useCallback((deckId: DeckId) => {
-    const masterDeck = deckId === 'A' ? deckStateRef.current.deckB : deckStateRef.current.deckA;
+  const handleKeySync = (deckId: DeckId) => {
+    const masterDeck = deckId === 'A' ? deckB : deckA;
     const targetSemitones = masterDeck.pitchSemitones || 0;
     handleKeyShift(deckId, targetSemitones);
-  }, [handleKeyShift]);
+  };
 
   // Nudge / Pitch Bend
-  const handleNudge = useCallback((deckId: DeckId, factor: number) => {
+  const handleNudge = (deckId: DeckId, factor: number) => {
     audioEngine.nudge(deckId, factor);
-  }, []);
+  };
 
-  const handleReleaseNudge = useCallback((deckId: DeckId) => {
+  const handleReleaseNudge = (deckId: DeckId) => {
     audioEngine.releaseNudge(deckId);
-  }, []);
+  };
 
-  const handleScratch = useCallback((deckId: DeckId, deltaSec: number) => {
+  const handleScratch = (deckId: DeckId, deltaSec: number) => {
     const current = audioEngine.getCurrentTime(deckId);
     audioEngine.seekDeck(deckId, current + deltaSec);
-  }, []);
+  };
 
   // Hot Cues
-  const handleTriggerCue = useCallback((deckId: DeckId, cueId: number) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleTriggerCue = (deckId: DeckId, cueId: number) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     const cue = deck.track?.hotCues.find((c) => c.id === cueId);
     if (cue) {
       audioEngine.triggerHotCue(deckId, cue, true);
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: true, currentTime: cue.position }));
       else setDeckB((prev) => ({ ...prev, isPlaying: true, currentTime: cue.position }));
     }
-  }, []);
+  };
 
-  const handleSetCue = useCallback((deckId: DeckId, cueId: number, position: number) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleSetCue = (deckId: DeckId, cueId: number, position: number) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     if (!deck.track) return;
 
     const colors = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -684,20 +633,20 @@ export const App: React.FC = () => {
     const updatedTrack = { ...deck.track, hotCues: updatedCues };
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, track: updatedTrack }));
     else setDeckB((prev) => ({ ...prev, track: updatedTrack }));
-  }, []);
+  };
 
-  const handleClearCue = useCallback((deckId: DeckId, cueId: number) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleClearCue = (deckId: DeckId, cueId: number) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     if (!deck.track) return;
     const updatedCues = deck.track.hotCues.filter((c) => c.id !== cueId);
     const updatedTrack = { ...deck.track, hotCues: updatedCues };
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, track: updatedTrack }));
     else setDeckB((prev) => ({ ...prev, track: updatedTrack }));
-  }, []);
+  };
 
   // Auto Loops
-  const handleSetAutoLoop = useCallback((deckId: DeckId, beats: number) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleSetAutoLoop = (deckId: DeckId, beats: number) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     const bpm = deck.track?.bpm || 120;
     const loopDurationSec = (60.0 / bpm) * beats;
     const start = audioEngine.getCurrentTime(deckId);
@@ -707,89 +656,89 @@ export const App: React.FC = () => {
     const loopObj = { start, end, beats };
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, activeLoop: loopObj }));
     else setDeckB((prev) => ({ ...prev, activeLoop: loopObj }));
-  }, []);
+  };
 
-  const handleExitLoop = useCallback((deckId: DeckId) => {
+  const handleExitLoop = (deckId: DeckId) => {
     audioEngine.exitLoop(deckId);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, activeLoop: null }));
     else setDeckB((prev) => ({ ...prev, activeLoop: null }));
-  }, []);
+  };
 
-  const handleBeatJump = useCallback((deckId: DeckId, beats: number) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleBeatJump = (deckId: DeckId, beats: number) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     const bpm = deck.track?.bpm || 120;
     audioEngine.beatJump(deckId, beats, bpm);
-  }, []);
+  };
 
   // Mixer Controls
-  const handleEQChange = useCallback((deckId: 'A' | 'B', band: 'low' | 'mid' | 'high', val: number) => {
+  const handleEQChange = (deckId: 'A' | 'B', band: 'low' | 'mid' | 'high', val: number) => {
     audioEngine.setEQ(deckId, band, val);
     const key = band === 'low' ? 'eqLow' : band === 'mid' ? 'eqMid' : 'eqHigh';
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, [key]: val }));
     else setDeckB((prev) => ({ ...prev, [key]: val }));
-  }, []);
+  };
 
-  const handleEQKillToggle = useCallback((deckId: 'A' | 'B', band: 'low' | 'mid' | 'high') => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleEQKillToggle = (deckId: 'A' | 'B', band: 'low' | 'mid' | 'high') => {
+    const deck = deckId === 'A' ? deckA : deckB;
     const killKey = band === 'low' ? 'eqLowKill' : band === 'mid' ? 'eqMidKill' : 'eqHighKill';
     const newKill = !deck[killKey];
     audioEngine.setEQ(deckId, band, 0, newKill);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, [killKey]: newKill }));
     else setDeckB((prev) => ({ ...prev, [killKey]: newKill }));
-  }, []);
+  };
 
-  const handleFilterChange = useCallback((deckId: 'A' | 'B', val: number) => {
+  const handleFilterChange = (deckId: 'A' | 'B', val: number) => {
     audioEngine.setFilter(deckId, val);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, filter: val }));
     else setDeckB((prev) => ({ ...prev, filter: val }));
-  }, []);
+  };
 
-  const handleTrimChange = useCallback((deckId: 'A' | 'B', val: number) => {
+  const handleTrimChange = (deckId: 'A' | 'B', val: number) => {
     audioEngine.setTrimGain(deckId, val);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, trimGain: val }));
     else setDeckB((prev) => ({ ...prev, trimGain: val }));
-  }, []);
+  };
 
-  const handleFaderChange = useCallback((deckId: 'A' | 'B', val: number) => {
+  const handleFaderChange = (deckId: 'A' | 'B', val: number) => {
     audioEngine.setChannelVolume(deckId, val);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, volume: val }));
     else setDeckB((prev) => ({ ...prev, volume: val }));
-  }, []);
+  };
 
-  const handleCrossfaderChange = useCallback((val: number) => {
-    audioEngine.setCrossfader(val, deckStateRef.current.mixer.crossfaderCurve);
+  const handleCrossfaderChange = (val: number) => {
+    audioEngine.setCrossfader(val, mixer.crossfaderCurve);
     setMixer((prev) => ({ ...prev, crossfader: val }));
-  }, []);
+  };
 
-  const handleCrossfaderCurveChange = useCallback((curve: 'smooth' | 'linear' | 'scratch') => {
-    audioEngine.setCrossfader(deckStateRef.current.mixer.crossfader, curve);
+  const handleCrossfaderCurveChange = (curve: 'smooth' | 'linear' | 'scratch') => {
+    audioEngine.setCrossfader(mixer.crossfader, curve);
     setMixer((prev) => ({ ...prev, crossfaderCurve: curve }));
-  }, []);
+  };
 
-  const handleMasterVolumeChange = useCallback((val: number) => {
+  const handleMasterVolumeChange = (val: number) => {
     audioEngine.setMasterVolume(val);
     setMixer((prev) => ({ ...prev, masterVolume: val }));
-  }, []);
+  };
 
   // Stem & Neural Mix Controls
-  const handleEQModeToggle = useCallback((deckId: 'A' | 'B') => {
+  const handleEQModeToggle = (deckId: 'A' | 'B') => {
     if (deckId === 'A') {
       setDeckA((p) => ({ ...p, eqMode: p.eqMode === 'stems' ? 'isolator' : 'stems' }));
     } else {
       setDeckB((p) => ({ ...p, eqMode: p.eqMode === 'stems' ? 'isolator' : 'stems' }));
     }
-  }, []);
+  };
 
-  const handleStemGainChange = useCallback((deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => {
+  const handleStemGainChange = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => {
     audioEngine.setStemGain(deckId, stem, val);
     if (deckId === 'A') {
       setDeckA((p) => ({ ...p, stems: { ...p.stems, [stem]: val } }));
     } else {
       setDeckB((p) => ({ ...p, stems: { ...p.stems, [stem]: val } }));
     }
-  }, []);
+  };
 
-  const handleStemMuteToggle = useCallback((deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
+  const handleStemMuteToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
     const isMuted = audioEngine.toggleStemMute(deckId, stem);
     const muteKey = `${stem}Muted` as const;
     if (deckId === 'A') {
@@ -797,9 +746,9 @@ export const App: React.FC = () => {
     } else {
       setDeckB((p) => ({ ...p, stems: { ...p.stems, [muteKey]: isMuted } }));
     }
-  }, []);
+  };
 
-  const handleStemSoloToggle = useCallback((deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
+  const handleStemSoloToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
     const isSolo = audioEngine.toggleStemSolo(deckId, stem);
     const soloKey = `${stem}Solo` as const;
     if (deckId === 'A') {
@@ -827,86 +776,16 @@ export const App: React.FC = () => {
         },
       }));
     }
-  }, []);
+  };
 
-  // Algoriddim djay Pro Grade Neural Mix Quick Isolations (100% pure isolation, 0% bleed)
-  const handleIsolateAcapella = useCallback((deckId: DeckId) => {
-    audioEngine.isolateAcapella(deckId);
-    const updateStems = {
-      vocals: 1.0,
-      harmonics: 0.0,
-      bass: 0.0,
-      drums: 0.0,
-      vocalsMuted: false,
-      harmonicsMuted: true,
-      bassMuted: true,
-      drumsMuted: true,
-      vocalsSolo: true,
-      harmonicsSolo: false,
-      bassSolo: false,
-      drumsSolo: false,
-    };
-    if (deckId === 'A') {
-      setDeckA((p) => ({ ...p, stems: updateStems }));
-    } else {
-      setDeckB((p) => ({ ...p, stems: updateStems }));
-    }
-  }, []);
-
-  const handleIsolateInstrumental = useCallback((deckId: DeckId) => {
-    audioEngine.isolateInstrumental(deckId);
-    const updateStems = {
-      vocals: 0.0,
-      harmonics: 1.0,
-      bass: 1.0,
-      drums: 1.0,
-      vocalsMuted: true,
-      harmonicsMuted: false,
-      bassMuted: false,
-      drumsMuted: false,
-      vocalsSolo: false,
-      harmonicsSolo: false,
-      bassSolo: false,
-      drumsSolo: false,
-    };
-    if (deckId === 'A') {
-      setDeckA((p) => ({ ...p, stems: updateStems }));
-    } else {
-      setDeckB((p) => ({ ...p, stems: updateStems }));
-    }
-  }, []);
-
-  const handleResetStems = useCallback((deckId: DeckId) => {
-    audioEngine.resetStems(deckId);
-    const updateStems = {
-      vocals: 1.0,
-      harmonics: 1.0,
-      bass: 1.0,
-      drums: 1.0,
-      vocalsMuted: false,
-      harmonicsMuted: false,
-      bassMuted: false,
-      drumsMuted: false,
-      vocalsSolo: false,
-      harmonicsSolo: false,
-      bassSolo: false,
-      drumsSolo: false,
-    };
-    if (deckId === 'A') {
-      setDeckA((p) => ({ ...p, stems: updateStems }));
-    } else {
-      setDeckB((p) => ({ ...p, stems: updateStems }));
-    }
-  }, []);
-
-  const handleNeuralTransitionModeChange = useCallback((mode: NeuralTransitionMode) => {
+  const handleNeuralTransitionModeChange = (mode: NeuralTransitionMode) => {
     audioEngine.setNeuralTransitionMode(mode);
     setMixer((p) => ({ ...p, neuralTransitionMode: mode }));
-  }, []);
+  };
 
   // VirtualDJ Sandbox Audition Mode
-  const handleToggleSandbox = useCallback((deckId: DeckId) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleToggleSandbox = (deckId: DeckId) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     const nextVal = !deck.sandboxMode;
     audioEngine.setDeckSandbox(deckId, nextVal);
     if (deckId === 'A') {
@@ -914,31 +793,20 @@ export const App: React.FC = () => {
     } else {
       setDeckB((p) => ({ ...p, sandboxMode: nextVal }));
     }
-  }, []);
+  };
 
   // Quantized Slip Mode
-  const handleToggleSlip = useCallback((deckId: DeckId) => {
+  const handleToggleSlip = (deckId: DeckId) => {
     if (deckId === 'A') {
       setDeckA((p) => ({ ...p, slipMode: !p.slipMode }));
     } else {
       setDeckB((p) => ({ ...p, slipMode: !p.slipMode }));
     }
-  }, []);
-
-  // Studio FX Handlers
-  const handleUpdateDeckAFX = useCallback((fx: FXUnit) => {
-    setDeckA((p) => ({ ...p, fx }));
-    audioEngine.setDeckFX('A', fx, deckStateRef.current.deckA.track?.bpm || masterBpm);
-  }, [masterBpm]);
-
-  const handleUpdateDeckBFX = useCallback((fx: FXUnit) => {
-    setDeckB((p) => ({ ...p, fx }));
-    audioEngine.setDeckFX('B', fx, deckStateRef.current.deckB.track?.bpm || masterBpm);
-  }, [masterBpm]);
+  };
 
   // Quick Multi-FX Punch-In / Punch-Out Toggle
-  const handleToggleFX = useCallback((deckId: DeckId, type: FXType) => {
-    const deck = deckId === 'A' ? deckStateRef.current.deckA : deckStateRef.current.deckB;
+  const handleToggleFX = (deckId: DeckId, type: FXType) => {
+    const deck = deckId === 'A' ? deckA : deckB;
     const isCurrentlyActive = deck.fx.enabled && deck.fx.type === type;
     const updatedFx: FXUnit = {
       ...deck.fx,
@@ -950,178 +818,18 @@ export const App: React.FC = () => {
     } else {
       handleUpdateDeckBFX(updatedFx);
     }
-  }, [handleUpdateDeckAFX, handleUpdateDeckBFX]);
+  };
 
-  // Dedicated stable callbacks for Deck A & B to ensure React.memo effectiveness
-  const handleLoadTrackA = useCallback((t: TrackMetadata) => handleLoadTrack('A', t), [handleLoadTrack]);
-  const handleLoadTrackB = useCallback((t: TrackMetadata) => handleLoadTrack('B', t), [handleLoadTrack]);
-  const handlePlayToggleA = useCallback(() => handlePlayToggle('A'), [handlePlayToggle]);
-  const handlePlayToggleB = useCallback(() => handlePlayToggle('B'), [handlePlayToggle]);
-  const handleCueClickA = useCallback(() => handleCueClick('A'), [handleCueClick]);
-  const handleCueClickB = useCallback(() => handleCueClick('B'), [handleCueClick]);
-  const handleSyncClickA = useCallback(() => handleSyncClick('A'), [handleSyncClick]);
-  const handleSyncClickB = useCallback(() => handleSyncClick('B'), [handleSyncClick]);
-  const handleSeekA = useCallback((sec: number) => audioEngine.seekDeck('A', sec), []);
-  const handleSeekB = useCallback((sec: number) => audioEngine.seekDeck('B', sec), []);
-  const handleRateChangeA = useCallback((rate: number) => handleRateChange('A', rate), [handleRateChange]);
-  const handleRateChangeB = useCallback((rate: number) => handleRateChange('B', rate), [handleRateChange]);
-  const handleKeyLockToggleA = useCallback(() => setDeckA((p) => ({ ...p, keyLock: !p.keyLock })), []);
-  const handleKeyLockToggleB = useCallback(() => setDeckB((p) => ({ ...p, keyLock: !p.keyLock })), []);
-  const handleNudgeA = useCallback((f: number) => handleNudge('A', f), [handleNudge]);
-  const handleNudgeB = useCallback((f: number) => handleNudge('B', f), [handleNudge]);
-  const handleReleaseNudgeA = useCallback(() => handleReleaseNudge('A'), [handleReleaseNudge]);
-  const handleReleaseNudgeB = useCallback(() => handleReleaseNudge('B'), [handleReleaseNudge]);
-  const handleScratchA = useCallback((d: number) => handleScratch('A', d), [handleScratch]);
-  const handleScratchB = useCallback((d: number) => handleScratch('B', d), [handleScratch]);
-  const handleTriggerCueA = useCallback((id: number) => handleTriggerCue('A', id), [handleTriggerCue]);
-  const handleTriggerCueB = useCallback((id: number) => handleTriggerCue('B', id), [handleTriggerCue]);
-  const handleSetCueA = useCallback((id: number, pos: number) => handleSetCue('A', id, pos), [handleSetCue]);
-  const handleSetCueB = useCallback((id: number, pos: number) => handleSetCue('B', id, pos), [handleSetCue]);
-  const handleClearCueA = useCallback((id: number) => handleClearCue('A', id), [handleClearCue]);
-  const handleClearCueB = useCallback((id: number) => handleClearCue('B', id), [handleClearCue]);
-  const handleSetAutoLoopA = useCallback((b: number) => handleSetAutoLoop('A', b), [handleSetAutoLoop]);
-  const handleSetAutoLoopB = useCallback((b: number) => handleSetAutoLoop('B', b), [handleSetAutoLoop]);
-  const handleExitLoopA = useCallback(() => handleExitLoop('A'), [handleExitLoop]);
-  const handleExitLoopB = useCallback(() => handleExitLoop('B'), [handleExitLoop]);
-  const handleBeatJumpA = useCallback((b: number) => handleBeatJump('A', b), [handleBeatJump]);
-  const handleBeatJumpB = useCallback((b: number) => handleBeatJump('B', b), [handleBeatJump]);
-  const handleStemGainChangeA = useCallback((stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => handleStemGainChange('A', stem, val), [handleStemGainChange]);
-  const handleStemGainChangeB = useCallback((stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => handleStemGainChange('B', stem, val), [handleStemGainChange]);
-  const handleStemMuteToggleA = useCallback((stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => handleStemMuteToggle('A', stem), [handleStemMuteToggle]);
-  const handleStemMuteToggleB = useCallback((stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => handleStemMuteToggle('B', stem), [handleStemMuteToggle]);
-  const handleStemSoloToggleA = useCallback((stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => handleStemSoloToggle('A', stem), [handleStemSoloToggle]);
-  const handleStemSoloToggleB = useCallback((stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => handleStemSoloToggle('B', stem), [handleStemSoloToggle]);
-  const handleIsolateAcapellaA = useCallback(() => handleIsolateAcapella('A'), [handleIsolateAcapella]);
-  const handleIsolateAcapellaB = useCallback(() => handleIsolateAcapella('B'), [handleIsolateAcapella]);
-  const handleIsolateInstrumentalA = useCallback(() => handleIsolateInstrumental('A'), [handleIsolateInstrumental]);
-  const handleIsolateInstrumentalB = useCallback(() => handleIsolateInstrumental('B'), [handleIsolateInstrumental]);
-  const handleResetStemsA = useCallback(() => handleResetStems('A'), [handleResetStems]);
-  const handleResetStemsB = useCallback(() => handleResetStems('B'), [handleResetStems]);
-  const handleKeyShiftA = useCallback((st: number) => handleKeyShift('A', st), [handleKeyShift]);
-  const handleKeyShiftB = useCallback((st: number) => handleKeyShift('B', st), [handleKeyShift]);
-  const handleKeySyncA = useCallback(() => handleKeySync('A'), [handleKeySync]);
-  const handleKeySyncB = useCallback(() => handleKeySync('B'), [handleKeySync]);
-  const handleToggleSlipA = useCallback(() => handleToggleSlip('A'), [handleToggleSlip]);
-  const handleToggleSlipB = useCallback(() => handleToggleSlip('B'), [handleToggleSlip]);
-  const handleToggleSandboxA = useCallback(() => handleToggleSandbox('A'), [handleToggleSandbox]);
-  const handleToggleSandboxB = useCallback(() => handleToggleSandbox('B'), [handleToggleSandbox]);
-  const handleToggleFXA = useCallback((type: FXType) => handleToggleFX('A', type), [handleToggleFX]);
-  const handleToggleFXB = useCallback((type: FXType) => handleToggleFX('B', type), [handleToggleFX]);
-  const handleCueToggle = useCallback((d: 'A' | 'B') => {
-    setMixer((p) => ({
-      ...p,
-      [d === 'A' ? 'headphoneCueA' : 'headphoneCueB']: !p[d === 'A' ? 'headphoneCueA' : 'headphoneCueB'],
-    }));
-  }, []);
-  const handleOpenDjayImport = useCallback(() => setIsDjayImportOpen(true), []);
-  const handleOpenGDriveSettings = useCallback(() => setIsSettingsOpen(true), []);
-  const handleStartAutomix = useCallback(() => automixService.startAutomix(deckStateRef.current.deckA, deckStateRef.current.deckB), []);
-  const handleToggleExpand = useCallback(() => setDrawerMode((prev) => (prev === 'expanded' ? 'split' : 'expanded')), []);
+  // Studio FX Handlers
+  const handleUpdateDeckAFX = (fx: FXUnit) => {
+    setDeckA((p) => ({ ...p, fx }));
+    audioEngine.setDeckFX('A', fx, deckA.track?.bpm || masterBpm);
+  };
 
-  // Stream Song Requests Handling
-  const handleLoadRequestToDeck = useCallback((deckId: 'A' | 'B', req: StreamSongRequest) => {
-    const track: TrackMetadata = {
-      id: `req-${req.id}`,
-      title: req.song,
-      artist: req.artist || req.viewer || 'Stream Viewer Request',
-      bpm: 126,
-      key: '8A',
-      camelotKey: '8A',
-      duration: 180,
-      fileSource: 'youtube',
-      fileUrl: '',
-      dateAdded: new Date().toISOString(),
-      hotCues: [],
-      savedLoops: [],
-      beatGrid: { bpm: 126, firstBeatOffset: 0, meter: 4 },
-    };
-    handleLoadTrack(deckId, track);
-    setStreamRequests((prev) =>
-      prev.map((r) => (r.id === req.id ? { ...r, status: 'loaded' } : r))
-    );
-  }, [handleLoadTrack]);
-
-  const handleDismissRequest = useCallback((id: string) => {
-    setStreamRequests((prev) => prev.filter((r) => r.id !== id));
-  }, []);
-
-  const handleClearAllRequests = useCallback(() => {
-    setStreamRequests([]);
-  }, []);
-
-  // Streamer.bot, Stream Deck, & Broadcast WebSocket Event Listeners
-  useEffect(() => {
-    if (typeof window === 'undefined' || !(window as any).desktopAPI) return;
-
-    const unsubs: Array<() => void> = [];
-
-    if ((window as any).desktopAPI.onStreamerbotRequest) {
-      const unsub = (window as any).desktopAPI.onStreamerbotRequest((req: { username: string; song: string }) => {
-        const newReq: StreamSongRequest = {
-          id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          viewer: req.username || 'TwitchViewer',
-          song: req.song || 'Song Request',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'pending',
-          source: 'streamerbot',
-        };
-        setStreamRequests((prev) => [newReq, ...prev]);
-      });
-      unsubs.push(unsub);
-    }
-
-    if ((window as any).desktopAPI.onTriggerSamplerPad) {
-      const unsub = (window as any).desktopAPI.onTriggerSamplerPad((padIndex: number) => {
-        samplerEngine.triggerSlot(padIndex);
-      });
-      unsubs.push(unsub);
-    }
-
-    if ((window as any).desktopAPI.onStreamdeckAction) {
-      const unsub = (window as any).desktopAPI.onStreamdeckAction((action: { action: string; deckId?: string; param?: any }) => {
-        const targetDeck = (action.deckId === 'B' ? 'B' : 'A') as DeckId;
-        switch (action.action) {
-          case 'playPause':
-            handlePlayToggle(targetDeck);
-            break;
-          case 'cue':
-            handleCueClick(targetDeck);
-            break;
-          case 'sync':
-            handleSyncClick(targetDeck);
-            break;
-          case 'isolateAcapella':
-            handleIsolateAcapella(targetDeck);
-            break;
-          case 'isolateInstrumental':
-            handleIsolateInstrumental(targetDeck);
-            break;
-          case 'resetStems':
-            handleResetStems(targetDeck);
-            break;
-          case 'loop':
-            handleSetAutoLoop(targetDeck, action.param || 4);
-            break;
-          case 'exitLoop':
-            handleExitLoop(targetDeck);
-            break;
-          case 'hotcue':
-            handleTriggerCue(targetDeck, action.param || 0);
-            break;
-          case 'sampler':
-            samplerEngine.triggerSlot(action.param || 0);
-            break;
-          default:
-            break;
-        }
-      });
-      unsubs.push(unsub);
-    }
-
-    return () => {
-      unsubs.forEach((u) => u());
-    };
-  }, [handlePlayToggle, handleCueClick, handleSyncClick, handleIsolateAcapella, handleIsolateInstrumental, handleResetStems, handleSetAutoLoop, handleExitLoop, handleTriggerCue]);
+  const handleUpdateDeckBFX = (fx: FXUnit) => {
+    setDeckB((p) => ({ ...p, fx }));
+    audioEngine.setDeckFX('B', fx, deckB.track?.bpm || masterBpm);
+  };
 
   // Master Mix Recording Handler
   useEffect(() => {
@@ -1146,10 +854,7 @@ export const App: React.FC = () => {
 
   // Automix AI Setup
   useEffect(() => {
-    automixService.setDeckStateProvider(() => ({
-      deckA: deckStateRef.current.deckA,
-      deckB: deckStateRef.current.deckB,
-    }));
+    automixService.setDeckStateProvider(() => ({ deckA, deckB }));
 
     automixService.registerCallbacks(
       (updates) => {
@@ -1177,7 +882,7 @@ export const App: React.FC = () => {
       setIsAutomixActive(state.active);
     });
     return () => unsub();
-  }, []);
+  }, [deckA, deckB]);
 
   // Super-Responsive DJ Keyboard Shortcuts Engine
   useEffect(() => {
@@ -1277,19 +982,9 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deckA, deckB, uiZoom]);
 
-  const isDesktopZoom = typeof window !== 'undefined' && Boolean((window as any).desktopAPI?.setZoomFactor);
-
   return (
     <div
-      style={
-        !isDesktopZoom && uiZoom !== 1.0
-          ? ({
-              zoom: uiZoom,
-              width: `${Math.round(10000 / uiZoom) / 100}vw`,
-              height: `${Math.round(10000 / uiZoom) / 100}vh`,
-            } as React.CSSProperties)
-          : undefined
-      }
+      style={uiZoom !== 1.0 ? ({ zoom: uiZoom } as React.CSSProperties) : undefined}
       className="flex flex-col h-screen w-screen bg-dj-bg text-slate-100 overflow-hidden select-none relative"
     >
       {/* Ambient Cyberpunk Glow Atmosphere */}
@@ -1330,10 +1025,9 @@ export const App: React.FC = () => {
           onToggleAutomix={() => automixService.toggleAutomix(deckA, deckB)}
           onToggleKeyboardModal={() => setIsKeyboardModalOpen((prev) => !prev)}
           onToggleMidiModal={() => setIsMidiModalOpen(true)}
-          onToggleStreamerHud={() => setIsStreamRequestQueueOpen(true)}
+          onToggleStreamerHud={() => setIsStreamerHudOpen(!isStreamerHudOpen)}
           onToggleSettingsModal={() => setIsSettingsOpen(true)}
-          isStreamerHudOpen={isStreamRequestQueueOpen || isStreamerHudOpen}
-          requestCount={streamRequests.filter((r) => r.status === 'pending').length}
+          isStreamerHudOpen={isStreamerHudOpen}
           isCortexOpen={(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed'}
           onToggleCortex={handleToggleCortex}
           onOpenPatchModal={() => setIsPatchModalOpen(true)}
@@ -1366,33 +1060,30 @@ export const App: React.FC = () => {
               deckId="A"
               deckState={deckA}
               waveformData={waveformDataA}
-              onLoadTrack={handleLoadTrackA}
-              onPlayToggle={handlePlayToggleA}
-              onCueClick={handleCueClickA}
-              onSyncClick={handleSyncClickA}
-              onSeek={handleSeekA}
-              onRateChange={handleRateChangeA}
-              onKeyLockToggle={handleKeyLockToggleA}
-              onNudge={handleNudgeA}
-              onReleaseNudge={handleReleaseNudgeA}
-              onScratch={handleScratchA}
-              onTriggerCue={handleTriggerCueA}
-              onSetCue={handleSetCueA}
-              onClearCue={handleClearCueA}
-              onSetAutoLoop={handleSetAutoLoopA}
-              onExitLoop={handleExitLoopA}
-              onBeatJump={handleBeatJumpA}
-              onStemGainChange={handleStemGainChangeA}
-              onStemMuteToggle={handleStemMuteToggleA}
-              onStemSoloToggle={handleStemSoloToggleA}
-              onIsolateAcapella={handleIsolateAcapellaA}
-              onIsolateInstrumental={handleIsolateInstrumentalA}
-              onResetStems={handleResetStemsA}
-              onKeyShift={handleKeyShiftA}
-              onKeySync={handleKeySyncA}
-              onToggleSlip={handleToggleSlipA}
-              onToggleSandbox={handleToggleSandboxA}
-              onToggleFX={handleToggleFXA}
+              onLoadTrack={(t) => handleLoadTrack('A', t)}
+              onPlayToggle={() => handlePlayToggle('A')}
+              onCueClick={() => handleCueClick('A')}
+              onSyncClick={() => handleSyncClick('A')}
+              onSeek={(sec) => audioEngine.seekDeck('A', sec)}
+              onRateChange={(rate) => handleRateChange('A', rate)}
+              onKeyLockToggle={() => setDeckA((p) => ({ ...p, keyLock: !p.keyLock }))}
+              onNudge={(f) => handleNudge('A', f)}
+              onReleaseNudge={() => handleReleaseNudge('A')}
+              onScratch={(d) => handleScratch('A', d)}
+              onTriggerCue={(id) => handleTriggerCue('A', id)}
+              onSetCue={(id, pos) => handleSetCue('A', id, pos)}
+              onClearCue={(id) => handleClearCue('A', id)}
+              onSetAutoLoop={(b) => handleSetAutoLoop('A', b)}
+              onExitLoop={() => handleExitLoop('A')}
+              onBeatJump={(b) => handleBeatJump('A', b)}
+              onStemGainChange={(stem, val) => handleStemGainChange('A', stem, val)}
+              onStemMuteToggle={(stem) => handleStemMuteToggle('A', stem)}
+              onStemSoloToggle={(stem) => handleStemSoloToggle('A', stem)}
+              onKeyShift={(st) => handleKeyShift('A', st)}
+              onKeySync={() => handleKeySync('A')}
+              onToggleSlip={() => handleToggleSlip('A')}
+              onToggleSandbox={() => handleToggleSandbox('A')}
+              onToggleFX={(type) => handleToggleFX('A', type)}
             />
 
             {/* Central Pro Mixer */}
@@ -1409,7 +1100,13 @@ export const App: React.FC = () => {
               onCrossfaderCurveChange={handleCrossfaderCurveChange}
               onMasterVolumeChange={handleMasterVolumeChange}
               onHeadphoneVolumeChange={() => {}}
-              onCueToggle={handleCueToggle}
+              onCueToggle={(d) =>
+                setMixer((p) => ({
+                  ...p,
+                  [d === 'A' ? 'headphoneCueA' : 'headphoneCueB']:
+                    !p[d === 'A' ? 'headphoneCueA' : 'headphoneCueB'],
+                }))
+              }
               onEQModeToggle={handleEQModeToggle}
               onStemGainChange={handleStemGainChange}
               onStemMuteToggle={handleStemMuteToggle}
@@ -1422,33 +1119,30 @@ export const App: React.FC = () => {
               deckId="B"
               deckState={deckB}
               waveformData={waveformDataB}
-              onLoadTrack={handleLoadTrackB}
-              onPlayToggle={handlePlayToggleB}
-              onCueClick={handleCueClickB}
-              onSyncClick={handleSyncClickB}
-              onSeek={handleSeekB}
-              onRateChange={handleRateChangeB}
-              onKeyLockToggle={handleKeyLockToggleB}
-              onNudge={handleNudgeB}
-              onReleaseNudge={handleReleaseNudgeB}
-              onScratch={handleScratchB}
-              onTriggerCue={handleTriggerCueB}
-              onSetCue={handleSetCueB}
-              onClearCue={handleClearCueB}
-              onSetAutoLoop={handleSetAutoLoopB}
-              onExitLoop={handleExitLoopB}
-              onBeatJump={handleBeatJumpB}
-              onStemGainChange={handleStemGainChangeB}
-              onStemMuteToggle={handleStemMuteToggleB}
-              onStemSoloToggle={handleStemSoloToggleB}
-              onIsolateAcapella={handleIsolateAcapellaB}
-              onIsolateInstrumental={handleIsolateInstrumentalB}
-              onResetStems={handleResetStemsB}
-              onKeyShift={handleKeyShiftB}
-              onKeySync={handleKeySyncB}
-              onToggleSlip={handleToggleSlipB}
-              onToggleSandbox={handleToggleSandboxB}
-              onToggleFX={handleToggleFXB}
+              onLoadTrack={(t) => handleLoadTrack('B', t)}
+              onPlayToggle={() => handlePlayToggle('B')}
+              onCueClick={() => handleCueClick('B')}
+              onSyncClick={() => handleSyncClick('B')}
+              onSeek={(sec) => audioEngine.seekDeck('B', sec)}
+              onRateChange={(rate) => handleRateChange('B', rate)}
+              onKeyLockToggle={() => setDeckB((p) => ({ ...p, keyLock: !p.keyLock }))}
+              onNudge={(f) => handleNudge('B', f)}
+              onReleaseNudge={() => handleReleaseNudge('B')}
+              onScratch={(d) => handleScratch('B', d)}
+              onTriggerCue={(id) => handleTriggerCue('B', id)}
+              onSetCue={(id, pos) => handleSetCue('B', id, pos)}
+              onClearCue={(id) => handleClearCue('B', id)}
+              onSetAutoLoop={(b) => handleSetAutoLoop('B', b)}
+              onExitLoop={() => handleExitLoop('B')}
+              onBeatJump={(b) => handleBeatJump('B', b)}
+              onStemGainChange={(stem, val) => handleStemGainChange('B', stem, val)}
+              onStemMuteToggle={(stem) => handleStemMuteToggle('B', stem)}
+              onStemSoloToggle={(stem) => handleStemSoloToggle('B', stem)}
+              onKeyShift={(st) => handleKeyShift('B', st)}
+              onKeySync={() => handleKeySync('B')}
+              onToggleSlip={() => handleToggleSlip('B')}
+              onToggleSandbox={() => handleToggleSandbox('B')}
+              onToggleFX={(type) => handleToggleFX('B', type)}
             />
           </div>
         </div>
@@ -1456,23 +1150,23 @@ export const App: React.FC = () => {
 
       {/* 3. Bottom Pro DJ Workstation Drawer */}
       <div
-        className={`px-1 sm:px-2 pb-1 flex flex-col ${
+        className={`px-1.5 sm:px-2 pb-1.5 flex flex-col ${
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[min(28vh,240px)] min-h-[160px] 2xl:h-[min(38vh,320px)] 2xl:min-h-[200px] shrink-0'
-            : 'h-[38px] shrink-0 overflow-hidden'
+            ? 'h-[min(38vh,320px)] min-h-[190px] shrink-0'
+            : 'h-[42px] shrink-0 overflow-hidden'
         }`}
       >
         {/* Drawer Tab Navigation Strip */}
-        <div className="flex items-center justify-between pb-1 px-0.5">
-          <div className="flex items-center space-x-1 bg-slate-900/80 p-0.5 rounded-xl border border-white/10">
+        <div className="flex items-center justify-between pb-1.5 px-1">
+          <div className="flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-white/10">
             <button
               onClick={() => {
                 setBottomDrawerTab('library');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'library'
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1487,7 +1181,7 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('fx');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'fx'
                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1502,14 +1196,14 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('sampler');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'sampler'
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Volume2 className="w-3.5 h-3.5" />
-              <span>SAMPLER</span>
+              <span>8-PAD SAMPLER</span>
             </button>
 
             <button
@@ -1517,14 +1211,14 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('automix');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && bottomDrawerTab === 'automix'
                   ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40 shadow-[0_0_12px_rgba(236,72,153,0.3)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Bot className="w-3.5 h-3.5" />
-              <span>AUTOMIX</span>
+              <span>AUTOMIX AI</span>
             </button>
 
             <button
@@ -1532,14 +1226,14 @@ export const App: React.FC = () => {
                 setBottomDrawerTab('cortex');
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                 drawerMode !== 'collapsed' && (bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj')
                   ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 text-purple-300 border border-purple-500/50 shadow-[0_0_14px_rgba(168,85,247,0.4)] font-black'
                   : 'text-slate-400 hover:text-purple-300'
               }`}
             >
               <Brain className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-              <span>MIXCORTEX</span>
+              <span>MIXCORTEX AI</span>
             </button>
           </div>
 
@@ -1589,12 +1283,12 @@ export const App: React.FC = () => {
               <Library
                 key={libraryRefreshTrigger}
                 onLoadTrack={handleLoadTrack}
-                onOpenDjayImport={handleOpenDjayImport}
-                onOpenGDriveSettings={handleOpenGDriveSettings}
+                onOpenDjayImport={() => setIsDjayImportOpen(true)}
+                onOpenGDriveSettings={() => setIsSettingsOpen(true)}
                 currentMasterKey={deckA.isPlaying ? deckA.musicalKey : deckB.musicalKey}
-                onStartAutomix={handleStartAutomix}
+                onStartAutomix={() => automixService.startAutomix(deckA, deckB)}
                 isExpanded={drawerMode === 'expanded'}
-                onToggleExpand={handleToggleExpand}
+                onToggleExpand={() => setDrawerMode((prev) => (prev === 'expanded' ? 'split' : 'expanded'))}
               />
             )}
 
@@ -1613,7 +1307,7 @@ export const App: React.FC = () => {
 
             {(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && (
               <CortexDJCoPilot
-                onLoadTrackToDeck={handleLoadTrack}
+                onLoadTrackToDeck={(deckId, track) => handleLoadTrack(deckId, track)}
                 onPopOutWindow={handlePopOutCortex}
               />
             )}
@@ -1622,15 +1316,6 @@ export const App: React.FC = () => {
       </div>
 
       {/* 4. Modals & Overlays */}
-      <StreamRequestQueue
-        isOpen={isStreamRequestQueueOpen}
-        onClose={() => setIsStreamRequestQueueOpen(false)}
-        onLoadTrackToDeck={(deckId, req) => handleLoadRequestToDeck(deckId, req)}
-        requests={streamRequests}
-        onDismissRequest={handleDismissRequest}
-        onClearAllRequests={handleClearAllRequests}
-      />
-
       {isStreamerHudOpen && (
         <StreamerOverlay
           deckA={deckA}
@@ -1642,7 +1327,7 @@ export const App: React.FC = () => {
       {isMidiModalOpen && <MidiModal onClose={() => setIsMidiModalOpen(false)} />}
 
       {isDjayImportOpen && (
-        <UniversalDjImportModal
+        <DjayImportModal
           onClose={() => setIsDjayImportOpen(false)}
           onImportSuccess={() => {
             setLibraryRefreshTrigger((p) => p + 1);
@@ -1650,7 +1335,13 @@ export const App: React.FC = () => {
         />
       )}
 
-      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      {isSettingsOpen && (
+        <SettingsModal
+          onClose={() => setIsSettingsOpen(false)}
+          uiZoom={uiZoom}
+          onUiZoomChange={handleUiZoomChange}
+        />
+      )}
 
       {/* GitHub In-App Patch Downloader Modal */}
       {isPatchModalOpen && <PatchUpdateModal onClose={() => setIsPatchModalOpen(false)} />}

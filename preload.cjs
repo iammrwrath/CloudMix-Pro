@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
+  setZoomFactor: (factor) => ipcRenderer.invoke('set-zoom-factor', factor),
 
   // In-App Auto-Updater & GitHub Patching Engine
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),

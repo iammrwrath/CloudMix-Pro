@@ -7,6 +7,8 @@ import { youtubeMusicService } from '../services/YouTubeMusicService';
 
 interface SettingsModalProps {
   onClose: () => void;
+  uiZoom?: number;
+  onUiZoomChange?: (zoom: number) => void;
 }
 
 /** Small self-contained input for the Google OAuth Client ID */
@@ -43,13 +45,13 @@ const YtClientIdInput: React.FC = () => {
   );
 };
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: propUiZoom, onUiZoomChange }) => {
   const [activeTab, setActiveTab] = useState<'local' | 'gdrive' | 'youtube' | 'display'>('local');
   const [apiKey, setApiKey] = useState('');
   const [clientId, setClientId] = useState('');
   const [folderId, setFolderId] = useState('');
   const [localDrivePath, setLocalDrivePath] = useState('G:\\My Drive\\Music');
-  const [uiZoom, setUiZoom] = useState(1.0);
+  const [uiZoom, setUiZoom] = useState(propUiZoom || 1.0);
   const [saved, setSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
@@ -58,6 +60,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
 
+  // Sync prop changes if changed externally
+  useEffect(() => {
+    if (propUiZoom !== undefined) {
+      setUiZoom(propUiZoom);
+    }
+  }, [propUiZoom]);
+
+  const handleUpdateZoom = (newZoom: number) => {
+    setUiZoom(newZoom);
+    if (onUiZoomChange) {
+      onUiZoomChange(newZoom);
+    }
+  };
+
   // Load all persisted settings on mount
   useEffect(() => {
     const loadSettings = async () => {
@@ -65,9 +81,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       const savedPath = await storageCache.getSetting<string>('local_music_path', 'G:\\My Drive\\Music');
       setLocalDrivePath(savedPath);
 
-      // Load UI Zoom
-      const savedZoom = await storageCache.getSetting<number>('ui_zoom', 1.0);
-      if (savedZoom) setUiZoom(savedZoom);
+      // Load UI Zoom if not provided via props
+      if (propUiZoom === undefined) {
+        const savedZoom = await storageCache.getSetting<number>('ui_zoom', 1.0);
+        if (savedZoom) setUiZoom(savedZoom);
+      }
 
       // Load Google Drive config
       const gdConfig = googleDriveService.getConfig();
@@ -436,7 +454,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   </div>
                   <div className="flex items-center space-x-1.5 bg-slate-900 px-2 py-1 rounded-xl border border-slate-700">
                     <button
-                      onClick={() => setUiZoom((prev) => Math.max(0.8, Math.round((prev - 0.1) * 10) / 10))}
+                      onClick={() => handleUpdateZoom(Math.max(0.8, Math.round((uiZoom - 0.1) * 10) / 10))}
                       title="Zoom Out"
                       className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                     >
@@ -446,7 +464,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       {Math.round(uiZoom * 100)}%
                     </span>
                     <button
-                      onClick={() => setUiZoom((prev) => Math.min(1.5, Math.round((prev + 0.1) * 10) / 10))}
+                      onClick={() => handleUpdateZoom(Math.min(1.5, Math.round((uiZoom + 0.1) * 10) / 10))}
                       title="Zoom In"
                       className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                     >
@@ -465,7 +483,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   ].map((preset) => (
                     <button
                       key={preset.val}
-                      onClick={() => setUiZoom(preset.val)}
+                      onClick={() => handleUpdateZoom(preset.val)}
                       className={`py-3 px-3 rounded-xl border font-mono text-sm flex flex-col items-center justify-center transition-all cursor-pointer ${
                         Math.abs(uiZoom - preset.val) < 0.05
                           ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500 shadow-[0_0_14px_rgba(6,182,212,0.35)] font-black'
