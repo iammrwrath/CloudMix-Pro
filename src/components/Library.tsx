@@ -250,7 +250,13 @@ export const Library = React.memo<LibraryProps>(({
   const [contextMenuTrack, setContextMenuTrack] = useState<TrackMetadata | null>(null);
   const [ytPlaylists, setYtPlaylists] = useState<any[]>([]);
   const [selectedYtPlaylistId, setSelectedYtPlaylistId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(100);
   const [isLoadingYtPlaylists, setIsLoadingYtPlaylists] = useState(false);
+
+  // Reset windowing limit when search or crate changes for optimal performance
+  useEffect(() => {
+    setVisibleCount(100);
+  }, [searchQuery, selectedCrate, selectedPlaylistId]);
 
   useEffect(() => {
     loadLibraryData();
@@ -970,8 +976,18 @@ export const Library = React.memo<LibraryProps>(({
           </div>
         </div>
 
-        {/* Tracks Table */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Tracks Table (Virtualized / Windowed for High-Performance 6,000+ Collection Browsing) */}
+        <div
+          className="flex-1 overflow-y-auto"
+          onScroll={(e) => {
+            const target = e.currentTarget;
+            if (target.scrollTop + target.clientHeight >= target.scrollHeight - 300) {
+              if (visibleCount < filteredTracks.length) {
+                setVisibleCount((prev) => Math.min(filteredTracks.length, prev + 100));
+              }
+            }
+          }}
+        >
           <table className="w-full text-left border-collapse text-xs sm:text-[13px]">
             <thead className="sticky top-0 bg-dj-surface text-slate-300 font-mono text-[11px] font-black uppercase tracking-wider border-b border-dj-border z-10 shadow-sm">
               <tr>
@@ -989,7 +1005,7 @@ export const Library = React.memo<LibraryProps>(({
               </tr>
             </thead>
             <tbody className="divide-y divide-dj-border/50 font-sans">
-              {filteredTracks.map((track, idx) => (
+              {filteredTracks.slice(0, visibleCount).map((track, idx) => (
                 <TrackRow
                   key={track.id}
                   track={track}
@@ -1004,6 +1020,11 @@ export const Library = React.memo<LibraryProps>(({
               ))}
             </tbody>
           </table>
+          {visibleCount < filteredTracks.length && (
+            <div className="py-3 text-center text-xs font-mono text-slate-500">
+              Showing {visibleCount} of {filteredTracks.length} tracks — scroll for more
+            </div>
+          )}
         </div>
       </div>
 

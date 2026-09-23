@@ -1060,6 +1060,16 @@ class AudioEngine {
       deck.sourceNode.loopStart = startSec;
       deck.sourceNode.loopEnd = endSec;
     }
+    if (deck.stemVocalsSource) {
+      const stems = [deck.stemVocalsSource, deck.stemDrumsSource, deck.stemBassSource, deck.stemHarmonicsSource];
+      for (const s of stems) {
+        if (s) {
+          s.loop = true;
+          s.loopStart = startSec;
+          s.loopEnd = endSec;
+        }
+      }
+    }
   }
 
   public exitLoop(deckId: DeckId) {
@@ -1068,6 +1078,14 @@ class AudioEngine {
     deck.loopRegion = null;
     if (deck.sourceNode) {
       deck.sourceNode.loop = false;
+    }
+    if (deck.stemVocalsSource) {
+      const stems = [deck.stemVocalsSource, deck.stemDrumsSource, deck.stemBassSource, deck.stemHarmonicsSource];
+      for (const s of stems) {
+        if (s) {
+          s.loop = false;
+        }
+      }
     }
   }
 

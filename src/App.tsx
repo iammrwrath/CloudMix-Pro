@@ -421,7 +421,7 @@ export const App: React.FC = () => {
   }, [deckA, deckB]);
 
   // Load Track to Deck
-  const handleLoadTrack = async (deckId: DeckId, track: TrackMetadata) => {
+  const handleLoadTrack = useCallback(async (deckId: DeckId, track: TrackMetadata) => {
     try {
       // Decode audio (supports Google Drive, YouTube Music / AuraMusic, local audio, stream)
       let arrayBuffer: ArrayBuffer;
@@ -516,7 +516,7 @@ export const App: React.FC = () => {
         alert('Error loading track: ' + err);
       }
     }
-  };
+  }, []);
 
   // Play / Pause Toggle
   const handlePlayToggle = (deckId: DeckId) => {

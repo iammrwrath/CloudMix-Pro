@@ -24,6 +24,8 @@ export class BroadcastService {
     currentLyrics: null,
   };
 
+  private lastBroadcastSig: string = '';
+
   public update(stateUpdates: Partial<NowPlayingState>) {
     this.currentState = { ...this.currentState, ...stateUpdates };
     this.listeners.forEach((cb) => cb(this.currentState));
@@ -32,8 +34,13 @@ export class BroadcastService {
     if (typeof window !== 'undefined' && (window as any).desktopAPI) {
       const activeTrack = this.currentState.activeDeck === 'B' ? this.currentState.trackB : this.currentState.trackA;
       const isPlaying = this.currentState.activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
-      const elapsedSec = this.currentState.activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA;
+      const elapsedSec = Math.floor(this.currentState.activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA);
       if (activeTrack) {
+        // Debounce IPC calls so we don't bombard Electron with repetitive payload
+        const sig = `${activeTrack.id}-${this.currentState.activeDeck}-${isPlaying}-${elapsedSec}`;
+        if (sig === this.lastBroadcastSig) return;
+        this.lastBroadcastSig = sig;
+
         if ((window as any).desktopAPI.writeNowPlayingBroadcast) {
           (window as any).desktopAPI.writeNowPlayingBroadcast({
             title: activeTrack.title,
