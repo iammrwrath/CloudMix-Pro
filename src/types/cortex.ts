@@ -17,7 +17,7 @@ export interface CortexTrack {
   energyLevel: number; // 1 to 10
   fileUrl: string;
   filePath?: string;
-  fileSource: 'local' | 'csv' | 'drive' | 'stream' | 'djay_import' | 'youtube';
+  fileSource: 'local' | 'csv' | 'drive' | 'stream' | 'djay_import' | 'djay_pro' | 'youtube';
   coverArtUrl?: string;
   rating?: number;
 }

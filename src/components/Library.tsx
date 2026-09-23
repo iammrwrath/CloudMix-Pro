@@ -62,6 +62,166 @@ const DEFAULT_PLAYLIST_NAMES = [
   'Bonobo',
 ];
 
+// ── TrackRow: hoisted outside Library to ensure React.memo works ──────────────
+// (defining a memo'd component INSIDE another component creates a new type on every
+//  parent render, making memo useless and causing full re-mounts)
+interface TrackRowProps {
+  track: TrackMetadata;
+  idx: number;
+  isDownloading: boolean;
+  onLoadTrack: (deckId: DeckId, track: TrackMetadata) => void;
+  onDragStart: (e: React.DragEvent, track: TrackMetadata) => void;
+  onContextMenu: (e: React.MouseEvent, track: TrackMetadata) => void;
+  onAddToQueue: (track: TrackMetadata) => void;
+  currentMasterKey?: string;
+}
+
+const TrackRow = React.memo<TrackRowProps>(({
+  track,
+  idx,
+  onLoadTrack,
+  onDragStart,
+  onContextMenu,
+  onAddToQueue,
+  currentMasterKey,
+}) => {
+  const handleRowClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+      onLoadTrack('A', track);
+    }
+  };
+
+  return (
+    <tr
+      draggable
+      onDragStart={(e) => onDragStart(e, track)}
+      onContextMenu={(e) => onContextMenu(e, track)}
+      onClick={handleRowClick}
+      onDoubleClick={() => onLoadTrack('A', track)}
+      className="hover:bg-slate-800/80 transition-colors group cursor-pointer"
+    >
+      <td className="py-2.5 px-3 font-mono text-slate-400 font-bold text-xs">{idx + 1}</td>
+
+      {/* Artwork Thumbnail */}
+      <td className="py-1 px-2 w-12 text-center">
+        <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex items-center justify-center mx-auto shadow-sm">
+          {track.coverArtUrl ? (
+            <img src={track.coverArtUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
+              <Disc className="w-5 h-5 text-cyan-400/80" />
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Title */}
+      <td className="py-2.5 px-3 font-black text-white group-hover:text-cyan-300 text-xs sm:text-[13.5px] transition-colors">
+        <div className="flex items-center space-x-1.5">
+          <span className="truncate">{track.title}</span>
+        </div>
+      </td>
+
+      {/* Artist */}
+      <td className="py-2.5 px-3 text-slate-300 font-medium text-xs sm:text-[12.5px] truncate">{track.artist}</td>
+
+      {/* Genre */}
+      <td className="py-2.5 px-2.5 text-slate-400 text-xs truncate">
+        {track.genre || 'Music'}
+      </td>
+
+      {/* Duration */}
+      <td className="py-2.5 px-2.5 text-center font-mono text-slate-300 font-bold text-xs">
+        {Math.floor(track.duration / 60)}:
+        {Math.floor(track.duration % 60).toString().padStart(2, '0')}
+      </td>
+
+      {/* BPM */}
+      <td className="py-2.5 px-2.5 text-center font-mono font-black text-cyan-300 text-xs sm:text-[13px]">
+        {track.bpm.toFixed(1)}
+      </td>
+
+      {/* Camelot Key Badge & Harmonic Match */}
+      <td className="py-2.5 px-2.5 text-center">
+        <div className="flex items-center justify-center space-x-1">
+          <span className="font-mono text-xs font-black px-2 py-0.5 rounded-md bg-amber-950/90 text-amber-300 border border-amber-700/80 shadow-sm">
+            {track.camelotKey || track.key}
+          </span>
+          {(() => {
+            const k = (track.camelotKey || track.key || '').trim().toUpperCase();
+            const m = (currentMasterKey || '').trim().toUpperCase();
+            if (!m || !k) return null;
+            if (k === m) {
+              return (
+                <span
+                  title="Harmonic Perfect Match"
+                  className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
+                >
+                  MATCH
+                </span>
+              );
+            }
+            const matchK = k.match(/^(\d{1,2})([AB])$/);
+            const matchM = m.match(/^(\d{1,2})([AB])$/);
+            if (matchK && matchM) {
+              const nK = parseInt(matchK[1], 10);
+              const lK = matchK[2];
+              const nM = parseInt(matchM[1], 10);
+              const lM = matchM[2];
+              if (lK === lM && (nK === (nM % 12) + 1 || nK === ((nM - 2 + 12) % 12) + 1)) {
+                return (
+                  <span
+                    title="Harmonic Shift"
+                    className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
+                  >
+                    {nK > nM ? '+1 E' : '-1 E'}
+                  </span>
+                );
+              }
+            }
+            return null;
+          })()}
+        </div>
+      </td>
+
+      {/* Year */}
+      <td className="py-2.5 px-2 text-center font-mono text-slate-400 text-xs hidden md:table-cell">
+        {track.year || 2026}
+      </td>
+
+      {/* Date Added */}
+      <td className="py-2.5 px-2.5 text-center font-mono text-slate-400 text-xs hidden lg:table-cell">
+        {track.dateAdded ? track.dateAdded.substring(0, 10) : '6/15/26'}
+      </td>
+
+      {/* Actions: LOAD A, LOAD B, +Q */}
+      <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
+        <button
+          onClick={(e) => { e.stopPropagation(); onLoadTrack('A', track); }}
+          title="Load Track to Deck A"
+          className="px-2.5 py-1.5 rounded-md bg-cyan-950/90 border border-cyan-400/80 text-cyan-300 hover:bg-cyan-400 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,240,255,0.3)]"
+        >
+          LOAD A
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onLoadTrack('B', track); }}
+          title="Load Track to Deck B"
+          className="px-2.5 py-1.5 rounded-md bg-rose-950/90 border border-rose-400/80 text-rose-300 hover:bg-rose-500 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,46,136,0.3)]"
+        >
+          LOAD B
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAddToQueue(track); }}
+          title="Add to Automix Queue"
+          className="px-2 py-1.5 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+        >
+          +Q
+        </button>
+      </td>
+    </tr>
+  );
+});
+
 export const Library = React.memo<LibraryProps>(({
   onLoadTrack,
   onOpenDjayImport,
@@ -470,7 +630,11 @@ export const Library = React.memo<LibraryProps>(({
 
   const handleContextMenu = useCallback((e: React.MouseEvent, track: TrackMetadata) => {
     e.preventDefault();
-    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    const menuW = 200;
+    const menuH = 140;
+    const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+    const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+    setContextMenuPosition({ x, y });
     setContextMenuTrack(track);
     setContextMenuOpen(true);
   }, []);
@@ -487,175 +651,6 @@ export const Library = React.memo<LibraryProps>(({
     closeContextMenu();
   }, [contextMenuTrack, onLoadTrack, closeContextMenu]);
 
-  // Memoized Track Row Component for performance
-  const TrackRow = React.memo(({ 
-    track, 
-    idx, 
-    isDownloading, 
-    onLoadTrack, 
-    onDragStart, 
-    onContextMenu,
-    onAddToQueue,
-    currentMasterKey 
-  }: { 
-    track: TrackMetadata; 
-    idx: number; 
-    isDownloading: boolean; 
-    onLoadTrack: (deckId: DeckId, track: TrackMetadata) => void; 
-    onDragStart: (e: React.DragEvent, track: TrackMetadata) => void; 
-    onContextMenu: (e: React.MouseEvent, track: TrackMetadata) => void;
-    onAddToQueue: (track: TrackMetadata) => void;
-    currentMasterKey?: string;
-  }) => {
-    const handleRowClick = (e: React.MouseEvent) => {
-      // Only load if not clicking on buttons
-      if ((e.target as HTMLElement).tagName !== 'BUTTON') {
-        onLoadTrack('A', track);
-      }
-    };
-
-    return (
-      <tr
-        key={track.id}
-        draggable
-        onDragStart={(e) => onDragStart(e, track)}
-        onContextMenu={(e) => onContextMenu(e, track)}
-        onClick={handleRowClick}
-        onDoubleClick={() => onLoadTrack('A', track)}
-        className="hover:bg-slate-800/80 transition-colors group cursor-pointer"
-      >
-        <td className="py-2.5 px-3 font-mono text-slate-400 font-bold text-xs">{idx + 1}</td>
-
-        {/* Artwork Thumbnail */}
-        <td className="py-1 px-2 w-12 text-center">
-          <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex items-center justify-center mx-auto shadow-sm">
-            {track.coverArtUrl ? (
-              <img src={track.coverArtUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
-                <Disc className="w-5 h-5 text-cyan-400/80" />
-              </div>
-            )}
-          </div>
-        </td>
-
-        {/* Title */}
-        <td className="py-2.5 px-3 font-black text-white group-hover:text-cyan-300 text-xs sm:text-[13.5px] transition-colors">
-          <div className="flex items-center space-x-1.5">
-            <span className="truncate">{track.title}</span>
-          </div>
-        </td>
-
-        {/* Artist */}
-        <td className="py-2.5 px-3 text-slate-300 font-medium text-xs sm:text-[12.5px] truncate">{track.artist}</td>
-
-        {/* Genre */}
-        <td className="py-2.5 px-2.5 text-slate-400 text-xs truncate">
-          {track.genre || 'Music'}
-        </td>
-
-        {/* Duration */}
-        <td className="py-2.5 px-2.5 text-center font-mono text-slate-300 font-bold text-xs">
-          {Math.floor(track.duration / 60)}:
-          {Math.floor(track.duration % 60)
-            .toString()
-            .padStart(2, '0')}
-        </td>
-
-        {/* BPM */}
-        <td className="py-2.5 px-2.5 text-center font-mono font-black text-cyan-300 text-xs sm:text-[13px]">
-          {track.bpm.toFixed(1)}
-        </td>
-
-        {/* Camelot Key Badge & Harmonic Match */}
-        <td className="py-2.5 px-2.5 text-center">
-          <div className="flex items-center justify-center space-x-1">
-            <span className="font-mono text-xs font-black px-2 py-0.5 rounded-md bg-amber-950/90 text-amber-300 border border-amber-700/80 shadow-sm">
-              {track.camelotKey || track.key}
-            </span>
-            {(() => {
-              const k = (track.camelotKey || track.key || '').trim().toUpperCase();
-              const m = (currentMasterKey || '').trim().toUpperCase();
-              if (!m || !k) return null;
-              if (k === m) {
-                return (
-                  <span
-                    title="Harmonic Perfect Match"
-                    className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
-                  >
-                    MATCH
-                  </span>
-                );
-              }
-              const matchK = k.match(/^(\d{1,2})([AB])$/);
-              const matchM = m.match(/^(\d{1,2})([AB])$/);
-              if (matchK && matchM) {
-                const nK = parseInt(matchK[1], 10);
-                const lK = matchK[2];
-                const nM = parseInt(matchM[1], 10);
-                const lM = matchM[2];
-                if (lK === lM && (nK === (nM % 12) + 1 || nK === ((nM - 2 + 12) % 12) + 1)) {
-                  return (
-                    <span
-                      title="Harmonic Shift"
-                      className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
-                    >
-                      {nK > nM ? '+1 E' : '-1 E'}
-                    </span>
-                  );
-                }
-              }
-              return null;
-            })()}
-          </div>
-        </td>
-
-        {/* Year */}
-        <td className="py-2.5 px-2 text-center font-mono text-slate-400 text-xs hidden md:table-cell">
-          {track.year || 2026}
-        </td>
-
-        {/* Date Added */}
-        <td className="py-2.5 px-2.5 text-center font-mono text-slate-400 text-xs hidden lg:table-cell">
-          {track.dateAdded ? track.dateAdded.substring(0, 10) : '6/15/26'}
-        </td>
-
-        {/* Actions: LOAD A, LOAD B, +Q */}
-        <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onLoadTrack('A', track);
-            }}
-            title="Load Track to Deck A"
-            className="px-2.5 py-1.5 rounded-md bg-cyan-950/90 border border-cyan-400/80 text-cyan-300 hover:bg-cyan-400 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,240,255,0.3)]"
-          >
-            LOAD A
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onLoadTrack('B', track);
-            }}
-            title="Load Track to Deck B"
-            className="px-2.5 py-1.5 rounded-md bg-rose-950/90 border border-rose-400/80 text-rose-300 hover:bg-rose-500 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,46,136,0.3)]"
-          >
-            LOAD B
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToQueue(track);
-            }}
-            title="Add to Automix Queue"
-            className="px-2 py-1.5 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
-          >
-            +Q
-          </button>
-        </td>
-      </tr>
-    );
-  });
 
   // Filter Tracks (memoized to prevent expensive re-filtering 6,000+ tracks on re-renders)
   const filteredTracks = useMemo(() => {
@@ -926,11 +921,11 @@ export const Library = React.memo<LibraryProps>(({
           {/* Search, Import, & Fullscreen Expand Toggle */}
           <div className="flex items-center space-x-2">
             {/* Search Input */}
-            <form onSubmit={handleYouTubeSearch} className="relative w-64 xl:w-80">
+            <form onSubmit={(e) => { e.preventDefault(); if (selectedCrate === 'youtube') handleYouTubeSearch(); }} className="relative w-64 xl:w-80">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search My Collection (Title, Artist, Key, BPM)..."
+                placeholder={selectedCrate === 'youtube' ? 'Search YouTube Music... (press Enter)' : 'Search Collection (Title, Artist, Key, BPM)...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg pl-8 pr-3 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"

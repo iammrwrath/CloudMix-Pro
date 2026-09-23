@@ -427,6 +427,22 @@ export const App: React.FC = () => {
       let arrayBuffer: ArrayBuffer;
       if (track.fileSource === 'youtube') {
         arrayBuffer = await youtubeMusicService.loadAudioData(track);
+      } else if (
+        (track.fileSource === 'local' || track.fileSource === 'djay_pro') &&
+        track.fileUrl &&
+        (track.fileUrl.startsWith('file:///') || (track.fileUrl.includes(':\\') || track.fileUrl.includes(':/')))
+      ) {
+        // Local filesystem path — use Electron IPC to read binary, bypassing fetch CORS
+        const filePath = track.fileUrl.startsWith('file:///')
+          ? decodeURIComponent(track.fileUrl.replace(/^file:\/\/\//, '')).replace(/\//g, '\\')
+          : track.fileUrl;
+        const desktopAPI = (window as any).desktopAPI;
+        if (desktopAPI?.readLocalAudio) {
+          arrayBuffer = await desktopAPI.readLocalAudio(filePath);
+        } else {
+          // In browser dev mode — try blob URL approach
+          arrayBuffer = await googleDriveService.loadAudioData(track);
+        }
       } else {
         arrayBuffer = await googleDriveService.loadAudioData(track);
       }

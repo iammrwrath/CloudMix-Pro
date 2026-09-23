@@ -43,7 +43,7 @@ export interface TrackMetadata {
   key: string; // e.g. '8A', '11B' (Camelot) or 'Am'
   camelotKey?: string;
   fileUrl: string;
-  fileSource: 'drive' | 'local' | 'stream' | 'djay_import' | 'youtube' | 'csv';
+  fileSource: 'drive' | 'local' | 'stream' | 'djay_import' | 'djay_pro' | 'youtube' | 'csv';
   driveFileId?: string;
   sizeBytes?: number;
   coverArtUrl?: string;

@@ -133,21 +133,12 @@ export const Deck = React.memo<DeckProps>(({
           if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed && parsed.title && onLoadTrack) {
+              // Pass the full original track object (preserves hotCues, savedLoops, genre, rating etc.)
               onLoadTrack({
-                id: parsed.id,
-                title: parsed.title,
-                artist: parsed.artist,
-                album: parsed.album,
-                duration: parsed.duration || 180,
-                bpm: parsed.bpm || 124,
-                key: parsed.key || '8A',
-                camelotKey: parsed.camelotKey || '8A',
-                fileUrl: parsed.fileUrl,
-                fileSource: parsed.fileSource || 'local',
-                dateAdded: new Date().toLocaleDateString(),
-                hotCues: [],
-                savedLoops: [],
-                beatGrid: { bpm: parsed.bpm || 124, firstBeatOffset: 0, meter: 4 },
+                ...parsed,
+                hotCues: parsed.hotCues || [],
+                savedLoops: parsed.savedLoops || [],
+                beatGrid: parsed.beatGrid || { bpm: parsed.bpm || 124, firstBeatOffset: 0, meter: 4 },
               });
             }
           }
