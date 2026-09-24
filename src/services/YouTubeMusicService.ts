@@ -274,7 +274,7 @@ class YouTubeMusicService {
   ];
 
   /**
-   * Fetch the signed-in user's YouTube Music playlists, merged with curated DJ charts.
+   * Fetch saved and user YouTube playlists, merged with curated DJ charts.
    */
   public async getUserPlaylists(): Promise<YouTubePlaylist[]> {
     if (!this._accessToken) {
@@ -282,88 +282,167 @@ class YouTubeMusicService {
     }
 
     const curatedOnly = this.curatedPlaylists.map((c) => c.playlist);
+    const savedPlaylists: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
 
-    if (!this._accessToken) {
-      return curatedOnly;
+    let oauthPlaylists: YouTubePlaylist[] = [];
+    if (this._accessToken) {
+      try {
+        const res = await fetch(
+          'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
+          { headers: { Authorization: `Bearer ${this._accessToken}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          oauthPlaylists = (data.items || []).map((item: any) => ({
+            id: item.id,
+            title: `${item.snippet?.title || 'Untitled Playlist'} (My Playlist)`,
+            description: item.snippet?.description,
+            trackCount: item.contentDetails?.itemCount,
+            thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
+          }));
+        }
+      } catch (e) {
+        console.warn('[YouTube Music] Error fetching user playlists via OAuth:', e);
+      }
     }
+
+    // Merge: saved imported playlists first, then user's OAuth playlists, then curated
+    const all = [...savedPlaylists, ...oauthPlaylists, ...curatedOnly];
+    // De-duplicate by ID
+    const seen = new Set<string>();
+    return all.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }
+
+  /**
+   * Import any YouTube playlist by URL or ID (e.g. https://music.youtube.com/playlist?list=PL...)
+   */
+  public async importPlaylist(urlOrId: string): Promise<YouTubePlaylist | null> {
+    let playlistId = urlOrId.trim();
+    if (playlistId.includes('list=')) {
+      const match = playlistId.match(/list=([a-zA-Z0-9_-]+)/);
+      if (match) playlistId = match[1];
+    }
+
+    if (!playlistId) return null;
 
     try {
-      const res = await fetch(
-        'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
-        { headers: { Authorization: `Bearer ${this._accessToken}` } }
-      );
+      // Query local streaming server (Port 8088) with server-side YouTube Data API key
+      const res = await fetch(`http://127.0.0.1:8088/api/youtube/playlist?id=${encodeURIComponent(playlistId)}`);
       if (res.ok) {
         const data = await res.json();
-        const userPlaylists: YouTubePlaylist[] = (data.items || []).map((item: any) => ({
-          id: item.id,
-          title: `${item.snippet?.title || 'Untitled Playlist'} (My Playlist)`,
-          description: item.snippet?.description,
-          trackCount: item.contentDetails?.itemCount,
-          thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
-        }));
+        if (data.items && data.items.length > 0) {
+          const newPl: YouTubePlaylist = {
+            id: data.id || playlistId,
+            title: data.title || 'Imported Playlist',
+            trackCount: data.items.length,
+            thumbnailUrl: data.items[0]?.coverArtUrl || '',
+          };
 
-        return [...userPlaylists, ...curatedOnly];
+          // Cache tracks in storageCache for offline access
+          await storageCache.setSetting(`yt_pl_tracks_${newPl.id}`, data.items);
+
+          // Save to user saved playlists list
+          const existing: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
+          const updated = [newPl, ...existing.filter((p) => p.id !== newPl.id)];
+          await storageCache.setSetting('yt_user_saved_playlists', updated);
+
+          return newPl;
+        }
       }
-    } catch (e) {
-      console.warn('[YouTube Music] Error fetching user playlists:', e);
+    } catch (err) {
+      console.warn('[YouTube Music] Failed to import playlist via streaming server:', err);
     }
 
-    return curatedOnly;
+    return null;
+  }
+
+  /**
+   * Delete an imported playlist
+   */
+  public async removeImportedPlaylist(playlistId: string): Promise<void> {
+    const existing: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
+    const updated = existing.filter((p) => p.id !== playlistId);
+    await storageCache.setSetting('yt_user_saved_playlists', updated);
   }
 
   /**
    * Fetch tracks from a specific YouTube playlist.
    */
   public async getPlaylistTracks(playlistId: string): Promise<TrackMetadata[]> {
-    // Check curated playlists first
+    // 1. Check curated playlists first
     const curatedMatch = this.curatedPlaylists.find((c) => c.playlist.id === playlistId);
     if (curatedMatch) {
       return curatedMatch.tracks;
     }
 
+    // 2. Check cached tracks from imported playlist
+    const cachedTracks = await storageCache.getSetting<TrackMetadata[] | null>(`yt_pl_tracks_${playlistId}`, null);
+    if (cachedTracks && cachedTracks.length > 0) {
+      return cachedTracks;
+    }
+
+    // 3. Query local streaming server (Port 8088) with Data API key
+    try {
+      const res = await fetch(`http://127.0.0.1:8088/api/youtube/playlist?id=${encodeURIComponent(playlistId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          await storageCache.setSetting(`yt_pl_tracks_${playlistId}`, data.items);
+          return data.items;
+        }
+      }
+    } catch {}
+
+    // 4. Try OAuth if token present
     if (!this._accessToken) {
       this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
     }
-    if (!this._accessToken) return this.defaultFeaturedTracks;
-
-    try {
-      const res = await fetch(
-        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
-        { headers: { Authorization: `Bearer ${this._accessToken}` } }
-      );
-      if (!res.ok) return this.defaultFeaturedTracks;
-      const data = await res.json();
-      return (data.items || []).map((item: any) => {
-        const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
-        const title = item.snippet?.title || 'Unknown Title';
-        const thumbnailUrl = item.snippet?.thumbnails?.medium?.url;
-        let trackTitle = title;
-        let artist = 'YouTube Music';
-        if (title.includes(' - ')) {
-          const parts = title.split(' - ');
-          artist = parts[0].trim();
-          trackTitle = parts.slice(1).join(' - ').trim();
+    if (this._accessToken) {
+      try {
+        const res = await fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
+          { headers: { Authorization: `Bearer ${this._accessToken}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const tracks = (data.items || []).map((item: any) => {
+            const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
+            const title = item.snippet?.title || 'Unknown Title';
+            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url;
+            let trackTitle = title;
+            let artist = 'YouTube Music';
+            if (title.includes(' - ')) {
+              const parts = title.split(' - ');
+              artist = parts[0].trim();
+              trackTitle = parts.slice(1).join(' - ').trim();
+            }
+            return {
+              id: `yt_${videoId}`,
+              title: trackTitle,
+              artist,
+              duration: 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              fileSource: 'youtube' as const,
+              coverArtUrl: thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+            };
+          });
+          if (tracks.length > 0) return tracks;
         }
-        return {
-          id: `yt_${videoId}`,
-          title: trackTitle,
-          artist,
-          duration: 210,
-          bpm: 125.0,
-          key: '8A',
-          camelotKey: '8A',
-          fileUrl: `https://pipedproxy.kavin.rocks/audio?id=${videoId}`,
-          fileSource: 'youtube' as const,
-          coverArtUrl: thumbnailUrl,
-          dateAdded: new Date().toISOString(),
-          hotCues: [],
-          savedLoops: [],
-          beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
-        };
-      });
-    } catch {
-      return this.defaultFeaturedTracks;
+      } catch {}
     }
+
+    return this.defaultFeaturedTracks;
   }
 
   public getFeaturedTracks(): TrackMetadata[] {
@@ -411,7 +490,7 @@ class YouTubeMusicService {
                 bpm: 125.0,
                 key: '8A',
                 camelotKey: '8A',
-                fileUrl: `https://pipedproxy.kavin.rocks/audio?id=${videoId}`,
+                fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
                 fileSource: 'youtube' as const,
                 coverArtUrl: thumbnailUrl,
                 dateAdded: new Date().toISOString(),
@@ -444,7 +523,7 @@ class YouTubeMusicService {
             bpm: 125.0,
             key: '8A',
             camelotKey: '8A',
-            fileUrl: `https://pipedproxy.kavin.rocks/audio?id=${r.videoId}`,
+            fileUrl: `https://www.youtube.com/watch?v=${r.videoId}`,
             fileSource: 'youtube' as const,
             coverArtUrl: r.thumbnailUrl,
             dateAdded: new Date().toISOString(),

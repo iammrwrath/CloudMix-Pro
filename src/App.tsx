@@ -15,6 +15,7 @@ import { audioEngine } from './audio/AudioEngine';
 import { AudioAnalyzer } from './audio/AudioAnalyzer';
 import { googleDriveService } from './services/GoogleDriveService';
 import { youtubeMusicService } from './services/YouTubeMusicService';
+import { youtubeDeckBridge } from './services/YouTubeDeckBridge';
 import { cloudProgression } from './services/CloudProgressionService';
 import { midiControllerService } from './services/MidiControllerService';
 import { broadcastService } from './services/BroadcastService';
@@ -313,11 +314,20 @@ export const App: React.FC = () => {
       if (now - lastUiTick >= 33.3) {
         lastUiTick = now;
 
-        const timeA = audioEngine.getCurrentTime('A');
-        const timeB = audioEngine.getCurrentTime('B');
-        const meterA = audioEngine.getDeckLevel('A');
-        const meterB = audioEngine.getDeckLevel('B');
-        const masterMeter = audioEngine.getMasterLevel();
+        let timeA = audioEngine.getCurrentTime('A');
+        let timeB = audioEngine.getCurrentTime('B');
+
+        // Check if Deck A or Deck B is powered by YouTubeDeckBridge
+        if (youtubeDeckBridge.isYouTubeDeck('A')) {
+          timeA = youtubeDeckBridge.getCurrentTime('A');
+        }
+        if (youtubeDeckBridge.isYouTubeDeck('B')) {
+          timeB = youtubeDeckBridge.getCurrentTime('B');
+        }
+
+        const meterA = youtubeDeckBridge.isYouTubeDeck('A') && youtubeDeckBridge.isTrackPlaying('A') ? 0.75 : audioEngine.getDeckLevel('A');
+        const meterB = youtubeDeckBridge.isYouTubeDeck('B') && youtubeDeckBridge.isTrackPlaying('B') ? 0.75 : audioEngine.getDeckLevel('B');
+        const masterMeter = Math.max(meterA, meterB, audioEngine.getMasterLevel());
 
         setDeckA((prev) => {
           if (prev.currentTime === timeA && prev.meterLevelL === meterA) return prev;
@@ -352,8 +362,8 @@ export const App: React.FC = () => {
       // Throttle OBS/StreamerBot broadcast updates to 4 Hz (every 250ms)
       if (now - lastBroadcastTick >= 250) {
         lastBroadcastTick = now;
-        const timeA = audioEngine.getCurrentTime('A');
-        const timeB = audioEngine.getCurrentTime('B');
+        const timeA = youtubeDeckBridge.isYouTubeDeck('A') ? youtubeDeckBridge.getCurrentTime('A') : audioEngine.getCurrentTime('A');
+        const timeB = youtubeDeckBridge.isYouTubeDeck('B') ? youtubeDeckBridge.getCurrentTime('B') : audioEngine.getCurrentTime('B');
         broadcastService.update({
           elapsedSecA: timeA,
           elapsedSecB: timeB,
@@ -504,11 +514,63 @@ export const App: React.FC = () => {
   // Load Track to Deck
   const handleLoadTrack = useCallback(async (deckId: DeckId, track: TrackMetadata) => {
     try {
-      // Decode audio (supports Google Drive, YouTube Music / AuraMusic, local audio, stream)
-      let arrayBuffer: ArrayBuffer;
+      // 1. YouTube Music direct bridge integration: real audio via native YouTube player
       if (track.fileSource === 'youtube') {
-        arrayBuffer = await youtubeMusicService.loadAudioData(track);
-      } else if (
+        let vidId = '';
+        if (track.id.startsWith('yt_')) {
+          vidId = track.id.replace(/^yt_/, '');
+        } else if (track.fileUrl && track.fileUrl.includes('v=')) {
+          const match = track.fileUrl.match(/v=([a-zA-Z0-9_-]{11})/);
+          if (match) vidId = match[1];
+        }
+
+        if (vidId) {
+          // Pause AudioEngine source so no local audio conflicts
+          audioEngine.pauseDeck(deckId);
+
+          const duration = await youtubeDeckBridge.loadVideo(deckId, vidId);
+          track.duration = duration || track.duration || 210;
+
+          // Generate silent visual waveform buffer for deck rendering
+          const silentBuffer = audioEngine.generateSilentWaveformBuffer(track.duration, track.bpm || 125);
+          const wf = AudioAnalyzer.extractWaveformData(silentBuffer);
+          audioEngine.loadTrackToDeck(deckId, silentBuffer);
+
+          // Update volume multiplier on YouTube player based on current faders
+          const currentVol = deckId === 'A' ? deckA.volume : deckB.volume;
+          youtubeDeckBridge.setVolume(deckId, currentVol);
+
+          if (deckId === 'A') {
+            setWaveformDataA(wf);
+            setDeckA((prev) => ({
+              ...prev,
+              track,
+              currentTime: 0,
+              duration: track.duration,
+              isPlaying: false,
+              playbackRate: 1.0,
+            }));
+            broadcastService.update({ trackA: track, isPlayingA: false });
+          } else {
+            setWaveformDataB(wf);
+            setDeckB((prev) => ({
+              ...prev,
+              track,
+              currentTime: 0,
+              duration: track.duration,
+              isPlaying: false,
+              playbackRate: 1.0,
+            }));
+            broadcastService.update({ trackB: track, isPlayingB: false });
+          }
+          return;
+        }
+      }
+
+      // Decode audio (supports Google Drive, local audio, stream)
+      youtubeDeckBridge.clearDeck(deckId);
+      let arrayBuffer: ArrayBuffer;
+      if (
         (track.fileSource === 'local' || track.fileSource === 'djay_pro') &&
         track.fileUrl &&
         (track.fileUrl.startsWith('file:///') || (track.fileUrl.includes(':\\') || track.fileUrl.includes(':/')))
@@ -597,11 +659,33 @@ export const App: React.FC = () => {
         alert('Error loading track: ' + err);
       }
     }
-  }, []);
+  }, [deckA.volume, deckB.volume]);
+
+  // Seek Deck
+  const handleSeek = (deckId: DeckId, sec: number) => {
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.seek(deckId, sec);
+    }
+    audioEngine.seekDeck(deckId, sec);
+    if (deckId === 'A') setDeckA((prev) => ({ ...prev, currentTime: sec }));
+    else setDeckB((prev) => ({ ...prev, currentTime: sec }));
+  };
 
   // Play / Pause Toggle
   const handlePlayToggle = (deckId: DeckId) => {
-    const isPlaying = audioEngine.togglePlayPause(deckId);
+    let isPlaying: boolean;
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      if (youtubeDeckBridge.isTrackPlaying(deckId)) {
+        youtubeDeckBridge.pause(deckId);
+        isPlaying = false;
+      } else {
+        youtubeDeckBridge.play(deckId);
+        isPlaying = true;
+      }
+    } else {
+      isPlaying = audioEngine.togglePlayPause(deckId);
+    }
+
     if (deckId === 'A') {
       setDeckA((prev) => ({ ...prev, isPlaying }));
       broadcastService.update({ isPlayingA: isPlaying, activeDeck: 'A' });
@@ -633,11 +717,19 @@ export const App: React.FC = () => {
   const handleCueClick = (deckId: DeckId) => {
     const deck = deckId === 'A' ? deckA : deckB;
     if (deck.isPlaying) {
+      if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+        youtubeDeckBridge.pause(deckId);
+        youtubeDeckBridge.seek(deckId, 0);
+      }
       audioEngine.pauseDeck(deckId);
       audioEngine.seekDeck(deckId, 0);
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: false, currentTime: 0 }));
       else setDeckB((prev) => ({ ...prev, isPlaying: false, currentTime: 0 }));
     } else {
+      if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+        youtubeDeckBridge.seek(deckId, 0);
+        youtubeDeckBridge.play(deckId);
+      }
       audioEngine.playDeck(deckId, 0);
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: true }));
       else setDeckB((prev) => ({ ...prev, isPlaying: true }));
@@ -653,6 +745,9 @@ export const App: React.FC = () => {
     const thisTrackBpm = (deckId === 'A' ? deckA.track : deckB.track)?.bpm || 120;
     const newRate = targetBpm / thisTrackBpm;
 
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.setPlaybackRate(deckId, newRate);
+    }
     audioEngine.setPlaybackRate(deckId, newRate);
     if (deckId === 'A') {
       setDeckA((prev) => ({ ...prev, playbackRate: newRate, isSync: true }));
@@ -663,6 +758,9 @@ export const App: React.FC = () => {
 
   // Pitch Rate Change
   const handleRateChange = (deckId: DeckId, rate: number) => {
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.setPlaybackRate(deckId, rate);
+    }
     audioEngine.setPlaybackRate(deckId, rate);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, playbackRate: rate }));
     else setDeckB((prev) => ({ ...prev, playbackRate: rate }));
@@ -808,6 +906,17 @@ export const App: React.FC = () => {
 
   const handleFaderChange = (deckId: 'A' | 'B', val: number) => {
     audioEngine.setChannelVolume(deckId, val);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      // Calculate crossfader multiplier
+      const xf = mixer.crossfader; // -1 (Deck A) to +1 (Deck B)
+      let xfMult = 1.0;
+      if (deckId === 'A') {
+        xfMult = xf <= 0 ? 1.0 : Math.max(0, 1.0 - xf);
+      } else {
+        xfMult = xf >= 0 ? 1.0 : Math.max(0, 1.0 + xf);
+      }
+      youtubeDeckBridge.setVolume(deckId, val * xfMult * mixer.masterVolume);
+    }
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, volume: val }));
     else setDeckB((prev) => ({ ...prev, volume: val }));
   };
@@ -815,6 +924,16 @@ export const App: React.FC = () => {
   const handleCrossfaderChange = (val: number) => {
     audioEngine.setCrossfader(val, mixer.crossfaderCurve);
     setMixer((prev) => ({ ...prev, crossfader: val }));
+
+    // Update YouTube decks volume with crossfader blend
+    if (youtubeDeckBridge.isYouTubeDeck('A')) {
+      const xfA = val <= 0 ? 1.0 : Math.max(0, 1.0 - val);
+      youtubeDeckBridge.setVolume('A', deckA.volume * xfA * mixer.masterVolume);
+    }
+    if (youtubeDeckBridge.isYouTubeDeck('B')) {
+      const xfB = val >= 0 ? 1.0 : Math.max(0, 1.0 + val);
+      youtubeDeckBridge.setVolume('B', deckB.volume * xfB * mixer.masterVolume);
+    }
   };
 
   const handleCrossfaderCurveChange = (curve: 'smooth' | 'linear' | 'scratch') => {
@@ -1118,7 +1237,7 @@ export const App: React.FC = () => {
           onRateChange={handleRateChange}
           onSetAutoLoop={handleSetAutoLoop}
           onExitLoop={handleExitLoop}
-          onSeek={(d, sec) => audioEngine.seekDeck(d, sec)}
+          onSeek={(d, sec) => handleSeek(d, sec)}
           onCrossfaderChange={handleCrossfaderChange}
           onToggleExpandedLibrary={() => setDrawerMode('split')}
           onLoadTrack={(deckId, track) => handleLoadTrack(deckId, track)}
@@ -1176,7 +1295,7 @@ export const App: React.FC = () => {
               onPlayToggle={() => handlePlayToggle('A')}
               onCueClick={() => handleCueClick('A')}
               onSyncClick={() => handleSyncClick('A')}
-              onSeek={(sec) => audioEngine.seekDeck('A', sec)}
+              onSeek={(sec) => handleSeek('A', sec)}
               onRateChange={(rate) => handleRateChange('A', rate)}
               onKeyLockToggle={() => setDeckA((p) => ({ ...p, keyLock: !p.keyLock }))}
               onNudge={(f) => handleNudge('A', f)}
@@ -1238,7 +1357,7 @@ export const App: React.FC = () => {
               onPlayToggle={() => handlePlayToggle('B')}
               onCueClick={() => handleCueClick('B')}
               onSyncClick={() => handleSyncClick('B')}
-              onSeek={(sec) => audioEngine.seekDeck('B', sec)}
+              onSeek={(sec) => handleSeek('B', sec)}
               onRateChange={(rate) => handleRateChange('B', rate)}
               onKeyLockToggle={() => setDeckB((p) => ({ ...p, keyLock: !p.keyLock }))}
               onNudge={(f) => handleNudge('B', f)}

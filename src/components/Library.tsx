@@ -249,6 +249,8 @@ export const Library = React.memo<LibraryProps>(({
   const [selectedYtPlaylistId, setSelectedYtPlaylistId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(100);
   const [isLoadingYtPlaylists, setIsLoadingYtPlaylists] = useState(false);
+  const [isImportingYtPlaylist, setIsImportingYtPlaylist] = useState(false);
+  const [ytImportUrl, setYtImportUrl] = useState('');
 
   // Reset windowing limit when search or crate changes for optimal performance
   useEffect(() => {
@@ -296,6 +298,26 @@ export const Library = React.memo<LibraryProps>(({
       setYtPlaylists(playlists);
     } catch (err) {
       console.error('Failed to load YouTube Music playlists:', err);
+    } finally {
+      setIsLoadingYtPlaylists(false);
+    }
+  };
+
+  const handleImportYtPlaylist = async () => {
+    if (!ytImportUrl.trim()) return;
+    setIsLoadingYtPlaylists(true);
+    try {
+      const imported = await youtubeMusicService.importPlaylist(ytImportUrl.trim());
+      if (imported) {
+        setYtPlaylists((prev) => [imported, ...prev.filter((p) => p.id !== imported.id)]);
+        setYtImportUrl('');
+        setIsImportingYtPlaylist(false);
+        handleLoadYtPlaylistTracks(imported.id);
+      } else {
+        alert('Could not import playlist. Please check the URL or Playlist ID and try again.');
+      }
+    } catch (e) {
+      alert('Error importing playlist: ' + e);
     } finally {
       setIsLoadingYtPlaylists(false);
     }
@@ -792,7 +814,51 @@ export const Library = React.memo<LibraryProps>(({
 
               {/* YouTube Music Playlists Section */}
               {selectedCrate === 'youtube' && (
-                <div className="ml-2 mt-1 space-y-0.5 max-h-48 overflow-y-auto pr-1">
+                <div className="ml-2 mt-1 space-y-1 max-h-56 overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">Playlists</span>
+                    <button
+                      onClick={() => setIsImportingYtPlaylist((prev) => !prev)}
+                      title="Import YouTube Playlist by URL or ID"
+                      className="p-1 rounded hover:bg-rose-900/40 text-rose-400 hover:text-white transition-colors cursor-pointer text-[10px] flex items-center space-x-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span className="text-[9px] font-bold">Import</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Playlist Import Input */}
+                  {isImportingYtPlaylist && (
+                    <div className="p-1.5 rounded bg-rose-950/70 border border-rose-600/50 space-y-1 text-left">
+                      <span className="text-[9px] font-mono text-rose-300 block">Paste Playlist URL / ID:</span>
+                      <input
+                        type="text"
+                        placeholder="https://...playlist?list=PL..."
+                        value={ytImportUrl}
+                        onChange={(e) => setYtImportUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleImportYtPlaylist();
+                        }}
+                        className="w-full bg-slate-950 border border-rose-500/50 rounded px-1.5 py-0.5 text-[10px] text-white placeholder-slate-500 focus:outline-none focus:border-rose-400"
+                        autoFocus
+                      />
+                      <div className="flex justify-end space-x-1 pt-0.5">
+                        <button
+                          onClick={() => setIsImportingYtPlaylist(false)}
+                          className="px-1.5 py-0.5 text-[9px] text-slate-400 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleImportYtPlaylist}
+                          className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-[9px] shadow-sm"
+                        >
+                          Load
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => {
                       setSelectedYtPlaylistId(null);

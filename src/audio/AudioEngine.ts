@@ -1500,6 +1500,37 @@ class AudioEngine {
   }
 
   /**
+   * Generates a silent audio buffer with realistic visual waveform peaks for streaming bridges (e.g. YouTube IFrame player)
+   * Prevents loud synthetic grooves from playing through the master speakers while keeping deck waveforms responsive.
+   */
+  public generateSilentWaveformBuffer(durationSec: number = 210, bpm: number = 125): AudioBuffer {
+    this.init();
+    if (!this.ctx) throw new Error('AudioContext not ready');
+    const sampleRate = 22050; // low sample rate is plenty for waveform display, saves memory
+    const totalSamples = Math.floor(Math.max(10, durationSec) * sampleRate);
+    const buffer = this.ctx.createBuffer(2, totalSamples, sampleRate);
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+
+    const secondsPerBeat = 60.0 / Math.max(60, bpm || 125);
+    const totalBeats = Math.floor(durationSec / secondsPerBeat);
+
+    // Populate waveform with low-level visual dynamic peaks so the display shows genuine beat grid markers
+    for (let b = 0; b < totalBeats; b++) {
+      const beatStartSample = Math.floor(b * secondsPerBeat * sampleRate);
+      const isBar = b % 4 === 0;
+      const peakAmp = isBar ? 0.00005 : 0.00002; // Virtually silent (-90dB), strictly for visual waveform rendering
+      const beatLen = Math.min(Math.floor(0.1 * sampleRate), totalSamples - beatStartSample);
+      for (let i = 0; i < beatLen; i++) {
+        const env = 1.0 - i / beatLen;
+        left[beatStartSample + i] = peakAmp * env;
+        right[beatStartSample + i] = peakAmp * env;
+      }
+    }
+    return buffer;
+  }
+
+  /**
    * Generates a 32-bar, 126 BPM synthesized club groove buffer.
    * Failsafe fallback if cloud or network stream fails to load offline.
    */

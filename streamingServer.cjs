@@ -134,6 +134,72 @@ function fallbackScrapeSearch(query) {
       });
     }).on('error', () => resolve([]));
   });
+function fetchYouTubePlaylist(playlistId) {
+  if (!playlistId || !playlistId.trim()) return Promise.resolve({ title: 'YouTube Playlist', items: [] });
+  const cleanId = playlistId.trim();
+
+  const apiUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(cleanId)}&maxResults=50&key=${YOUTUBE_API_KEY}`;
+  const metaUrl = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${encodeURIComponent(cleanId)}&key=${YOUTUBE_API_KEY}`;
+
+  return new Promise((resolve) => {
+    https.get(apiUrl, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          const items = (parsed.items || []).map(item => {
+            const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
+            const rawTitle = item.snippet?.title || 'Unknown Title';
+            let title = rawTitle;
+            let artist = item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist';
+            if (rawTitle.includes(' - ')) {
+              const parts = rawTitle.split(' - ');
+              artist = parts[0].trim();
+              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+            }
+            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            return {
+              id: `yt_${videoId}`,
+              videoId,
+              title,
+              artist,
+              duration: 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              fileSource: 'youtube',
+              coverArtUrl: thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 }
+            };
+          }).filter(t => t.videoId && t.title !== 'Private video' && t.title !== 'Deleted video');
+
+          // Fetch title
+          https.get(metaUrl, (mRes) => {
+            let mData = '';
+            mRes.on('data', c => mData += c);
+            mRes.on('end', () => {
+              let plTitle = 'YouTube Playlist';
+              try {
+                const mJson = JSON.parse(mData);
+                if (mJson.items && mJson.items[0]?.snippet?.title) {
+                  plTitle = mJson.items[0].snippet.title;
+                }
+              } catch {}
+              resolve({ id: cleanId, title: plTitle, items });
+            });
+          }).on('error', () => resolve({ id: cleanId, title: 'YouTube Playlist', items }));
+
+        } catch (e) {
+          resolve({ id: cleanId, title: 'YouTube Playlist', items: [] });
+        }
+      });
+    }).on('error', () => resolve({ id: cleanId, title: 'YouTube Playlist', items: [] }));
+  });
 }
 
 /**
@@ -903,6 +969,22 @@ function startStreamingServer(port = 8088, callbacks = {}) {
       }).catch((err) => {
         res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ results: [], error: err.message }));
+      });
+      return;
+    }
+
+    // 2c. REST YouTube Playlist Items API (Port 8088)
+    if (pathname === '/api/youtube/playlist') {
+      const playlistId = parsedUrl.searchParams.get('id') || '';
+      fetchYouTubePlaylist(playlistId).then((data) => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify(data));
+      }).catch((err) => {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ id: playlistId, title: 'Error', items: [], error: err.message }));
       });
       return;
     }
