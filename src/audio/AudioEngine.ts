@@ -73,6 +73,13 @@ class AudioEngine {
   private masterAnalyser: AnalyserNode | null = null;
   private masterAnalyserData: Uint8Array = new Uint8Array(32);
   private headphoneGain: GainNode | null = null;
+  private masterDestinationNode: AudioNode | null = null;
+  private headphoneDestinationNode: AudioNode | null = null;
+  private masterAudioElement: HTMLAudioElement | null = null;
+  private headphoneAudioElement: HTMLAudioElement | null = null;
+  private masterDeviceId: string = 'default';
+  private headphoneDeviceId: string = 'default';
+  private bufferSizeOption: AudioContextLatencyCategory = 'interactive';
 
   private decks: Map<DeckId, DeckAudioNodes> = new Map();
   private crossfaderVal: number = 0.0; // -1.0 (A) to +1.0 (B)
@@ -86,7 +93,7 @@ class AudioEngine {
   public init() {
     if (this.ctx) return;
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    this.ctx = new AudioCtx({ latencyHint: 'interactive' });
+    this.ctx = new AudioCtx({ latencyHint: this.bufferSizeOption });
 
     // Master bus & Limiter
     this.masterGain = this.ctx.createGain();
@@ -105,12 +112,9 @@ class AudioEngine {
 
     this.headphoneGain = this.ctx.createGain();
     this.headphoneGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
-    this.headphoneGain.connect(this.ctx.destination);
 
-    // Wire master chain
-    this.masterGain.connect(this.masterLimiter);
-    this.masterLimiter.connect(this.masterAnalyser);
-    this.masterAnalyser.connect(this.ctx.destination);
+    // Setup output routing for master & headphones
+    this.setupOutputRouting();
 
     // Initialize Mix Recorder & Sampler Engine on master bus
     mixRecorder.init(this.ctx, this.masterLimiter);
@@ -1043,6 +1047,151 @@ class AudioEngine {
     this.masterGain.gain.setTargetAtTime(Math.max(0, Math.min(vol, 1.0)), this.ctx.currentTime, 0.01);
   }
 
+  public setHeadphoneVolume(vol: number) {
+    if (!this.headphoneGain || !this.ctx) return;
+    this.headphoneGain.gain.setTargetAtTime(Math.max(0, Math.min(vol, 1.0)), this.ctx.currentTime, 0.01);
+  }
+
+  public setCueActive(deckId: DeckId, active: boolean) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    const targetGain = active ? 1.0 : 0.0;
+    deck.cueGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.01);
+  }
+
+  /**
+   * Sets up output routing for Master bus and Headphone Cue bus.
+   * Supports modern setSinkId on AudioContext/HTMLAudioElement to route audio
+   * independently to USB DJ Controllers, external audio interfaces, or separate headphone jacks.
+   */
+  private setupOutputRouting() {
+    if (!this.ctx || !this.masterGain || !this.masterLimiter || !this.masterAnalyser || !this.headphoneGain) return;
+
+    // Disconnect any existing master/headphone destinations
+    try {
+      this.masterGain.disconnect();
+      this.masterLimiter.disconnect();
+      this.masterAnalyser.disconnect();
+      this.headphoneGain.disconnect();
+    } catch {}
+
+    // Master chain: masterGain -> masterLimiter -> masterAnalyser
+    this.masterGain.connect(this.masterLimiter);
+    this.masterLimiter.connect(this.masterAnalyser);
+
+    const hasSetSinkId = typeof (AudioContext.prototype as any).setSinkId === 'function' ||
+                         typeof (this.ctx as any).setSinkId === 'function';
+
+    if (hasSetSinkId && this.masterDeviceId === this.headphoneDeviceId) {
+      // Single device or default: route both to ctx.destination
+      this.masterAnalyser.connect(this.ctx.destination);
+      this.headphoneGain.connect(this.ctx.destination);
+      try {
+        if ((this.ctx as any).setSinkId) {
+          (this.ctx as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId);
+        }
+      } catch (err) {
+        console.warn('[AUDIO ROUTING] setSinkId on AudioContext failed:', err);
+      }
+    } else {
+      // Independent routing via MediaStreamAudioDestinationNode + HTMLAudioElement
+      // Master output element
+      try {
+        const masterDest = this.ctx.createMediaStreamDestination();
+        this.masterAnalyser.connect(masterDest);
+        if (!this.masterAudioElement) {
+          this.masterAudioElement = new Audio();
+          this.masterAudioElement.autoplay = true;
+        }
+        this.masterAudioElement.srcObject = masterDest.stream;
+        if (typeof (this.masterAudioElement as any).setSinkId === 'function') {
+          (this.masterAudioElement as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId)
+            .catch((e: any) => console.warn('[AUDIO ROUTING] Master setSinkId error:', e));
+        }
+        this.masterAudioElement.play().catch(() => {});
+      } catch (err) {
+        console.warn('[AUDIO ROUTING] Master MediaStream fallback to ctx.destination:', err);
+        this.masterAnalyser.connect(this.ctx.destination);
+      }
+
+      // Headphone output element
+      try {
+        const hpDest = this.ctx.createMediaStreamDestination();
+        this.headphoneGain.connect(hpDest);
+        if (!this.headphoneAudioElement) {
+          this.headphoneAudioElement = new Audio();
+          this.headphoneAudioElement.autoplay = true;
+        }
+        this.headphoneAudioElement.srcObject = hpDest.stream;
+        if (typeof (this.headphoneAudioElement as any).setSinkId === 'function') {
+          (this.headphoneAudioElement as any).setSinkId(this.headphoneDeviceId === 'default' ? '' : this.headphoneDeviceId)
+            .catch((e: any) => console.warn('[AUDIO ROUTING] Headphone setSinkId error:', e));
+        }
+        this.headphoneAudioElement.play().catch(() => {});
+      } catch (err) {
+        console.warn('[AUDIO ROUTING] Headphone MediaStream fallback to ctx.destination:', err);
+        this.headphoneGain.connect(this.ctx.destination);
+      }
+    }
+  }
+
+  public async setMasterOutputDevice(deviceId: string): Promise<boolean> {
+    this.masterDeviceId = deviceId || 'default';
+    if (!this.ctx) return true;
+
+    try {
+      if (this.masterAudioElement && typeof (this.masterAudioElement as any).setSinkId === 'function') {
+        await (this.masterAudioElement as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId);
+      } else if (typeof (this.ctx as any).setSinkId === 'function') {
+        await (this.ctx as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId);
+      } else {
+        this.setupOutputRouting();
+      }
+      return true;
+    } catch (err) {
+      console.error('[AUDIO ROUTING] Failed to set master output device:', err);
+      return false;
+    }
+  }
+
+  public async setHeadphoneOutputDevice(deviceId: string): Promise<boolean> {
+    this.headphoneDeviceId = deviceId || 'default';
+    if (!this.ctx) return true;
+
+    try {
+      if (this.headphoneAudioElement && typeof (this.headphoneAudioElement as any).setSinkId === 'function') {
+        await (this.headphoneAudioElement as any).setSinkId(this.headphoneDeviceId === 'default' ? '' : this.headphoneDeviceId);
+      } else {
+        this.setupOutputRouting();
+      }
+      return true;
+    } catch (err) {
+      console.error('[AUDIO ROUTING] Failed to set headphone output device:', err);
+      return false;
+    }
+  }
+
+  public getMasterDeviceId(): string {
+    return this.masterDeviceId;
+  }
+
+  public getHeadphoneDeviceId(): string {
+    return this.headphoneDeviceId;
+  }
+
+  public async getAvailableAudioDevices(): Promise<MediaDeviceInfo[]> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      return [];
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return devices.filter(d => d.kind === 'audiooutput');
+    } catch (err) {
+      console.warn('[AUDIO ROUTING] enumerateDevices error:', err);
+      return [];
+    }
+  }
+
   // Hot Cues & Loops
   public triggerHotCue(deckId: DeckId, cue: HotCue, autoPlay: boolean = true) {
     this.seekDeck(deckId, cue.position);
@@ -1273,6 +1422,22 @@ class AudioEngine {
 
   public getMasterNode(): GainNode | null {
     return this.masterGain;
+  }
+
+  public getLatencyHint(): AudioContextLatencyCategory {
+    return this.bufferSizeOption;
+  }
+
+  public async setLatencyHint(hint: AudioContextLatencyCategory): Promise<void> {
+    this.bufferSizeOption = hint;
+  }
+
+  public getSampleRate(): number {
+    return this.ctx ? this.ctx.sampleRate : 48000;
+  }
+
+  public getBaseLatency(): number {
+    return this.ctx && (this.ctx as any).baseLatency ? (this.ctx as any).baseLatency * 1000 : 5.8;
   }
 }
 

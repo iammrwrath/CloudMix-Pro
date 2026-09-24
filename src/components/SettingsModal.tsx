@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut } from 'lucide-react';
+import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
 import { youtubeMusicService } from '../services/YouTubeMusicService';
+import { audioEngine } from '../audio/AudioEngine';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -46,7 +47,7 @@ const YtClientIdInput: React.FC = () => {
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: propUiZoom, onUiZoomChange }) => {
-  const [activeTab, setActiveTab] = useState<'local' | 'gdrive' | 'youtube' | 'display'>('local');
+  const [activeTab, setActiveTab] = useState<'local' | 'audio' | 'gdrive' | 'youtube' | 'display'>('local');
   const [apiKey, setApiKey] = useState('');
   const [clientId, setClientId] = useState('');
   const [folderId, setFolderId] = useState('');
@@ -59,6 +60,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
+
+  // Audio Device Routing State
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [masterDeviceId, setMasterDeviceId] = useState<string>('default');
+  const [headphoneDeviceId, setHeadphoneDeviceId] = useState<string>('default');
+  const [latencyHint, setLatencyHint] = useState<'interactive' | 'balanced' | 'playback'>('interactive');
+  const [audioTesting, setAudioTesting] = useState<'master' | 'headphone' | null>(null);
 
   // Sync prop changes if changed externally
   useEffect(() => {
@@ -77,6 +85,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   // Load all persisted settings on mount
   useEffect(() => {
     const loadSettings = async () => {
+      // Load audio output devices
+      try {
+        const devices = await audioEngine.getAvailableAudioDevices();
+        setAudioDevices(devices);
+      } catch {}
+
+      const savedMasterDevice = await storageCache.getSetting<string>('audio_master_device_id', audioEngine.getMasterDeviceId() || 'default');
+      const savedHeadphoneDevice = await storageCache.getSetting<string>('audio_headphone_device_id', audioEngine.getHeadphoneDeviceId() || 'default');
+      const savedLatency = await storageCache.getSetting<'interactive' | 'balanced' | 'playback'>('audio_latency_hint', 'interactive');
+      setMasterDeviceId(savedMasterDevice);
+      setHeadphoneDeviceId(savedHeadphoneDevice);
+      setLatencyHint(savedLatency);
+
       // Load local path
       const savedPath = await storageCache.getSetting<string>('local_music_path', 'G:\\My Drive\\Music');
       setLocalDrivePath(savedPath);
@@ -114,9 +135,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
     // 3. Persist UI Zoom
     await storageCache.setSetting('ui_zoom', uiZoom);
 
+    // 4. Persist and Apply Audio Output Devices & Latency
+    await storageCache.setSetting('audio_master_device_id', masterDeviceId);
+    await storageCache.setSetting('audio_headphone_device_id', headphoneDeviceId);
+    await storageCache.setSetting('audio_latency_hint', latencyHint);
+    await audioEngine.setMasterOutputDevice(masterDeviceId);
+    await audioEngine.setHeadphoneOutputDevice(headphoneDeviceId);
+    await audioEngine.setLatencyHint(latencyHint);
+
     setSaved(true);
 
-    // 3. Trigger library rescan from the new path
+    // 5. Trigger library rescan from the new path
     if (localDrivePath.trim()) {
       setScanning(true);
       setScanResult(null);
@@ -134,6 +163,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       setSaved(false);
       if (!scanning) onClose();
     }, 1200);
+  };
+
+  const handleTestAudio = async (type: 'master' | 'headphone') => {
+    setAudioTesting(type);
+    try {
+      audioEngine.init();
+      const ctx = audioEngine.getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') await ctx.resume();
+
+      // Synthesize a pleasant chime to verify the exact speaker or headphone output
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(type === 'master' ? 523.25 : 880.0, now); // C5 for master, A5 for headphone
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+      osc.connect(gain);
+      if (type === 'master') {
+        const masterNode = audioEngine.getMasterNode();
+        if (masterNode) gain.connect(masterNode);
+        else gain.connect(ctx.destination);
+      } else {
+        // Route directly into headphone bus
+        audioEngine.setCueActive('A', true);
+        const deckA = audioEngine.getDeck('A');
+        if (deckA) gain.connect(deckA.cueGain);
+        else gain.connect(ctx.destination);
+      }
+
+      osc.start(now);
+      osc.stop(now + 0.6);
+    } catch (err) {
+      console.error('[AUDIO TEST ERROR]', err);
+    } finally {
+      setTimeout(() => setAudioTesting(null), 700);
+    }
   };
 
   const handleBrowseFolder = async () => {
@@ -187,6 +256,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
   const TABS = [
     { id: 'local' as const, label: 'Local Music', icon: HardDrive },
+    { id: 'audio' as const, label: 'Audio Outputs', icon: Speaker },
     { id: 'gdrive' as const, label: 'Google Drive', icon: Cloud },
     { id: 'youtube' as const, label: 'YouTube Music', icon: Music2 },
     { id: 'display' as const, label: 'Display & Zoom', icon: Monitor },
@@ -194,7 +264,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-      <div className="bg-dj-panel border border-dj-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="bg-dj-panel border border-dj-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-dj-border bg-dj-surface/90">
           <div className="flex items-center space-x-2.5">
@@ -210,7 +280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
         </div>
 
         {/* Tab Bar */}
-        <div className="flex border-b border-dj-border bg-dj-surface/60 px-2">
+        <div className="flex border-b border-dj-border bg-dj-surface/60 px-2 overflow-x-auto">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -287,6 +357,130 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                     {scanResult}
                   </span>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* -- AUDIO OUTPUTS TAB (djay Pro / Traktor / VirtualDJ style) -- */}
+          {activeTab === 'audio' && (
+            <>
+              <div className="bg-cyan-950/30 border border-cyan-800/40 rounded-xl p-3 text-xs text-cyan-200 flex items-start space-x-2">
+                <Speaker className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <span>
+                  Configure independent audio hardware routing for your <strong className="text-white">Master Output</strong> (speakers/PA system) and <strong className="text-white">Headphones Pre-Cueing</strong> (DJ controller headphone jack or USB audio interface).
+                </span>
+              </div>
+
+              {/* Master Output Device Selection */}
+              <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Speaker className="w-4 h-4 text-cyan-400" />
+                    <label className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                      Master Output (Speakers / PA)
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => handleTestAudio('master')}
+                    disabled={audioTesting !== null}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-500/50 text-[11px] font-mono text-cyan-300 transition-colors cursor-pointer"
+                  >
+                    <Volume2 className={`w-3 h-3 ${audioTesting === 'master' ? 'animate-bounce text-emerald-400' : ''}`} />
+                    <span>{audioTesting === 'master' ? 'Testing...' : 'Test Output'}</span>
+                  </button>
+                </div>
+
+                <select
+                  value={masterDeviceId}
+                  onChange={(e) => setMasterDeviceId(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+                >
+                  <option value="default">Default System Audio Output</option>
+                  {audioDevices.map((dev, idx) => (
+                    <option key={dev.deviceId || idx} value={dev.deviceId}>
+                      {dev.label || `Audio Device ${idx + 1}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500">
+                  Sends mixed master channel audio through isolator EQs, FX rack, and limiter to the main audience.
+                </p>
+              </div>
+
+              {/* Headphones Pre-Cueing Device Selection */}
+              <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Headphones className="w-4 h-4 text-amber-400" />
+                    <label className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                      Headphone Monitor / Pre-Cueing
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => handleTestAudio('headphone')}
+                    disabled={audioTesting !== null}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-amber-950 border border-slate-700 hover:border-amber-500/50 text-[11px] font-mono text-amber-300 transition-colors cursor-pointer"
+                  >
+                    <Volume2 className={`w-3 h-3 ${audioTesting === 'headphone' ? 'animate-bounce text-emerald-400' : ''}`} />
+                    <span>{audioTesting === 'headphone' ? 'Testing...' : 'Test Cue'}</span>
+                  </button>
+                </div>
+
+                <select
+                  value={headphoneDeviceId}
+                  onChange={(e) => setHeadphoneDeviceId(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="default">Default System Audio Output (Same as Master)</option>
+                  {audioDevices.map((dev, idx) => (
+                    <option key={dev.deviceId || idx} value={dev.deviceId}>
+                      {dev.label || `Audio Device ${idx + 1}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500">
+                  Routes Deck A / Deck B CUE channels and VirtualDJ Sandbox auditioning privately into your headphones.
+                </p>
+              </div>
+
+              {/* DSP Latency & Buffer Engine Settings */}
+              <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Sliders className="w-4 h-4 text-purple-400" />
+                  <label className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                    Audio Engine Latency & Buffer Size
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'interactive' as const, label: 'Ultra Low (Scratch)', ms: '~5ms', desc: 'Highest responsiveness for turntablism' },
+                    { id: 'balanced' as const, label: 'Balanced (Club Mix)', ms: '~12ms', desc: 'Optimal for live DJ transitions & FX' },
+                    { id: 'playback' as const, label: 'Maximum Safety', ms: '~25ms', desc: 'Prevents dropouts on high CPU load' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setLatencyHint(preset.id)}
+                      className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                        latencyHint === preset.id
+                          ? 'bg-purple-950/40 border-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold font-mono">{preset.label}</span>
+                        <span className="text-[10px] font-mono text-purple-400 font-black">{preset.ms}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-1 block leading-tight">{preset.desc}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+                  <span>Hardware Sample Rate: <strong className="text-cyan-300">{audioEngine.getSampleRate()} Hz</strong></span>
+                  <span>Base Engine Latency: <strong className="text-emerald-400">{audioEngine.getBaseLatency().toFixed(1)} ms</strong></span>
+                </div>
               </div>
             </>
           )}

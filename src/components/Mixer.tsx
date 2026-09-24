@@ -68,12 +68,12 @@ export const Mixer = React.memo<MixerProps>(({
         </div>
 
         <RotaryKnob
-          label="BOOTH"
-          value={mixer.boothVolume}
+          label="PHONES"
+          value={mixer.headphoneVolume}
           min={0}
           max={1.0}
-          defaultValue={0.7}
-          onChange={() => {}}
+          defaultValue={0.8}
+          onChange={onHeadphoneVolumeChange}
           accentColor="#a855f7"
           size={24}
         />

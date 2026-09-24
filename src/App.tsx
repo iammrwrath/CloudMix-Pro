@@ -226,7 +226,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // Load persisted UI Zoom preference on startup
+  // Load persisted UI Zoom and Audio Device routing preferences on startup
   useEffect(() => {
     storageCache.getSetting<number>('ui_zoom', 1.0).then((savedZoom) => {
       if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.8 && savedZoom <= 1.6) {
@@ -234,6 +234,17 @@ export const App: React.FC = () => {
         applyZoom(savedZoom);
       }
     });
+
+    // Initialize audio output devices
+    Promise.all([
+      storageCache.getSetting<string>('audio_master_device_id', 'default'),
+      storageCache.getSetting<string>('audio_headphone_device_id', 'default'),
+      storageCache.getSetting<'interactive' | 'balanced' | 'playback'>('audio_latency_hint', 'interactive'),
+    ]).then(([masterDev, hpDev, latency]) => {
+      if (masterDev && masterDev !== 'default') audioEngine.setMasterOutputDevice(masterDev);
+      if (hpDev && hpDev !== 'default') audioEngine.setHeadphoneOutputDevice(hpDev);
+      if (latency) audioEngine.setLatencyHint(latency);
+    }).catch(() => {});
   }, []);
 
   const handleUiZoomChange = (zoom: number) => {
@@ -736,6 +747,11 @@ export const App: React.FC = () => {
     setMixer((prev) => ({ ...prev, masterVolume: val }));
   };
 
+  const handleHeadphoneVolumeChange = (val: number) => {
+    audioEngine.setHeadphoneVolume(val);
+    setMixer((prev) => ({ ...prev, headphoneVolume: val }));
+  };
+
   // Stem & Neural Mix Controls
   const handleEQModeToggle = (deckId: 'A' | 'B') => {
     if (deckId === 'A') {
@@ -1115,14 +1131,15 @@ export const App: React.FC = () => {
               onCrossfaderChange={handleCrossfaderChange}
               onCrossfaderCurveChange={handleCrossfaderCurveChange}
               onMasterVolumeChange={handleMasterVolumeChange}
-              onHeadphoneVolumeChange={() => {}}
-              onCueToggle={(d) =>
-                setMixer((p) => ({
-                  ...p,
-                  [d === 'A' ? 'headphoneCueA' : 'headphoneCueB']:
-                    !p[d === 'A' ? 'headphoneCueA' : 'headphoneCueB'],
-                }))
-              }
+              onHeadphoneVolumeChange={handleHeadphoneVolumeChange}
+              onCueToggle={(d) => {
+                const key = d === 'A' ? 'headphoneCueA' : 'headphoneCueB';
+                setMixer((p) => {
+                  const nextState = !p[key];
+                  audioEngine.setCueActive(d, nextState);
+                  return { ...p, [key]: nextState };
+                });
+              }}
               onEQModeToggle={handleEQModeToggle}
               onStemGainChange={handleStemGainChange}
               onStemMuteToggle={handleStemMuteToggle}
