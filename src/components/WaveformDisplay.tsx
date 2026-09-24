@@ -248,6 +248,35 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
       ctx.lineTo(width, centerY);
       ctx.stroke();
 
+      // Center Laser Playhead (always visible even if waveformData is generating)
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = `${accentColor}44`;
+      ctx.fillRect(centerX - 3, 0, 6, height);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, 0);
+      ctx.lineTo(centerX, height);
+      ctx.stroke();
+
+      ctx.fillStyle = accentColor;
+      ctx.beginPath();
+      ctx.moveTo(centerX - 5, 0);
+      ctx.lineTo(centerX + 5, 0);
+      ctx.lineTo(centerX, 7);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX - 5, height);
+      ctx.lineTo(centerX + 5, height);
+      ctx.lineTo(centerX, height - 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
       if (!waveformData || duration <= 0) {
         ctx.restore();
         if (isPlaying) animId = requestAnimationFrame(renderScrolling);

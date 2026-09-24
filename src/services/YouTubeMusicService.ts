@@ -289,25 +289,96 @@ class YouTubeMusicService {
     let oauthPlaylists: YouTubePlaylist[] = [];
     if (this._accessToken) {
       try {
-        const res = await fetch(
+        console.log('[YouTube Music] Fetching user playlists with OAuth token...');
+        
+        // 1. First fetch channel info to retrieve channelId and default special playlist IDs (e.g. Liked Music)
+        let channelId: string | null = null;
+        let likedPlaylistId: string | null = null;
+        try {
+          const chanRes = await fetch(
+            'https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&mine=true',
+            { headers: { Authorization: `Bearer ${this._accessToken}` } }
+          );
+          if (chanRes.status === 401) {
+            console.warn('[YouTube Music] OAuth token expired (401). Clearing stale token and user email.');
+            this._accessToken = null;
+            await storageCache.setSetting('yt_oauth_token', null);
+            await storageCache.setSetting('yt_email', null);
+            return [...savedPlaylists, ...curatedOnly];
+          }
+          if (chanRes.ok) {
+            const chanData = await chanRes.json();
+            if (chanData.items && chanData.items.length > 0) {
+              const ch = chanData.items[0];
+              channelId = ch.id;
+              likedPlaylistId = ch.contentDetails?.relatedPlaylists?.likes || 'LL';
+            }
+          }
+        } catch (chanErr) {
+          console.warn('[YouTube Music] Could not resolve user channel ID:', chanErr);
+        }
+
+        // 2. Fetch playlists using mine=true
+        const mineRes = await fetch(
           'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
           { headers: { Authorization: `Bearer ${this._accessToken}` } }
         );
-        if (res.status === 401) {
-          // Token expired: clear cached invalid token
-          console.warn('[YouTube Music] OAuth token expired (401). Clearing stale token.');
+
+        if (mineRes.status === 401) {
+          console.warn('[YouTube Music] OAuth token expired (401). Clearing stale token and user email.');
           this._accessToken = null;
           await storageCache.setSetting('yt_oauth_token', null);
-        } else if (res.ok) {
-          const data = await res.json();
-          oauthPlaylists = (data.items || []).map((item: any) => ({
-            id: item.id,
-            title: `${item.snippet?.title || 'Untitled Playlist'} (My Playlist)`,
-            description: item.snippet?.description,
-            trackCount: item.contentDetails?.itemCount,
-            thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
-          }));
+          await storageCache.setSetting('yt_email', null);
+          return [...savedPlaylists, ...curatedOnly];
         }
+
+        const itemsMap = new Map<string, any>();
+
+        if (mineRes.ok) {
+          const mineData = await mineRes.json();
+          (mineData.items || []).forEach((item: any) => {
+            if (item.id) itemsMap.set(item.id, item);
+          });
+        }
+
+        // 3. If channelId is resolved, also query by channelId to catch any playlists not returned by mine=true
+        if (channelId) {
+          try {
+            const chPlRes = await fetch(
+              `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=50`,
+              { headers: { Authorization: `Bearer ${this._accessToken}` } }
+            );
+            if (chPlRes.ok) {
+              const chPlData = await chPlRes.json();
+              (chPlData.items || []).forEach((item: any) => {
+                if (item.id && !itemsMap.has(item.id)) itemsMap.set(item.id, item);
+              });
+            }
+          } catch (chPlErr) {
+            console.warn('[YouTube Music] Channel playlists fetch warning:', chPlErr);
+          }
+        }
+
+        // 4. Map collected playlists
+        oauthPlaylists = Array.from(itemsMap.values()).map((item: any) => ({
+          id: item.id,
+          title: item.snippet?.title || 'Untitled Playlist',
+          description: item.snippet?.description,
+          trackCount: item.contentDetails?.itemCount,
+          thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
+        }));
+
+        // 5. Add Liked Music / Videos playlist (ID: "LL") if user has OAuth and not already present
+        if (likedPlaylistId && !oauthPlaylists.some(p => p.id === likedPlaylistId || p.id === 'LL')) {
+          oauthPlaylists.unshift({
+            id: likedPlaylistId,
+            title: 'Liked Music & Videos',
+            description: 'Favorite tracks and liked songs from your Google account',
+            thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80',
+          });
+        }
+
+        console.log(`[YouTube Music] Successfully retrieved ${oauthPlaylists.length} user playlists.`);
       } catch (e) {
         console.warn('[YouTube Music] Error fetching user playlists via OAuth:', e);
       }
@@ -530,7 +601,12 @@ class YouTubeMusicService {
           `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
           { headers: { Authorization: `Bearer ${this._accessToken}` } }
         );
-        if (res.ok) {
+        if (res.status === 401) {
+          console.warn('[YouTube Music] OAuth token expired on playlist tracks fetch. Clearing stale token.');
+          this._accessToken = null;
+          await storageCache.setSetting('yt_oauth_token', null);
+          await storageCache.setSetting('yt_email', null);
+        } else if (res.ok) {
           const data = await res.json();
           const tracks = (data.items || []).map((item: any) => {
             const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';

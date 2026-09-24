@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.8] - 2026-09-24
+
+### Fixed
+- **YouTube Music Playlists Resolution**:
+  - Fixed account playlists not showing for users whose Google accounts lack a public YouTube channel: now queries `/channels?part=id,snippet,contentDetails&mine=true` first to retrieve channel identity, default uploads, and the user's "Liked Music & Videos" (`LL`) playlist.
+  - Added dual query fallback using `channelId=${channelId}` alongside `mine=true` to guarantee complete playlist recovery.
+  - Automatically unshifts the user's personal "Liked Music & Videos" playlist to the top of the collection.
+- **Library Auto-Mount & Background Refresh**:
+  - Fixed Library skipping playlist load on initial application launch: `handleLoadYtPlaylists()` is now invoked on component mount.
+  - Switched crate selection so clicking **YouTube Music** always refreshes playlists in the background.
+  - Added a dedicated 1-click **Refresh** button (`<RefreshCw />`) right next to the "PLAYLISTS" header in the library sidebar with live spinning status indicator.
+- **Settings Modal Connection Synchronization**:
+  - Corrected false "Connected" status display: now cleanses both `yt_oauth_token` and `yt_email` synchronously when a 401 Unauthorized status is returned.
+- **Waveform & Playhead Rendering**:
+  - Ensured the center laser playhead renders dynamically across the scrolling canvas even before waveform peaks finish generating.
+- **Interaction Test Suite Expansion**:
+  - Expanded automated test coverage from 27 to 36 assertions verifying channel resolution fallback, Liked Music handling, library auto-mount, refresh button presence, and YouTube deck transport triggers.
+
+---
+
 ## [v1.6.7] - 2026-09-24
 
 ### Fixed

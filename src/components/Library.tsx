@@ -30,6 +30,7 @@ import {
   FolderPlus,
   Disc,
   MoreVertical,
+  RefreshCw,
 } from 'lucide-react';
 
 interface LibraryProps {
@@ -260,6 +261,7 @@ export const Library = React.memo<LibraryProps>(({
   useEffect(() => {
     loadLibraryData();
     setYtResults(youtubeMusicService.getFeaturedTracks());
+    handleLoadYtPlaylists();
     const unsubQ = automixService.subscribeQueue(setQueue);
     const unsubH = automixService.subscribeHistory(setHistory);
 
@@ -798,9 +800,8 @@ export const Library = React.memo<LibraryProps>(({
                   if (ytResults.length === 0) {
                     setYtResults(youtubeMusicService.getFeaturedTracks());
                   }
-                  if (ytPlaylists.length === 0) {
-                    handleLoadYtPlaylists();
-                  }
+                  // Always trigger fresh playlist resolution in background
+                  handleLoadYtPlaylists();
                 }}
                 className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   selectedCrate === 'youtube'
@@ -817,14 +818,24 @@ export const Library = React.memo<LibraryProps>(({
                 <div className="ml-2 mt-1 space-y-1 max-h-56 overflow-y-auto pr-1">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">Playlists</span>
-                    <button
-                      onClick={() => setIsImportingYtPlaylist((prev) => !prev)}
-                      title="Import YouTube Playlist by URL or ID"
-                      className="p-1 rounded hover:bg-rose-900/40 text-rose-400 hover:text-white transition-colors cursor-pointer text-[10px] flex items-center space-x-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span className="text-[9px] font-bold">Import</span>
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={handleLoadYtPlaylists}
+                        disabled={isLoadingYtPlaylists}
+                        title="Refresh Playlists from Google / YouTube"
+                        className="p-1 rounded hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer text-[10px]"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isLoadingYtPlaylists ? 'animate-spin text-rose-400' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => setIsImportingYtPlaylist((prev) => !prev)}
+                        title="Import YouTube Playlist by URL or ID"
+                        className="p-1 rounded hover:bg-rose-900/40 text-rose-400 hover:text-white transition-colors cursor-pointer text-[10px] flex items-center space-x-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span className="text-[9px] font-bold">Import</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Quick Playlist Import Input */}

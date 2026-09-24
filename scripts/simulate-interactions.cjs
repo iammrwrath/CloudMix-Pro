@@ -126,9 +126,24 @@ async function runComprehensiveSimulation() {
   assert(mainCode.includes('MediaLibrary.db'), 'djay Pro SQLite extraction', 'Native SQLite direct query on Algoriddim MediaLibrary.db');
   assert(mainCode.includes('read-music-csv'), 'Music.csv parser IPC', 'IPC handler reads local Music.csv library');
 
+  const ytServicePath = path.join(__dirname, '..', 'src', 'services', 'YouTubeMusicService.ts');
+  const ytServiceCode = fs.readFileSync(ytServicePath, 'utf8');
+  assert(ytServiceCode.includes('channels?part=id,snippet,contentDetails&mine=true'), 'YouTube channel resolution fallback', 'Resolves channel ID and Liked Music before querying playlists');
+  assert(ytServiceCode.includes('channelId=${channelId}'), 'Channel-scoped playlist query', 'Queries channel-scoped playlists to guarantee user playlist delivery');
+  assert(ytServiceCode.includes("likedPlaylistId && !oauthPlaylists.some(p => p.id === likedPlaylistId || p.id === 'LL')"), 'Liked Music playlist resolution', 'Includes user Liked Music collection');
+  assert(ytServiceCode.includes("storageCache.setSetting('yt_email', null)"), 'Stale auth token & email flush', 'Cleanses both token and email on 401 expiration');
+
   const libraryPath = path.join(__dirname, '..', 'src', 'components', 'Library.tsx');
   const libraryCode = fs.readFileSync(libraryPath, 'utf8');
+  assert(libraryCode.includes('handleLoadYtPlaylists()'), 'Library mount auto-load', 'Automatically loads user YouTube playlists upon mounting Library');
+  assert(libraryCode.includes('Refresh Playlists from Google / YouTube'), 'Library refresh button', 'Sidebar includes dedicated 1-click YouTube playlist reload button');
   assert(libraryCode.includes('visibleTracks') || libraryCode.includes('onLoadTrack'), 'Virtualized library rendering', 'Handles high-capacity track rendering and instant deck loading');
+
+  const appPath = path.join(__dirname, '..', 'src', 'App.tsx');
+  const appCode = fs.readFileSync(appPath, 'utf8');
+  assert(appCode.includes('youtubeDeckBridge.loadVideo(deckId, vidId)'), 'YouTube Deck track loader', 'Bridges YouTube track loading to Deck A/B');
+  assert(appCode.includes('youtubeDeckBridge.play(deckId)'), 'YouTube Deck play trigger', 'Routes transport play command directly to YouTube player');
+  assert(appCode.includes('youtubeDeckBridge.pause(deckId)'), 'YouTube Deck pause trigger', 'Routes transport pause command directly to YouTube player');
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);

@@ -176,6 +176,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       if (ytToken) {
         setYtConnected(true);
         setYtEmail(ytEmailSaved);
+      } else {
+        setYtConnected(false);
+        setYtEmail(null);
       }
     };
     loadSettings();
