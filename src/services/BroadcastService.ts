@@ -1,14 +1,24 @@
 import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
 
+export interface OverlayConfig {
+  showCurrentTrack: boolean;
+  showNextTrack: boolean;
+  showLyrics: boolean;
+  showVideo: boolean;
+}
+
 export interface NowPlayingState {
   activeDeck: 'A' | 'B' | null;
   trackA: TrackMetadata | null;
   trackB: TrackMetadata | null;
+  nextTrack: TrackMetadata | null;
   elapsedSecA: number;
   elapsedSecB: number;
   isPlayingA: boolean;
   isPlayingB: boolean;
   currentLyrics: LyricsLine | null;
+  overlayConfig?: OverlayConfig;
+  youtubeVideoId?: string | null;
 }
 
 export class BroadcastService {
@@ -17,11 +27,19 @@ export class BroadcastService {
     activeDeck: null,
     trackA: null,
     trackB: null,
+    nextTrack: null,
     elapsedSecA: 0,
     elapsedSecB: 0,
     isPlayingA: false,
     isPlayingB: false,
     currentLyrics: null,
+    overlayConfig: {
+      showCurrentTrack: true,
+      showNextTrack: true,
+      showLyrics: true,
+      showVideo: true,
+    },
+    youtubeVideoId: null,
   };
 
   private lastBroadcastSig: string = '';
@@ -35,9 +53,24 @@ export class BroadcastService {
       const activeTrack = this.currentState.activeDeck === 'B' ? this.currentState.trackB : this.currentState.trackA;
       const isPlaying = this.currentState.activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
       const elapsedSec = Math.floor(this.currentState.activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA);
+      const nextTrack = this.currentState.nextTrack;
+      const overlayConfig = this.currentState.overlayConfig;
+      const lyrics = this.currentState.currentLyrics;
+
+      // Extract YouTube Video ID if track is from YouTube or has YouTube ID
+      let youtubeVideoId = this.currentState.youtubeVideoId || null;
+      if (!youtubeVideoId && activeTrack) {
+        if (activeTrack.fileSource === 'youtube' && activeTrack.id.startsWith('yt_')) {
+          youtubeVideoId = activeTrack.id.replace('yt_', '');
+        } else if (activeTrack.fileUrl && activeTrack.fileUrl.includes('id=')) {
+          const match = activeTrack.fileUrl.match(/id=([a-zA-Z0-9_-]{11})/);
+          if (match) youtubeVideoId = match[1];
+        }
+      }
+
       if (activeTrack) {
         // Debounce IPC calls so we don't bombard Electron with repetitive payload
-        const sig = `${activeTrack.id}-${this.currentState.activeDeck}-${isPlaying}-${elapsedSec}`;
+        const sig = `${activeTrack.id}-${this.currentState.activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${JSON.stringify(overlayConfig)}`;
         if (sig === this.lastBroadcastSig) return;
         this.lastBroadcastSig = sig;
 
@@ -62,16 +95,31 @@ export class BroadcastService {
             duration: activeTrack.duration || 180,
             isPlaying,
             coverArtUrl: activeTrack.coverArtUrl || '',
+            nextTrack: nextTrack ? {
+              title: nextTrack.title,
+              artist: nextTrack.artist,
+              bpm: nextTrack.bpm,
+              key: nextTrack.camelotKey || nextTrack.key,
+              coverArtUrl: nextTrack.coverArtUrl || '',
+            } : null,
+            lyrics: lyrics ? {
+              text: lyrics.text,
+              translation: lyrics.translation || '',
+            } : null,
+            overlayConfig,
+            youtubeVideoId,
           });
         }
       }
     }
   }
 
-  public subscribe(cb: (state: NowPlayingState) => void) {
+  public subscribe(cb: (state: NowPlayingState) => void): () => void {
     this.listeners.add(cb);
     cb(this.currentState);
-    return () => this.listeners.delete(cb);
+    return () => {
+      this.listeners.delete(cb);
+    };
   }
 
   public getState(): NowPlayingState {

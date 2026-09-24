@@ -23,6 +23,15 @@ let currentBroadcastState = {
   duration: 180,
   isPlaying: false,
   coverArtUrl: '',
+  nextTrack: null,
+  lyrics: null,
+  overlayConfig: {
+    showCurrentTrack: true,
+    showNextTrack: true,
+    showLyrics: true,
+    showVideo: true,
+  },
+  youtubeVideoId: null,
   stems: {
     vocalsSolo: false,
     vocalsMuted: false,
@@ -118,7 +127,7 @@ function getObsOverlayHtml() {
       --primary: #00e5ff;
       --secondary: #ff3366;
       --accent: #f59e0b;
-      --bg: rgba(9, 12, 18, 0.88);
+      --bg: rgba(9, 12, 18, 0.90);
       --border: rgba(255, 255, 255, 0.12);
       --text: #f8fafc;
       --subtext: #94a3b8;
@@ -136,8 +145,8 @@ function getObsOverlayHtml() {
       --primary: #a855f7;
       --secondary: #10b981;
       --accent: #ec4899;
-      --bg: rgba(12, 8, 24, 0.9);
-      --border: rgba(168, 85, 247, 0.3);
+      --bg: rgba(12, 8, 24, 0.92);
+      --border: rgba(168, 85, 247, 0.35);
     }
 
     body[data-theme="minimal"] {
@@ -152,8 +161,8 @@ function getObsOverlayHtml() {
       --primary: #f59e0b;
       --secondary: #ea580c;
       --accent: #10b981;
-      --bg: rgba(26, 18, 11, 0.92);
-      --border: rgba(245, 158, 11, 0.25);
+      --bg: rgba(26, 18, 11, 0.94);
+      --border: rgba(245, 158, 11, 0.3);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -165,9 +174,17 @@ function getObsOverlayHtml() {
       color: var(--text);
       padding: 16px;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 12px;
       width: 100vw;
       height: 100vh;
+    }
+
+    .obs-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 660px;
     }
 
     .widget-container {
@@ -180,7 +197,7 @@ function getObsOverlayHtml() {
       border-radius: 20px;
       padding: 14px 20px;
       box-shadow: 0 12px 36px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
-      width: 640px;
+      width: 100%;
       position: relative;
       overflow: hidden;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -189,8 +206,8 @@ function getObsOverlayHtml() {
     /* Animated Vinyl Platter Thumbnail */
     .vinyl-container {
       position: relative;
-      width: 72px;
-      height: 72px;
+      width: 68px;
+      height: 68px;
       border-radius: 50%;
       background: #020617;
       border: 2px solid rgba(255,255,255,0.15);
@@ -217,8 +234,8 @@ function getObsOverlayHtml() {
     }
 
     .vinyl-label {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       z-index: 2;
@@ -226,6 +243,8 @@ function getObsOverlayHtml() {
       align-items: center;
       justify-content: center;
       box-shadow: inset 0 0 4px rgba(0,0,0,0.6);
+      background-size: cover;
+      background-position: center;
     }
 
     .spinning {
@@ -282,7 +301,7 @@ function getObsOverlayHtml() {
     }
 
     .track-title {
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 900;
       color: #ffffff;
       white-space: nowrap;
@@ -369,46 +388,194 @@ function getObsOverlayHtml() {
       0% { height: 4px; }
       100% { height: 22px; }
     }
+
+    /* Next Track / Up Next Widget */
+    .next-track-container {
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 8px 14px;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      animation: fadeIn 0.4s ease;
+    }
+
+    .next-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: rgba(168, 85, 247, 0.2);
+      border: 1px solid #a855f7;
+      color: #c084fc;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .next-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .next-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .next-artist {
+      font-size: 11.5px;
+      color: var(--subtext);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .next-bpm {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: #38bdf8;
+      white-space: nowrap;
+    }
+
+    /* Synced Lyrics Widget */
+    .lyrics-container {
+      background: rgba(10, 15, 29, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 14px;
+      padding: 10px 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      animation: fadeIn 0.4s ease;
+    }
+
+    .lyrics-text {
+      font-size: 14px;
+      font-weight: 800;
+      color: #00f0ff;
+      text-shadow: 0 0 12px rgba(0,240,255,0.4);
+      line-height: 1.3;
+    }
+
+    .lyrics-trans {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #94a3b8;
+      font-style: italic;
+      margin-top: 3px;
+    }
+
+    /* YouTube Music Video / Visualizer Feed */
+    .video-container {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #000;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+    }
+
+    .video-container iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      pointer-events: none;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
-  <div class="widget-container" id="widget">
-    <div class="hype-banner" id="hypeBanner">⚡ ACAPELLA DROP</div>
+  <div class="obs-wrapper">
+    <!-- 1. Current Track Live HUD -->
+    <div class="widget-container" id="currentTrackWidget">
+      <div class="hype-banner" id="hypeBanner">⚡ ACAPELLA DROP</div>
 
-    <div class="vinyl-container" id="vinyl">
-      <div class="vinyl-grooves"></div>
-      <div class="vinyl-label"></div>
+      <div class="vinyl-container" id="vinyl">
+        <div class="vinyl-grooves"></div>
+        <div class="vinyl-label" id="vinylLabel"></div>
+      </div>
+
+      <div class="meta-content">
+        <div class="badges-row">
+          <span class="deck-badge" id="deckBadge">DECK A</span>
+          <span class="bpm-badge" id="bpmBadge">126.0 BPM • 8A</span>
+        </div>
+        <div class="track-title" id="trackTitle">Loading CloudMix Pro...</div>
+        <div class="track-artist" id="trackArtist">CloudMix Pro Broadcast Engine</div>
+
+        <div class="progress-bar-wrap">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="eq-bars" id="eqBars">
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+        <div class="eq-bar"></div>
+      </div>
     </div>
 
-    <div class="meta-content">
-      <div class="badges-row">
-        <span class="deck-badge" id="deckBadge">DECK A</span>
-        <span class="bpm-badge" id="bpmBadge">126.0 BPM • 8A</span>
+    <!-- 2. Next Track / Up Next Widget -->
+    <div class="next-track-container" id="nextTrackWidget" style="display: none;">
+      <span class="next-badge">UP NEXT</span>
+      <div class="next-info">
+        <span class="next-title" id="nextTitle">Queued Track</span>
+        <span class="next-artist" id="nextArtist">• Artist</span>
       </div>
-      <div class="track-title" id="trackTitle">Loading CloudMix Pro...</div>
-      <div class="track-artist" id="trackArtist">CloudMix Pro Broadcast Engine</div>
-
-      <div class="progress-bar-wrap">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
+      <span class="next-bpm" id="nextBpm">126.0 BPM • 8A</span>
     </div>
 
-    <div class="eq-bars" id="eqBars">
-      <div class="eq-bar"></div>
-      <div class="eq-bar"></div>
-      <div class="eq-bar"></div>
-      <div class="eq-bar"></div>
-      <div class="eq-bar"></div>
+    <!-- 3. Synced Lyrics & Live Translation Widget -->
+    <div class="lyrics-container" id="lyricsWidget" style="display: none;">
+      <div class="lyrics-text" id="lyricsText">♪ Synchronized Lyrics Ready</div>
+      <div class="lyrics-trans" id="lyricsTrans" style="display: none;"></div>
+    </div>
+
+    <!-- 4. YouTube Music Video Feed -->
+    <div class="video-container" id="videoWidget" style="display: none;">
+      <iframe id="videoIframe" allow="autoplay" src=""></iframe>
     </div>
   </div>
 
   <script>
-    // Theme support via ?theme=cyberpunk|neon|minimal|retro
     const params = new URLSearchParams(window.location.search);
     const theme = params.get('theme') || 'default';
     if (theme !== 'default') {
       document.body.setAttribute('data-theme', theme);
     }
+
+    // Query param overrides (can explicitly force ?showCurrentTrack=0 etc.)
+    const qShowCurrent = params.get('current') !== '0' && params.get('showCurrentTrack') !== '0';
+    const qShowNext = params.get('next') !== '0' && params.get('showNextTrack') !== '0';
+    const qShowLyrics = params.get('lyrics') !== '0' && params.get('showLyrics') !== '0';
+    const qShowVideo = params.get('video') !== '0' && params.get('showVideo') !== '0';
+
+    const currentTrackWidget = document.getElementById('currentTrackWidget');
+    const nextTrackWidget = document.getElementById('nextTrackWidget');
+    const lyricsWidget = document.getElementById('lyricsWidget');
+    const videoWidget = document.getElementById('videoWidget');
 
     const titleEl = document.getElementById('trackTitle');
     const artistEl = document.getElementById('trackArtist');
@@ -416,49 +583,120 @@ function getObsOverlayHtml() {
     const bpmBadgeEl = document.getElementById('bpmBadge');
     const progressFillEl = document.getElementById('progressFill');
     const vinylEl = document.getElementById('vinyl');
+    const vinylLabelEl = document.getElementById('vinylLabel');
     const hypeBannerEl = document.getElementById('hypeBanner');
     const eqBarsEl = document.getElementById('eqBars');
 
+    const nextTitleEl = document.getElementById('nextTitle');
+    const nextArtistEl = document.getElementById('nextArtist');
+    const nextBpmEl = document.getElementById('nextBpm');
+
+    const lyricsTextEl = document.getElementById('lyricsText');
+    const lyricsTransEl = document.getElementById('lyricsTrans');
+    const videoIframeEl = document.getElementById('videoIframe');
+
+    let currentVideoId = '';
+
     function updateHUD(data) {
       if (!data) return;
-      titleEl.innerText = data.title || 'Playing...';
-      artistEl.innerText = data.artist || 'CloudMix Pro DJ';
 
-      const deck = (data.deck || data.activeDeck || 'A').toUpperCase();
-      deckBadgeEl.innerText = 'DECK ' + deck;
-      if (deck === 'B') {
-        deckBadgeEl.classList.add('deck-b');
-      } else {
-        deckBadgeEl.classList.remove('deck-b');
+      // 1. Config visibility toggles (combines app-synced overlayConfig + URL query params)
+      const cfg = data.overlayConfig || {
+        showCurrentTrack: true,
+        showNextTrack: true,
+        showLyrics: true,
+        showVideo: true,
+      };
+
+      const allowCurrent = qShowCurrent && cfg.showCurrentTrack !== false;
+      const allowNext = qShowNext && cfg.showNextTrack !== false;
+      const allowLyrics = qShowLyrics && cfg.showLyrics !== false;
+      const allowVideo = qShowVideo && cfg.showVideo !== false;
+
+      currentTrackWidget.style.display = allowCurrent ? 'flex' : 'none';
+
+      // Current Track Info
+      if (allowCurrent) {
+        titleEl.innerText = data.title || 'Playing...';
+        artistEl.innerText = data.artist || 'CloudMix Pro DJ';
+
+        const deck = (data.deck || data.activeDeck || 'A').toUpperCase();
+        deckBadgeEl.innerText = 'DECK ' + deck;
+        if (deck === 'B') {
+          deckBadgeEl.classList.add('deck-b');
+        } else {
+          deckBadgeEl.classList.remove('deck-b');
+        }
+
+        bpmBadgeEl.innerText = (data.bpm ? parseFloat(data.bpm).toFixed(1) : '126.0') + ' BPM • ' + (data.key || '8A');
+
+        if (data.duration && data.duration > 0) {
+          const pct = Math.min(100, Math.max(0, ((data.elapsedSec || 0) / data.duration) * 100));
+          progressFillEl.style.width = pct + '%';
+        }
+
+        if (data.coverArtUrl) {
+          vinylLabelEl.style.backgroundImage = 'url(' + data.coverArtUrl + ')';
+        } else {
+          vinylLabelEl.style.backgroundImage = 'none';
+        }
+
+        if (data.isPlaying) {
+          vinylEl.classList.add('spinning');
+          eqBarsEl.style.opacity = '1';
+        } else {
+          vinylEl.classList.remove('spinning');
+          eqBarsEl.style.opacity = '0.3';
+        }
+
+        // Stem isolation or drop alert
+        if (data.stems && data.stems.vocalsSolo && !data.stems.vocalsMuted) {
+          hypeBannerEl.innerText = '⚡ VOCAL ACAPELLA DROP';
+          hypeBannerEl.style.display = 'block';
+        } else if (data.stems && data.stems.drumsSolo && !data.stems.drumsMuted) {
+          hypeBannerEl.innerText = '🥁 DRUM BREAK SOLO';
+          hypeBannerEl.style.display = 'block';
+        } else if (data.hypeAlert) {
+          hypeBannerEl.innerText = data.hypeAlert;
+          hypeBannerEl.style.display = 'block';
+        } else {
+          hypeBannerEl.style.display = 'none';
+        }
       }
 
-      bpmBadgeEl.innerText = (data.bpm ? parseFloat(data.bpm).toFixed(1) : '126.0') + ' BPM • ' + (data.key || '8A');
-
-      if (data.duration && data.duration > 0) {
-        const pct = Math.min(100, Math.max(0, ((data.elapsedSec || 0) / data.duration) * 100));
-        progressFillEl.style.width = pct + '%';
+      // 2. Next Track / Up Next
+      if (allowNext && data.nextTrack && data.nextTrack.title) {
+        nextTrackWidget.style.display = 'flex';
+        nextTitleEl.innerText = data.nextTrack.title;
+        nextArtistEl.innerText = data.nextTrack.artist ? '• ' + data.nextTrack.artist : '';
+        nextBpmEl.innerText = (data.nextTrack.bpm ? parseFloat(data.nextTrack.bpm).toFixed(1) : '126.0') + ' BPM • ' + (data.nextTrack.key || '8A');
+      } else {
+        nextTrackWidget.style.display = 'none';
       }
 
-      if (data.isPlaying) {
-        vinylEl.classList.add('spinning');
-        eqBarsEl.style.opacity = '1';
+      // 3. Synced Lyrics
+      if (allowLyrics && data.lyrics && data.lyrics.text) {
+        lyricsWidget.style.display = 'block';
+        lyricsTextEl.innerText = data.lyrics.text;
+        if (data.lyrics.translation) {
+          lyricsTransEl.innerText = data.lyrics.translation;
+          lyricsTransEl.style.display = 'block';
+        } else {
+          lyricsTransEl.style.display = 'none';
+        }
       } else {
-        vinylEl.classList.remove('spinning');
-        eqBarsEl.style.opacity = '0.3';
+        lyricsWidget.style.display = 'none';
       }
 
-      // Stem isolation or drop alert
-      if (data.stems && data.stems.vocalsSolo && !data.stems.vocalsMuted) {
-        hypeBannerEl.innerText = '⚡ VOCAL ACAPELLA DROP';
-        hypeBannerEl.style.display = 'block';
-      } else if (data.stems && data.stems.drumsSolo && !data.stems.drumsMuted) {
-        hypeBannerEl.innerText = '🥁 DRUM BREAK SOLO';
-        hypeBannerEl.style.display = 'block';
-      } else if (data.hypeAlert) {
-        hypeBannerEl.innerText = data.hypeAlert;
-        hypeBannerEl.style.display = 'block';
+      // 4. YouTube Music Video Feed
+      if (allowVideo && data.youtubeVideoId) {
+        videoWidget.style.display = 'block';
+        if (currentVideoId !== data.youtubeVideoId) {
+          currentVideoId = data.youtubeVideoId;
+          videoIframeEl.src = 'https://www.youtube-nocookie.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId;
+        }
       } else {
-        hypeBannerEl.style.display = 'none';
+        videoWidget.style.display = 'none';
       }
     }
 

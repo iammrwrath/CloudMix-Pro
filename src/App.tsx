@@ -319,7 +319,7 @@ export const App: React.FC = () => {
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  // Provide live deck status to MixCortex AI Co-Pilot Monitor
+  // Provide live deck status to MixCortex AI Co-Pilot Monitor and keep OBS BroadcastService state synchronized
   useEffect(() => {
     const provider = () => ({
       deckA,
@@ -328,6 +328,28 @@ export const App: React.FC = () => {
     });
     cortexMonitorService.setDeckStateProvider(provider);
     pulseMonitorService.setDeckStateProvider(provider);
+
+    // Synchronize Up Next / Next Track for OBS Overlay
+    const automixQueue = automixService.getQueue();
+    let nextTrack: TrackMetadata | null = null;
+    if (automixQueue && automixQueue.length > 0) {
+      nextTrack = automixQueue[0].track;
+    } else {
+      // If no automix queue, use opposite deck's loaded track
+      if (deckA.isPlaying && deckB.track && deckB.track.id !== deckA.track?.id) {
+        nextTrack = deckB.track;
+      } else if (deckB.isPlaying && deckA.track && deckA.track.id !== deckB.track?.id) {
+        nextTrack = deckA.track;
+      }
+    }
+
+    broadcastService.update({
+      trackA: deckA.track,
+      trackB: deckB.track,
+      isPlayingA: deckA.isPlaying,
+      isPlayingB: deckB.isPlaying,
+      nextTrack,
+    });
   }, [deckA, deckB, mixer.crossfader]);
 
   const handleToggleCortex = () => {
