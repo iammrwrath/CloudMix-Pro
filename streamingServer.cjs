@@ -1,8 +1,64 @@
 const http = require('http');
+const https = require('https');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+// In-memory cache for resolved YouTube video IDs
+const videoIdCache = new Map();
+let pendingVideoSearch = null;
+
+function resolveYouTubeVideoId(artist, title) {
+  if (!artist && !title) return Promise.resolve(null);
+  const cleanTitle = (title || '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s*\[[^\]]*\]/g, '')
+    .trim();
+  const cleanArtist = (artist || '').trim();
+  const searchKey = `${cleanArtist} - ${cleanTitle}`.toLowerCase();
+
+  if (videoIdCache.has(searchKey)) {
+    return Promise.resolve(videoIdCache.get(searchKey));
+  }
+
+  // Check user StreamerBot / OBS output text files first
+  const outputFiles = [
+    'G:\\My Drive\\Backup\\Streamerbot\\Output\\video_url.txt',
+    'C:\\StreamerBot\\Output\\video_url.txt',
+    path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro', 'obs', 'video_url.txt'),
+  ];
+  for (const fp of outputFiles) {
+    try {
+      if (fs.existsSync(fp)) {
+        const content = fs.readFileSync(fp, 'utf8').trim();
+        const m = content.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || content.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+        if (m) {
+          videoIdCache.set(searchKey, m[1]);
+          return Promise.resolve(m[1]);
+        }
+      }
+    } catch {}
+  }
+
+  // Direct YouTube Search Scraper fallback
+  return new Promise((resolve) => {
+    const q = encodeURIComponent(`${cleanArtist} ${cleanTitle} official music video`);
+    const url = `https://www.youtube.com/results?search_query=${q}&sp=EgIQAQ%253D%253D`;
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        const match = data.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        const vidId = match ? match[1] : null;
+        if (vidId) {
+          videoIdCache.set(searchKey, vidId);
+        }
+        resolve(vidId);
+      });
+    }).on('error', () => resolve(null));
+  });
+}
 
 /**
  * CloudMix Pro Broadcast & Streaming Server (Port 8088)
@@ -555,7 +611,7 @@ function getObsOverlayHtml() {
 
     <!-- 4. YouTube Music Video Feed -->
     <div class="video-container" id="videoWidget" style="display: none;">
-      <iframe id="videoIframe" allow="autoplay" src=""></iframe>
+      <iframe id="videoIframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen src=""></iframe>
     </div>
   </div>
 
@@ -693,7 +749,7 @@ function getObsOverlayHtml() {
         videoWidget.style.display = 'block';
         if (currentVideoId !== data.youtubeVideoId) {
           currentVideoId = data.youtubeVideoId;
-          videoIframeEl.src = 'https://www.youtube-nocookie.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId;
+          videoIframeEl.src = 'https://www.youtube.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId + '&enablejsapi=1&origin=' + encodeURIComponent(window.location.origin);
         }
       } else {
         videoWidget.style.display = 'none';
@@ -932,6 +988,19 @@ function startStreamingServer(port = 8088, callbacks = {}) {
 
 function updateBroadcastState(newState) {
   currentBroadcastState = { ...currentBroadcastState, ...newState };
+
+  // If youtubeVideoId is not yet present, resolve it in the background
+  if (!currentBroadcastState.youtubeVideoId && currentBroadcastState.artist && currentBroadcastState.title && currentBroadcastState.title !== 'Ready for Playback') {
+    const searchArtist = currentBroadcastState.artist;
+    const searchTitle = currentBroadcastState.title;
+    resolveYouTubeVideoId(searchArtist, searchTitle).then((vidId) => {
+      if (vidId && currentBroadcastState.artist === searchArtist && currentBroadcastState.title === searchTitle) {
+        currentBroadcastState.youtubeVideoId = vidId;
+        broadcastToWsClients(currentBroadcastState);
+      }
+    }).catch(() => {});
+  }
+
   broadcastToWsClients(currentBroadcastState);
   writeObsFiles(currentBroadcastState);
 }

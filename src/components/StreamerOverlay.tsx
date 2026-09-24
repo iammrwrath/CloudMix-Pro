@@ -3,6 +3,7 @@ import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
 import { broadcastService, NowPlayingState, OverlayConfig } from '../services/BroadcastService';
 import { automixService } from '../services/AutomixService';
 import { storageCache } from '../services/StorageCacheService';
+import { lyricsService } from '../services/LyricsService';
 import {
   Tv,
   Subtitles,
@@ -39,12 +40,7 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
     showVideo: true,
   });
 
-  const [lyricsLines, setLyricsLines] = useState<LyricsLine[]>([
-    { timestampMs: 0, text: "Searching for synchronized .lrc lyrics...", translation: "Recherche de paroles synchronisées..." },
-    { timestampMs: 15000, text: "Feel the bassline drop into the groove", translation: "Ressens la ligne de basse qui tombe dans le groove" },
-    { timestampMs: 30000, text: "Hands up high under the neon lights", translation: "Les mains en l'air sous les néons" },
-    { timestampMs: 45000, text: "CloudMix Pro streaming direct from the cloud", translation: "CloudMix Pro streamant directement depuis le cloud" },
-  ]);
+  const [lyricsLines, setLyricsLines] = useState<LyricsLine[]>([]);
 
   // Load saved overlay config
   useEffect(() => {
@@ -68,6 +64,30 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
     };
   }, []);
 
+  // Determine active track for stream overlay
+  const activeDeck = deckA.isPlaying ? 'A' : deckB.isPlaying ? 'B' : (nowPlaying.activeDeck || 'A');
+  const activeTrack = activeDeck === 'A' ? deckA.track : deckB.track;
+  const activeTimeMs = (activeDeck === 'A' ? deckA.currentTime : deckB.currentTime) * 1000;
+
+  // Fetch real synchronized lyrics for the active track
+  useEffect(() => {
+    if (activeTrack && activeTrack.title) {
+      lyricsService.fetchLyrics(activeTrack.artist, activeTrack.title, activeTrack.duration).then((lines) => {
+        if (lines && lines.length > 0) {
+          setLyricsLines(lines);
+        } else {
+          setLyricsLines([
+            { timestampMs: 0, text: `♪ ${activeTrack.artist || 'CloudMix Pro'} - ${activeTrack.title}`, translation: "Instrumental / In-sync playback" }
+          ]);
+        }
+      });
+    } else {
+      setLyricsLines([
+        { timestampMs: 0, text: "Ready for playback — Load a track to sync lyrics", translation: "Prêt pour la lecture" }
+      ]);
+    }
+  }, [activeTrack?.artist, activeTrack?.title]);
+
   // Handle toggle change and propagate to broadcast & persistent storage
   const handleToggle = (key: keyof OverlayConfig) => {
     setOverlayConfig((prev) => {
@@ -78,10 +98,6 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
     });
   };
 
-  // Determine active track for stream overlay
-  const activeDeck = deckA.isPlaying ? 'A' : deckB.isPlaying ? 'B' : (nowPlaying.activeDeck || 'A');
-  const activeTrack = activeDeck === 'A' ? deckA.track : deckB.track;
-  const activeTimeMs = (activeDeck === 'A' ? deckA.currentTime : deckB.currentTime) * 1000;
 
   // Determine next track
   const queue = automixService.getQueue();

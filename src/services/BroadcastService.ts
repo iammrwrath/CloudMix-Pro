@@ -1,4 +1,5 @@
 import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
+import { lyricsService } from './LyricsService';
 
 export interface OverlayConfig {
   showCurrentTrack: boolean;
@@ -43,34 +44,81 @@ export class BroadcastService {
   };
 
   private lastBroadcastSig: string = '';
+  private loadedLyricsTrackKey: string = '';
+  private activeLyricsLines: LyricsLine[] = [];
+  private currentVideoSearchKey: string = '';
 
   public update(stateUpdates: Partial<NowPlayingState>) {
     this.currentState = { ...this.currentState, ...stateUpdates };
-    this.listeners.forEach((cb) => cb(this.currentState));
+
+    let activeDeck: 'A' | 'B' = this.currentState.activeDeck || 'A';
+    if (this.currentState.isPlayingB && !this.currentState.isPlayingA) {
+      activeDeck = 'B';
+    } else if (this.currentState.isPlayingA && !this.currentState.isPlayingB) {
+      activeDeck = 'A';
+    } else if (!this.currentState.trackA && this.currentState.trackB) {
+      activeDeck = 'B';
+    }
+    this.currentState.activeDeck = activeDeck;
+
+    const activeTrack = activeDeck === 'B' ? this.currentState.trackB : this.currentState.trackA;
+    const elapsedSec = Math.floor(activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA);
+    const isPlaying = activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
+
+    // 1. Auto-Fetch Synchronized LRC Lyrics when active track loads/changes
+    if (activeTrack && activeTrack.title) {
+      const trackKey = `${activeTrack.artist || ''} - ${activeTrack.title}`;
+      if (this.loadedLyricsTrackKey !== trackKey) {
+        this.loadedLyricsTrackKey = trackKey;
+        this.activeLyricsLines = [];
+        this.currentState.currentLyrics = null;
+
+        lyricsService.fetchLyrics(activeTrack.artist, activeTrack.title, activeTrack.duration).then((lines) => {
+          if (this.loadedLyricsTrackKey === trackKey) {
+            this.activeLyricsLines = lines;
+            const line = lyricsService.getLineAtTime(lines, elapsedSec);
+            if (line) {
+              this.currentState.currentLyrics = line;
+              this.notify();
+            }
+          }
+        });
+      } else if (this.activeLyricsLines.length > 0) {
+        // Sync active lyric line with elapsed audio playback seconds
+        const line = lyricsService.getLineAtTime(this.activeLyricsLines, elapsedSec);
+        if (line && (!this.currentState.currentLyrics || this.currentState.currentLyrics.text !== line.text)) {
+          this.currentState.currentLyrics = line;
+        }
+      }
+    }
+
+    // 2. Extract or Resolve YouTube Video ID
+    let youtubeVideoId = this.currentState.youtubeVideoId || null;
+    if (activeTrack) {
+      if (activeTrack.fileSource === 'youtube' && activeTrack.id.startsWith('yt_')) {
+        youtubeVideoId = activeTrack.id.replace('yt_', '');
+      } else if (activeTrack.fileUrl && activeTrack.fileUrl.includes('id=')) {
+        const match = activeTrack.fileUrl.match(/id=([a-zA-Z0-9_-]{11})/);
+        if (match) youtubeVideoId = match[1];
+      }
+    }
+
+    if (youtubeVideoId && youtubeVideoId !== this.currentState.youtubeVideoId) {
+      this.currentState.youtubeVideoId = youtubeVideoId;
+    }
+
+    this.notify();
 
     // Native Desktop StreamerBot / OBS writer
     if (typeof window !== 'undefined' && (window as any).desktopAPI) {
-      const activeTrack = this.currentState.activeDeck === 'B' ? this.currentState.trackB : this.currentState.trackA;
-      const isPlaying = this.currentState.activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
-      const elapsedSec = Math.floor(this.currentState.activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA);
       const nextTrack = this.currentState.nextTrack;
       const overlayConfig = this.currentState.overlayConfig;
       const lyrics = this.currentState.currentLyrics;
-
-      // Extract YouTube Video ID if track is from YouTube or has YouTube ID
-      let youtubeVideoId = this.currentState.youtubeVideoId || null;
-      if (!youtubeVideoId && activeTrack) {
-        if (activeTrack.fileSource === 'youtube' && activeTrack.id.startsWith('yt_')) {
-          youtubeVideoId = activeTrack.id.replace('yt_', '');
-        } else if (activeTrack.fileUrl && activeTrack.fileUrl.includes('id=')) {
-          const match = activeTrack.fileUrl.match(/id=([a-zA-Z0-9_-]{11})/);
-          if (match) youtubeVideoId = match[1];
-        }
-      }
+      const activeVid = this.currentState.youtubeVideoId;
 
       if (activeTrack) {
         // Debounce IPC calls so we don't bombard Electron with repetitive payload
-        const sig = `${activeTrack.id}-${this.currentState.activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${JSON.stringify(overlayConfig)}`;
+        const sig = `${activeTrack.id}-${activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${activeVid}-${JSON.stringify(overlayConfig)}`;
         if (sig === this.lastBroadcastSig) return;
         this.lastBroadcastSig = sig;
 
@@ -80,17 +128,17 @@ export class BroadcastService {
             artist: activeTrack.artist,
             bpm: activeTrack.bpm,
             key: activeTrack.camelotKey || activeTrack.key,
-            deck: this.currentState.activeDeck || 'A',
+            deck: activeDeck,
           });
         }
         if ((window as any).desktopAPI.updateStreamingBroadcast) {
           (window as any).desktopAPI.updateStreamingBroadcast({
-            activeDeck: this.currentState.activeDeck || 'A',
+            activeDeck: activeDeck,
             title: activeTrack.title,
             artist: activeTrack.artist,
             bpm: activeTrack.bpm,
             key: activeTrack.camelotKey || activeTrack.key,
-            deck: this.currentState.activeDeck || 'A',
+            deck: activeDeck,
             elapsedSec,
             duration: activeTrack.duration || 180,
             isPlaying,
@@ -107,11 +155,15 @@ export class BroadcastService {
               translation: lyrics.translation || '',
             } : null,
             overlayConfig,
-            youtubeVideoId,
+            youtubeVideoId: activeVid,
           });
         }
       }
     }
+  }
+
+  private notify() {
+    this.listeners.forEach((cb) => cb(this.currentState));
   }
 
   public subscribe(cb: (state: NowPlayingState) => void): () => void {
