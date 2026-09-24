@@ -11,6 +11,7 @@ import { CortexNowPlaying, CortexSourceMode, CortexTrack } from '../types/cortex
 import { DeckState } from '../types/dj';
 import { cortexAiService } from './CortexAiService';
 import { musicLibraryService } from './MusicLibraryService';
+import { storageCache } from './StorageCacheService';
 
 type CortexMonitorListener = (nowPlaying: CortexNowPlaying) => void;
 
@@ -258,14 +259,15 @@ export class CortexMonitorService {
     }
   }
 
-  // 3. External File Watcher (C:\StreamerBot\nowplaying.txt)
+  // 3. External File Watcher (User configured nowplaying.txt or DJ software bridge)
   private async pollExternalFile() {
     if (!(window as any).desktopAPI?.readExternalNowPlayingFile) return;
 
     try {
-      const text = await (window as any).desktopAPI.readExternalNowPlayingFile(
-        'C:\\StreamerBot\\nowplaying.txt'
-      );
+      const customPath = await storageCache.getSetting<string>('watched_nowplaying_path', '');
+      if (!customPath) return;
+
+      const text = await (window as any).desktopAPI.readExternalNowPlayingFile(customPath);
       if (text && text.trim() && text !== this.nowPlaying.title) {
         this.parseNowPlayingText(text.trim());
       }

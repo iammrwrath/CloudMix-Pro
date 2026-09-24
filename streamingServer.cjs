@@ -213,24 +213,15 @@ function broadcastToWsClients(msgObj) {
 
 function writeObsFiles(state) {
   try {
-    const streamerDir = 'C:\\StreamerBot';
     const appObsDir = path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro', 'obs');
 
-    [streamerDir, appObsDir].forEach((dir) => {
-      if (!fs.existsSync(dir)) {
-        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
-      }
-    });
+    if (!fs.existsSync(appObsDir)) {
+      try { fs.mkdirSync(appObsDir, { recursive: true }); } catch {}
+    }
 
     const nowPlayingLine = `${state.artist} - ${state.title} [${state.bpm} BPM | ${state.key}] (Deck ${state.deck})`;
-    
-    // Write to C:\StreamerBot
-    try {
-      fs.writeFileSync(path.join(streamerDir, 'nowplaying.txt'), nowPlayingLine, 'utf8');
-      fs.writeFileSync(path.join(streamerDir, 'trigger.txt'), Date.now().toString(), 'utf8');
-    } catch {}
 
-    // Write dedicated granular files to AppData OBS directory
+    // Write dedicated granular files to standard OBS directory
     try {
       fs.writeFileSync(path.join(appObsDir, 'nowplaying.txt'), nowPlayingLine, 'utf8');
       fs.writeFileSync(path.join(appObsDir, 'title.txt'), state.title || '', 'utf8');

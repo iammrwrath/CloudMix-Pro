@@ -1,5 +1,6 @@
 import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
 import { lyricsService } from './LyricsService';
+import { streamerbotService } from './StreamerbotService';
 
 export interface OverlayConfig {
   showCurrentTrack: boolean;
@@ -121,6 +122,11 @@ export class BroadcastService {
         const sig = `${activeTrack.id}-${activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${activeVid}-${JSON.stringify(overlayConfig)}`;
         if (sig === this.lastBroadcastSig) return;
         this.lastBroadcastSig = sig;
+
+        // Universal Streamer.bot event trigger
+        if (isPlaying) {
+          streamerbotService.onTrackChange(activeTrack, activeDeck);
+        }
 
         if ((window as any).desktopAPI.writeNowPlayingBroadcast) {
           (window as any).desktopAPI.writeNowPlayingBroadcast({

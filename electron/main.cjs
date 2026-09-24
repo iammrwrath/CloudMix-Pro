@@ -228,20 +228,20 @@ ipcMain.handle('select-folder', async () => {
 
 ipcMain.handle('write-now-playing-broadcast', async (event, { title, artist, bpm, key, deck }) => {
   try {
-    const streamerDir = 'C:\\StreamerBot';
-    const nowPlayingFile = path.join(streamerDir, 'nowplaying.txt');
-    const triggerFile = path.join(streamerDir, 'trigger.txt');
-
-    if (!fs.existsSync(streamerDir)) {
-      try { fs.mkdirSync(streamerDir, { recursive: true }); } catch {}
+    const obsDir = path.join(app.getPath('userData'), 'obs');
+    if (!fs.existsSync(obsDir)) {
+      try { fs.mkdirSync(obsDir, { recursive: true }); } catch {}
     }
 
     const content = `${artist} - ${title} [${bpm} BPM | ${key}] (Deck ${deck})`;
-    fs.writeFileSync(nowPlayingFile, content, 'utf8');
-    fs.writeFileSync(triggerFile, Date.now().toString(), 'utf8');
+    fs.writeFileSync(path.join(obsDir, 'nowplaying.txt'), content, 'utf8');
+    fs.writeFileSync(path.join(obsDir, 'title.txt'), title || '', 'utf8');
+    fs.writeFileSync(path.join(obsDir, 'artist.txt'), artist || '', 'utf8');
+    fs.writeFileSync(path.join(obsDir, 'bpm.txt'), `${bpm || 124} BPM`, 'utf8');
+    fs.writeFileSync(path.join(obsDir, 'key.txt'), key || '8A', 'utf8');
     return true;
   } catch (err) {
-    log('Failed to write now playing trigger: ' + err);
+    log('Failed to write now playing broadcast: ' + err);
     return false;
   }
 });

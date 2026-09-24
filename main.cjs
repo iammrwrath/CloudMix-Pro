@@ -697,8 +697,9 @@ ipcMain.handle('read-djay-nowplaying', async () => {
 
   // 3. Watched output text file fallback
   const watchedFiles = [
-    'G:\\My Drive\\Backup\\Streamerbot\\Output\\nowplaying.txt',
-    'C:\\StreamerBot\\nowplaying.txt',
+    path.join(app.getPath('userData'), 'obs', 'nowplaying.txt'),
+    path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro', 'obs', 'nowplaying.txt'),
+    path.join(os.homedir(), 'Documents', 'CloudMixPro', 'nowplaying.txt'),
   ];
   for (const fpath of watchedFiles) {
     if (fs.existsSync(fpath)) {

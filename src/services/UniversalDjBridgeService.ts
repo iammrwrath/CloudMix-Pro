@@ -49,7 +49,7 @@ class UniversalDjBridgeService {
       id: 'file',
       name: 'Serato / Rekordbox / OBS (nowplaying.txt)',
       status: 'polling',
-      details: 'C:\\StreamerBot\\nowplaying.txt live watcher',
+      details: 'nowplaying.txt live file watcher',
     },
     manual: {
       id: 'manual',

@@ -218,7 +218,12 @@ export const App: React.FC = () => {
   const applyZoom = (factor: number) => {
     // If running inside Electron, use native webContents setZoomFactor
     if (typeof window !== 'undefined' && (window as any).desktopAPI?.setZoomFactor) {
-      (window as any).desktopAPI.setZoomFactor(factor).catch(() => {});
+      try {
+        const res = (window as any).desktopAPI.setZoomFactor(factor);
+        if (res && typeof res.catch === 'function') {
+          res.catch(() => {});
+        }
+      } catch {}
       if (typeof document !== 'undefined' && document.documentElement) {
         (document.documentElement.style as any).zoom = '1.0';
       }
@@ -1132,7 +1137,7 @@ export const App: React.FC = () => {
           onToggleAutomix={() => automixService.toggleAutomix(deckA, deckB)}
           onToggleKeyboardModal={() => setIsKeyboardModalOpen((prev) => !prev)}
           onToggleMidiModal={() => setIsMidiModalOpen(true)}
-          onToggleStreamerHud={() => setIsStreamerHudOpen(!isStreamerHudOpen)}
+          onToggleStreamerHud={() => setIsStreamerHudOpen((prev) => !prev)}
           onToggleSettingsModal={() => setIsSettingsOpen(true)}
           isStreamerHudOpen={isStreamerHudOpen}
           isCortexOpen={(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed'}

@@ -48,7 +48,7 @@ class LyricsService {
 
         const res = await fetch(url, {
           headers: {
-            'User-Agent': 'CloudMixPro/1.6.3 (https://github.com/iammrwrath/CloudMix-Pro)',
+            'User-Agent': 'CloudMixPro/1.6.4 (https://github.com/iammrwrath/CloudMix-Pro)',
           },
         });
 
@@ -71,7 +71,7 @@ class LyricsService {
         const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(`${artist} ${cleanTitle}`)}`;
         const searchRes = await fetch(searchUrl, {
           headers: {
-            'User-Agent': 'CloudMixPro/1.6.3 (https://github.com/iammrwrath/CloudMix-Pro)',
+            'User-Agent': 'CloudMixPro/1.6.4 (https://github.com/iammrwrath/CloudMix-Pro)',
           },
         });
 
