@@ -148,7 +148,7 @@ export const Deck = React.memo<DeckProps>(({
           }
         } catch {}
       }}
-      className={`relative flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border shadow-2xl flex-1 min-w-[300px] overflow-hidden justify-between transition-all duration-150 ${
+      className={`relative flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border shadow-2xl flex-1 min-w-0 overflow-hidden justify-between transition-all duration-150 ${
         isDragOver
           ? 'border-cyan-400 ring-2 ring-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.6)]'
           : 'border-dj-border'
@@ -176,7 +176,7 @@ export const Deck = React.memo<DeckProps>(({
           </div>
           <div className="flex flex-col overflow-hidden">
             <div className="flex items-center space-x-1.5">
-              <span className="font-black text-xs sm:text-[13px] text-white truncate max-w-[200px]">
+              <span className="font-black text-xs sm:text-[13px] text-white truncate max-w-[120px] sm:max-w-[160px] xl:max-w-[200px]">
                 {track ? track.title : 'No Track Loaded'}
               </span>
               {deckState.sandboxMode && (
@@ -185,8 +185,8 @@ export const Deck = React.memo<DeckProps>(({
                 </span>
               )}
             </div>
-            <span className="text-[11px] font-medium text-slate-300 truncate max-w-[200px]">
-              {track ? track.artist : 'Drag track from Library or Google Drive'}
+            <span className="text-[11px] font-medium text-slate-300 truncate max-w-[120px] sm:max-w-[160px] xl:max-w-[200px]">
+              {track ? track.artist : 'Drag track from Library or Google D...'}
             </span>
           </div>
         </div>
@@ -340,7 +340,7 @@ export const Deck = React.memo<DeckProps>(({
       {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader */}
       <div className="flex items-center justify-between flex-1 my-0.5 py-0.5 gap-1.5 sm:gap-2 min-h-0">
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
-        <div className="flex flex-col justify-between h-24 sm:h-28 md:h-34 xl:h-44 bg-slate-950/70 rounded-xl p-1 sm:p-1.5 border border-white/5 w-20 sm:w-24 xl:w-28 shrink-0 shadow-inner">
+        <div className="flex flex-col justify-between h-24 sm:h-28 md:h-34 xl:h-44 bg-slate-950/70 rounded-xl p-1 sm:p-1.5 border border-white/5 w-16 sm:w-20 xl:w-24 shrink-0 shadow-inner">
           <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
             <span className="text-[8.5px] sm:text-[10px] font-mono font-bold text-slate-300">STEMS</span>
             <span className="text-[7.5px] sm:text-[9px] font-mono text-purple-400 font-bold">4-WAY</span>

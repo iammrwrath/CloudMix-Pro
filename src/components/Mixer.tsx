@@ -47,7 +47,7 @@ export const Mixer = React.memo<MixerProps>(({
   onNeuralTransitionModeChange,
 }) => {
   return (
-    <div className="flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-2xl w-72 sm:w-84 xl:w-96 min-w-[280px] max-w-[390px] overflow-hidden justify-between shrink-0">
+    <div className="flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-2xl w-[260px] sm:w-[290px] xl:w-[360px] min-w-[220px] max-w-[390px] overflow-hidden justify-between shrink-0">
       {/* 1. Mixer Header / Master Volume Section */}
       <div className="flex items-center justify-between bg-dj-surface/90 rounded-lg p-1 mb-0.5 border border-dj-border shrink-0">
         <RotaryKnob

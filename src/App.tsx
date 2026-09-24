@@ -231,8 +231,13 @@ export const App: React.FC = () => {
   const getAutoZoom = () => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
     const h = typeof window !== 'undefined' ? window.innerHeight : 900;
-    if (w <= 1040 || h <= 640) return 0.75;
-    if (w <= 1280 || h <= 768) return 0.85;
+    // Factor in device pixel ratio: on HiDPI screens (e.g. 1920x1200 @ 150% DPI scale)
+    // the logical viewport is already smaller (e.g. 1280x800) but content still feels cramped.
+    // Applying a tighter zoom on these screens ensures everything fits without clipping.
+    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    if (w <= 1040 || h <= 640) return 0.72;
+    if (w <= 1280 || h <= 800) return dpr >= 1.5 ? 0.78 : 0.85;
+    if (w <= 1440 || h <= 900) return dpr >= 1.5 ? 0.85 : 0.9;
     return 1.0;
   };
 
@@ -242,8 +247,8 @@ export const App: React.FC = () => {
       const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
       const h = typeof window !== 'undefined' ? window.innerHeight : 900;
       if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.7 && savedZoom <= 1.6) {
-        // If on small laptop screen and saved zoom is larger than 0.75, adapt to optimal dense view
-        if ((w <= 1040 || h <= 640) && savedZoom > 0.75) {
+        // If on a small/HiDPI laptop screen and saved zoom is too large, adapt to optimal dense view
+        if ((w <= 1280 || h <= 800) && savedZoom > 0.85) {
           const auto = getAutoZoom();
           setUiZoom(auto);
           applyZoom(auto);
@@ -258,6 +263,19 @@ export const App: React.FC = () => {
       }
     });
 
+    // Re-apply auto zoom on window resize (handles OS snap, resolution changes, etc.)
+    const handleResize = () => {
+      storageCache.getSetting<number | null>('ui_zoom', null).then((savedZoom) => {
+        // Only auto-correct if user hasn't manually set a zoom above the auto threshold
+        if (!savedZoom) {
+          const auto = getAutoZoom();
+          setUiZoom(auto);
+          applyZoom(auto);
+        }
+      });
+    };
+    window.addEventListener('resize', handleResize);
+
     // Initialize audio output devices
     Promise.all([
       storageCache.getSetting<string>('audio_master_device_id', 'default'),
@@ -268,6 +286,8 @@ export const App: React.FC = () => {
       if (hpDev && hpDev !== 'default') audioEngine.setHeadphoneOutputDevice(hpDev);
       if (latency) audioEngine.setLatencyHint(latency);
     }).catch(() => {});
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleUiZoomChange = (zoom: number) => {

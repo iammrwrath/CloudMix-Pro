@@ -312,7 +312,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Google Drive Status Badge */}
         <div
           title="Google Drive Cloud Audio: Connected & Online"
-          className="hidden xl:flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300"
+          className="hidden 2xl:flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300"
         >
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
           <Cloud className="w-3.5 h-3.5 text-blue-400" />
@@ -322,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Real-time Cloud Progression Sync Badge */}
         <div
           title="Real-time Cloud Progression Sync: Active"
-          className="hidden xl:flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300"
+          className="hidden 2xl:flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300"
         >
           <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] animate-pulse" />
           <Wifi className="w-3.5 h-3.5 text-cyan-400" />
@@ -391,11 +391,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '1.6.2'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '1.6.3'} - Click to check GitHub for patches`}
               className="flex items-center space-x-1 px-2 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-cyan-300 text-xs font-mono transition-all cursor-pointer shadow-sm group"
             >
               <Sparkles className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.6.2'}</span>
+              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.6.3'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}
