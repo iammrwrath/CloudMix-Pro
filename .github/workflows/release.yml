@@ -34,16 +34,11 @@ jobs:
       - name: Build CloudMix Pro Installers
         run: npx electron-builder --win nsis portable --publish never
 
-      - name: Build MixCortex AI Standalone Installers
-        run: npx electron-builder --config electron-builder.cortex.json --win nsis portable --publish never
-
       - name: Verify Generated Installers
         shell: bash
         run: |
           echo "=== CloudMix Pro Artifacts ==="
           ls -lh dist-electron/*.exe dist-electron/latest.yml || true
-          echo "=== MixCortex AI Artifacts ==="
-          ls -lh dist-electron-cortex/*.exe || true
 
       - name: Publish All Binaries to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -52,7 +47,6 @@ jobs:
           files: |
             dist-electron/*.exe
             dist-electron/latest.yml
-            dist-electron-cortex/*.exe
           fail_on_unmatched_files: false
           draft: false
         env:
@@ -64,5 +58,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          gh release upload ${{ github.ref_name }} dist-electron/*.exe dist-electron/latest.yml dist-electron-cortex/*.exe --clobber || true
+          gh release upload ${{ github.ref_name }} dist-electron/*.exe dist-electron/latest.yml --clobber || true
           gh release edit ${{ github.ref_name }} --draft=false || true
+          # Clean up any misplaced MixCortex standalone binaries from previous releases in CloudMix-Pro repo
+          gh release delete-asset v1.6.1 MixCortex-AI-Portable.exe -y || true
+          gh release delete-asset v1.6.1 MixCortex-AI-Setup.exe -y || true
+          gh release delete-asset v1.5.2 MixCortex-AI-Portable.exe -y || true
+          gh release delete-asset v1.5.2 MixCortex-AI-Setup.exe -y || true
+          gh release delete-asset v1.5.1 MixCortex-AI-Portable.exe -y || true
+          gh release delete-asset v1.5.1 MixCortex-AI-Setup.exe -y || true
+          gh release delete-asset v1.3.1 MixCortex-AI-Portable.exe -y || true
+          gh release delete-asset v1.3.1 MixCortex-AI-Setup.exe -y || true
