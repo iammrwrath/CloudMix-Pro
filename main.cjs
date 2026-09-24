@@ -1216,21 +1216,28 @@ ipcMain.handle('start-update-download', async () => {
 ipcMain.handle('restart-and-install-patch', async () => {
   log('IPC: restart-and-install-patch called');
   if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
-    log('Launching downloaded setup executable silently: ' + downloadedInstallerPath);
+    log('Launching downloaded setup executable: ' + downloadedInstallerPath);
     const { spawn } = require('child_process');
     try {
-      // Launch NSIS silent install flag (/S) detached so process survives after app quits
-      const child = spawn(downloadedInstallerPath, ['/S'], {
+      const currentExe = process.execPath;
+      // Write a tiny batch script to temp directory that runs the installer silently and then restarts the installed app
+      const batPath = path.join(os.tmpdir(), 'cloudmix_patch_relaunch.bat');
+      const batContent = `@echo off\r\ntimeout /t 1 /nobreak >nul\r\nstart /wait "" "${downloadedInstallerPath}" /S\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\ndel "%~f0"\r\n`;
+      fs.writeFileSync(batPath, batContent, 'utf8');
+
+      const child = spawn('cmd.exe', ['/c', batPath], {
         detached: true,
         stdio: 'ignore',
+        windowsHide: true,
       });
       child.unref();
+
       setTimeout(() => {
         app.quit();
       }, 500);
       return { success: true };
     } catch (spawnErr) {
-      log('Failed to spawn installer silently: ' + spawnErr.message);
+      log('Failed to execute patch installer batch script: ' + spawnErr.message);
       return { success: false, error: spawnErr.message };
     }
   }

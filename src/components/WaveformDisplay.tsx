@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { DeckId, HotCue, StemState, TrackMetadata, WaveformData } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
+import { youtubeDeckBridge } from '../services/YouTubeDeckBridge';
 
 interface WaveformDisplayProps {
   deckId: DeckId;
@@ -207,7 +208,11 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const liveTime = isPlaying ? audioEngine.getCurrentTime(deckId) : currentTimeRef.current;
+      const liveTime = isPlaying
+        ? (youtubeDeckBridge.isYouTubeDeck(deckId)
+            ? youtubeDeckBridge.getCurrentTime(deckId)
+            : audioEngine.getCurrentTime(deckId))
+        : currentTimeRef.current;
 
       // Update overview playhead in the same rAF tick
       if (isPlaying) {

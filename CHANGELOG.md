@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.7] - 2026-09-24
+
+### Fixed
+- **YouTube Deck Audio Playback & Transport**:
+  - Eliminated playback stall on YouTube tracks (where track stayed paused at `00:00.0` when pressing Play).
+  - Resolved Chromium iframe throttling by repositioning the bridge element into active DOM space rather than deep offscreen coordinates (`-9999px`).
+  - Switched player embed host to `https://www.youtube-nocookie.com` and removed invalid `file://` origin parameter under Electron.
+  - Added programmatic un-muting and volume enforcement on `play()`.
+  - Added bidirectional `getPlayerState` synchronization in the 100ms time polling loop.
+  - Connected `WaveformDisplay` hardware rendering loop directly to `youtubeDeckBridge.getCurrentTime(deckId)` for high-precision live playhead and scrolling waveform animation.
+- **Auto-Updater & Patch Relaunching**:
+  - Fixed patch installation failing to relaunch the app after applying an update.
+  - Added a self-cleaning Windows batch relay script (`cloudmix_patch_relaunch.bat`) in `main.cjs` that executes the downloaded NSIS setup installer silently (`/S`), waits for completion, and automatically relaunches the installed executable (`process.execPath`).
+
+---
+
 ## [v1.6.6] - 2026-09-24
 
 ### Fixed

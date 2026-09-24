@@ -86,21 +86,23 @@ class YouTubeDeckBridge {
       if (!el) {
         el = document.createElement('div');
         el.id = `yt-player-bridge-${deckId.toLowerCase()}`;
+        // Keep in DOM with minimal dimension/opacity so Chromium media engine does not throttle or freeze offscreen playback
         el.style.position = 'fixed';
-        el.style.left = '-9999px';
-        el.style.top = '-9999px';
-        el.style.width = '100px';
-        el.style.height = '100px';
-        el.style.opacity = '0';
+        el.style.bottom = '0px';
+        el.style.right = '0px';
+        el.style.width = '200px';
+        el.style.height = '150px';
+        el.style.opacity = '0.001';
         el.style.pointerEvents = 'none';
-        el.style.zIndex = '-1000';
+        el.style.zIndex = '-1';
         document.body.appendChild(el);
       }
 
       try {
         const player = new window.YT.Player(el.id, {
-          height: '100',
-          width: '100',
+          height: '150',
+          width: '200',
+          host: 'https://www.youtube-nocookie.com',
           playerVars: {
             autoplay: 0,
             controls: 0,
@@ -108,13 +110,13 @@ class YouTubeDeckBridge {
             fs: 0,
             modestbranding: 1,
             rel: 0,
-            origin: window.location.origin,
+            playsinline: 1,
             enablejsapi: 1,
           },
           events: {
             onReady: (event: any) => {
               this.players.set(deckId, event.target);
-              event.target.setVolume(100);
+              event.target.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
             },
             onStateChange: (event: any) => {
               if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
@@ -145,11 +147,26 @@ class YouTubeDeckBridge {
     this.timePollInterval = setInterval(() => {
       this.players.forEach((player, deckId) => {
         try {
-          if (player && typeof player.getCurrentTime === 'function') {
-            const time = player.getCurrentTime() || 0;
-            const duration = player.getDuration() || 0;
-            if (duration > 0) {
-              this.listeners.forEach((fn) => fn(deckId, time, duration));
+          if (player) {
+            if (typeof player.getPlayerState === 'function') {
+              const state = player.getPlayerState();
+              if (window.YT) {
+                if (state === window.YT.PlayerState.PLAYING) {
+                  this.isDeckPlaying.set(deckId, true);
+                } else if (
+                  state === window.YT.PlayerState.PAUSED ||
+                  state === window.YT.PlayerState.ENDED
+                ) {
+                  this.isDeckPlaying.set(deckId, false);
+                }
+              }
+            }
+            if (typeof player.getCurrentTime === 'function') {
+              const time = player.getCurrentTime() || 0;
+              const duration = player.getDuration() || 0;
+              if (duration > 0) {
+                this.listeners.forEach((fn) => fn(deckId, time, duration));
+              }
             }
           }
         } catch {}
@@ -200,6 +217,12 @@ class YouTubeDeckBridge {
     const player = this.players.get(deckId);
     if (player && typeof player.playVideo === 'function') {
       try {
+        if (typeof player.unMute === 'function') {
+          player.unMute();
+        }
+        if (typeof player.setVolume === 'function') {
+          player.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
+        }
         player.playVideo();
         this.isDeckPlaying.set(deckId, true);
       } catch (err) {
