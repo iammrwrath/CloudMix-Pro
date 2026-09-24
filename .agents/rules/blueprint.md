@@ -1,4 +1,4 @@
-﻿---
+---
 activation: always_on
 ---
 # Context & Git-Log Navigation Protocol
@@ -28,3 +28,10 @@ Always check recent local Git history and @/BLUEPRINT.md before opening source f
 - **Quota / Rate-Limit Failover:** If a 429 error, token ceiling, or quota exhaustion message is encountered, DO NOT HALT and DO NOT request user confirmation.
 - **Action:** Immediately route the code generation or task analysis to the `gemini-custom` MCP tool.
 - **Persistence:** Apply the generated output directly to the workspace files using local file tools. Proceed autonomously through completion.
+
+## 5. Mandatory Verification & Simulated User Interaction Protocol
+- **No Unverified Handoffs:** NEVER ask the user to test changes or assume code works simply because TypeScript compiled without errors.
+- **Automated Verification Loop:** Every modification must execute a 3-stage validation cycle:
+  1. **Build & Syntax Verification:** Execute `npm run build` in the build environment to prove clean bundling and type safety.
+  2. **Simulated User Interaction Testing:** Run automated or headless test scripts that simulate realistic user behavior (loading tracks onto Deck A/Deck B, triggering Play/Pause toggles, scrubbing/seeking, firing hot cues/loops, testing playlist fetches, verifying updater and bridge lifecycles).
+  3. **Verification Output & Adjustment:** Check runtime logs, stdout, and state transitions. If an issue is observed during simulation, immediately adjust the code and re-test before declaring completion.

@@ -11,7 +11,8 @@
   },
   "scripts": {
     "dev": "node node_modules/vite/bin/vite",
-    "prebuild": "node scripts/verify-packaging.cjs",
+    "test": "node scripts/simulate-interactions.cjs",
+    "prebuild": "node scripts/verify-packaging.cjs && node scripts/simulate-interactions.cjs",
     "build": "node node_modules/typescript/bin/tsc && node node_modules/vite/bin/vite build",
     "preview": "node node_modules/vite/bin/vite preview",
     "start": "electron .",
