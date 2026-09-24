@@ -141,7 +141,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const liveRpm = (33.33 * playbackRate).toFixed(1);
 
   return (
-    <div className="relative flex items-center justify-center p-1 select-none group">
+    <div className="relative flex items-center justify-center p-0.5 sm:p-1 select-none group w-full h-full flex-1 max-w-[min(46vh,420px)] max-h-[min(46vh,420px)] aspect-square mx-auto">
       {/* Ambient Platter Glow */}
       <div
         className="absolute inset-2 rounded-full opacity-20 blur-xl pointer-events-none transition-opacity duration-300 group-hover:opacity-40"
@@ -151,7 +151,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
       {/* Outer Pitch Bend Rim (Machined Aluminum Strobe Bezel) */}
       <div
         ref={wheelRef}
-        className="relative w-[min(26vh,260px,100%)] h-[min(26vh,260px,100%)] md:w-[min(30vh,300px,100%)] md:h-[min(30vh,300px,100%)] xl:w-[min(34vh,340px,100%)] xl:h-[min(34vh,340px,100%)] aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1.5 sm:p-2 shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
+        className="relative w-full h-full aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1.5 sm:p-2 shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
       >
         {/* Outer Strobe Dot Ring (Pioneer CDJ / Technics Style) */}
         <div className="absolute inset-0 rounded-full border border-dashed border-slate-400/25 pointer-events-none" />

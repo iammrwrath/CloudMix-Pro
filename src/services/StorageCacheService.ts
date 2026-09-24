@@ -124,6 +124,11 @@ export class StorageCacheService {
   public async clearHistory(): Promise<void> {
     await this.setSetting('set_history', []);
   }
+
+  public async clearAll(): Promise<void> {
+    const db = await this.dbPromise;
+    await db.clear('audioBuffers');
+  }
 }
 
 export const storageCache = new StorageCacheService();

@@ -54,6 +54,9 @@ export interface DeckAudioNodes {
   stemBassSource: AudioBufferSourceNode | null;
   stemHarmonicsSource: AudioBufferSourceNode | null;
   audioBuffer: AudioBuffer | null;
+  reverseAudioBuffer: AudioBuffer | null;
+  scratchSourceNode: AudioBufferSourceNode | null;
+  scratchDirection: 'forward' | 'reverse';
   startTime: number;
   pauseOffset: number;
   playbackRate: number;
@@ -164,50 +167,51 @@ class AudioEngine {
 
     // ==========================================
     // Real-Time Neural Mix 4-Way Crossover DSP
+    // Linkwitz-Riley aligned 4-way crossover slopes
     // ==========================================
-    // 1. Drums Stem (Punch & Transients: < 120Hz)
+    // 1. Drums Stem (Punch, Kick & Snare Transients: < 140Hz)
     const stemDrumsFilter = this.ctx.createBiquadFilter();
     stemDrumsFilter.type = 'lowpass';
-    stemDrumsFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
-    stemDrumsFilter.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    stemDrumsFilter.frequency.setValueAtTime(140, this.ctx.currentTime);
+    stemDrumsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemDrumsGain = this.ctx.createGain();
     stemDrumsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemDrumsXfaderGain = this.ctx.createGain();
     stemDrumsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 2. Bass Stem (Sub-bass, Bassline, 808s: 60Hz - 320Hz)
+    // 2. Bass Stem (Sub-bass, Bassline, 808s: 80Hz - 340Hz)
     const stemBassHpf = this.ctx.createBiquadFilter();
     stemBassHpf.type = 'highpass';
-    stemBassHpf.frequency.setValueAtTime(60, this.ctx.currentTime);
-    stemBassHpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    stemBassHpf.frequency.setValueAtTime(80, this.ctx.currentTime);
+    stemBassHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemBassLpf = this.ctx.createBiquadFilter();
     stemBassLpf.type = 'lowpass';
-    stemBassLpf.frequency.setValueAtTime(320, this.ctx.currentTime);
-    stemBassLpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    stemBassLpf.frequency.setValueAtTime(340, this.ctx.currentTime);
+    stemBassLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemBassGain = this.ctx.createGain();
     stemBassGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemBassXfaderGain = this.ctx.createGain();
     stemBassXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 3. Vocals Stem (Lead & Formant Crossover Bandpass: 350Hz - 3800Hz)
+    // 3. Vocals Stem (Lead & Formant Crossover Bandpass: 380Hz - 3600Hz)
     const stemVocalsHpf = this.ctx.createBiquadFilter();
     stemVocalsHpf.type = 'highpass';
-    stemVocalsHpf.frequency.setValueAtTime(350, this.ctx.currentTime);
-    stemVocalsHpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    stemVocalsHpf.frequency.setValueAtTime(380, this.ctx.currentTime);
+    stemVocalsHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemVocalsLpf = this.ctx.createBiquadFilter();
     stemVocalsLpf.type = 'lowpass';
-    stemVocalsLpf.frequency.setValueAtTime(3800, this.ctx.currentTime);
-    stemVocalsLpf.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    stemVocalsLpf.frequency.setValueAtTime(3600, this.ctx.currentTime);
+    stemVocalsLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemVocalsGain = this.ctx.createGain();
     stemVocalsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemVocalsXfaderGain = this.ctx.createGain();
     stemVocalsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 4. Harmonics / Melody Stem (Synths, Keys, Strings: > 3200Hz)
+    // 4. Harmonics / Melody Stem (Synths, Keys, Hi-Hats, Air: > 3600Hz)
     const stemHarmonicsFilter = this.ctx.createBiquadFilter();
     stemHarmonicsFilter.type = 'highpass';
-    stemHarmonicsFilter.frequency.setValueAtTime(3200, this.ctx.currentTime);
-    stemHarmonicsFilter.Q.setValueAtTime(0.707, this.ctx.currentTime);
+    stemHarmonicsFilter.frequency.setValueAtTime(3600, this.ctx.currentTime);
+    stemHarmonicsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemHarmonicsGain = this.ctx.createGain();
     stemHarmonicsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemHarmonicsXfaderGain = this.ctx.createGain();
@@ -401,6 +405,9 @@ class AudioEngine {
       stemBassSource: null,
       stemHarmonicsSource: null,
       audioBuffer: null,
+      reverseAudioBuffer: null,
+      scratchSourceNode: null,
+      scratchDirection: 'forward',
       startTime: 0,
       pauseOffset: 0,
       playbackRate: 1.0,
@@ -443,6 +450,28 @@ class AudioEngine {
     deck.pauseOffset = 0;
     deck.startTime = 0;
     deck.loopRegion = null;
+    deck.scratchDirection = 'forward';
+
+    // Generate reverse audio buffer for authentic bi-directional vinyl scratching
+    if (this.ctx) {
+      try {
+        const numChannels = buffer.numberOfChannels;
+        const length = buffer.length;
+        const sampleRate = buffer.sampleRate;
+        const revBuffer = this.ctx.createBuffer(numChannels, length, sampleRate);
+        for (let ch = 0; ch < numChannels; ch++) {
+          const srcData = buffer.getChannelData(ch);
+          const dstData = revBuffer.getChannelData(ch);
+          for (let i = 0, j = length - 1; i < length; i++, j--) {
+            dstData[i] = srcData[j];
+          }
+        }
+        deck.reverseAudioBuffer = revBuffer;
+      } catch (e) {
+        console.warn('Failed to pre-compute reverse buffer for vinyl scratch:', e);
+        deck.reverseAudioBuffer = null;
+      }
+    }
   }
 
   public setDeckStems(deckId: DeckId, stems: DiscreteStems) {
@@ -713,9 +742,9 @@ class AudioEngine {
   }
 
   // =========================================================================
-  // AUTHENTIC VINYL SCRATCH DSP ENGINE (Continuous Velocity & Pitch Shifting)
-  // Replaces crude buffer restarts with pitch-modulated playback rate
-  // matching authentic Technics 1200 / Serato / djay Pro vinyl physics.
+  // AUTHENTIC VINYL SCRATCH DSP ENGINE (Bi-Directional Serato/djay Pro Scratch)
+  // Seamlessly transitions between forward & reversed buffers with authentic
+  // velocity, turntable inertia droop, and pitch modulation.
   // =========================================================================
   public startScratch(deckId: DeckId) {
     const deck = this.decks.get(deckId);
@@ -723,16 +752,31 @@ class AudioEngine {
     deck.isScratching = true;
     deck.scratchPlaybackPos = this.getCurrentTime(deckId);
     deck.scratchLastTimestamp = performance.now();
+    deck.scratchDirection = 'forward';
 
-    // Momentarily mute to zero velocity until user moves hand
+    // Disconnect playing sources so we can take full tactile control via scratchSourceNode
     if (deck.sourceNode) {
-      deck.sourceNode.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+      try {
+        deck.sourceNode.stop();
+        deck.sourceNode.disconnect();
+      } catch {}
+      deck.sourceNode = null;
     }
     if (deck.stemVocalsSource) {
-      deck.stemVocalsSource.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
-      deck.stemDrumsSource?.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
-      deck.stemBassSource?.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
-      deck.stemHarmonicsSource?.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+      try {
+        deck.stemVocalsSource.stop();
+        deck.stemVocalsSource.disconnect();
+        deck.stemDrumsSource?.stop();
+        deck.stemDrumsSource?.disconnect();
+        deck.stemBassSource?.stop();
+        deck.stemBassSource?.disconnect();
+        deck.stemHarmonicsSource?.stop();
+        deck.stemHarmonicsSource?.disconnect();
+      } catch {}
+      deck.stemVocalsSource = null;
+      deck.stemDrumsSource = null;
+      deck.stemBassSource = null;
+      deck.stemHarmonicsSource = null;
     }
   }
 
@@ -746,27 +790,61 @@ class AudioEngine {
 
     // Velocity = distance / time
     const velocity = deltaSec / dt;
-    // Cap velocity between -4x and +4x playback speed
     const clampedRate = Math.max(-4.0, Math.min(4.0, velocity));
-
-    if (Math.abs(clampedRate) > 0.05) {
-      const targetRate = Math.abs(clampedRate);
-      if (deck.sourceNode) {
-        deck.sourceNode.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
-      }
-      if (deck.stemVocalsSource) {
-        deck.stemVocalsSource.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
-        deck.stemDrumsSource?.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
-        deck.stemBassSource?.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
-        deck.stemHarmonicsSource?.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
-      }
-    }
+    const speed = Math.abs(clampedRate);
 
     // Keep playhead synchronized
-    const nextPos = Math.max(0, Math.min(deck.audioBuffer.duration, (deck.scratchPlaybackPos || 0) + deltaSec));
+    const duration = deck.audioBuffer.duration;
+    const currentPos = deck.scratchPlaybackPos ?? deck.pauseOffset;
+    const nextPos = Math.max(0, Math.min(duration, currentPos + deltaSec));
     deck.scratchPlaybackPos = nextPos;
     deck.pauseOffset = nextPos;
-    deck.startTime = this.ctx.currentTime - (nextPos / (deck.playbackRate || 1.0));
+
+    if (speed < 0.04) {
+      // Near dead-stop: mute scratch source cleanly
+      if (deck.scratchSourceNode) {
+        try {
+          deck.scratchSourceNode.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+        } catch {}
+      }
+      return;
+    }
+
+    const direction: 'forward' | 'reverse' = clampedRate < 0 ? 'reverse' : 'forward';
+
+    // If scratch direction changed or scratch source not created yet, instantiate scratch source node
+    if (!deck.scratchSourceNode || deck.scratchDirection !== direction) {
+      if (deck.scratchSourceNode) {
+        try {
+          deck.scratchSourceNode.stop();
+          deck.scratchSourceNode.disconnect();
+        } catch {}
+        deck.scratchSourceNode = null;
+      }
+
+      deck.scratchDirection = direction;
+      const targetBuffer = (direction === 'reverse' && deck.reverseAudioBuffer)
+        ? deck.reverseAudioBuffer
+        : deck.audioBuffer;
+
+      const scratchSrc = this.ctx.createBufferSource();
+      scratchSrc.buffer = targetBuffer;
+      scratchSrc.playbackRate.setValueAtTime(Math.max(0.05, speed), this.ctx.currentTime);
+      scratchSrc.connect(deck.gainTrim);
+
+      // In reverse buffer, offset is mirrored: duration - nextPos
+      const bufferOffset = direction === 'reverse'
+        ? Math.max(0, Math.min(duration, duration - nextPos))
+        : nextPos;
+
+      scratchSrc.start(0, bufferOffset);
+      deck.scratchSourceNode = scratchSrc;
+    } else {
+      // Update playback speed dynamically with realistic analog turntable response
+      try {
+        deck.scratchSourceNode.playbackRate.setTargetAtTime(Math.max(0.05, speed), this.ctx.currentTime, 0.008);
+      } catch {}
+    }
   }
 
   public endScratch(deckId: DeckId) {
@@ -774,22 +852,21 @@ class AudioEngine {
     if (!deck || !this.ctx) return;
     deck.isScratching = false;
 
-    // If deck was playing, smoothly spin back up to normal turntable playback rate
+    // Disconnect scratch source node
+    if (deck.scratchSourceNode) {
+      try {
+        deck.scratchSourceNode.stop();
+        deck.scratchSourceNode.disconnect();
+      } catch {}
+      deck.scratchSourceNode = null;
+    }
+
+    // If deck was playing when scratch started, resume forward playback from new scratch position
     if (deck.isPlaying) {
-      if (deck.sourceNode) {
-        deck.sourceNode.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
-      }
-      if (deck.stemVocalsSource) {
-        deck.stemVocalsSource.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
-        deck.stemDrumsSource?.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
-        deck.stemBassSource?.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
-        deck.stemHarmonicsSource?.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
-      }
+      const resumePos = deck.scratchPlaybackPos ?? deck.pauseOffset;
+      this.playDeck(deckId, resumePos);
     } else {
-      // Return to stopped
-      if (deck.sourceNode) {
-        deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
-      }
+      deck.pauseOffset = deck.scratchPlaybackPos ?? deck.pauseOffset;
     }
   }
 

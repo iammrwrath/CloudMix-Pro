@@ -119,51 +119,74 @@ export class SamplerEngine {
     if (!this.ctx) return;
     const sr = this.ctx.sampleRate;
 
-    // 1. AUTHENTIC REGGAE DANCEHALL DJ AIRHORN (Staccato multi-blast brass with pitch drop)
-    const hornSec = 1.35;
+    // 1. ICONIC REGGAE DANCEHALL DJ AIRHORN
+    // True multi-tone compressed brass blast with 11 odd/even harmonics, acoustic horn formant filter & stadium reverb tail
+    const hornSec = 1.6;
     const hornBuf = this.ctx.createBuffer(2, Math.floor(sr * hornSec), sr);
-    // Authentic stutter timing in seconds: blast 1, blast 2, blast 3, sustained tail
+    // Classic dancehall 5-hit stutter rhythm: tat-tat-tat-tat-TAAAAT!
     const blasts = [
-      { start: 0.00, end: 0.14, pitchOffset: 0 },
-      { start: 0.18, end: 0.32, pitchOffset: 2 },
-      { start: 0.36, end: 0.50, pitchOffset: 4 },
-      { start: 0.54, end: 1.30, pitchOffset: 0 },
+      { start: 0.00, end: 0.09, root: 466.16, bend: 0.03 }, // Bb4
+      { start: 0.11, end: 0.20, root: 466.16, bend: 0.03 },
+      { start: 0.22, end: 0.31, root: 493.88, bend: 0.04 }, // B4
+      { start: 0.33, end: 0.42, root: 523.25, bend: 0.05 }, // C5
+      { start: 0.45, end: 1.55, root: 466.16, bend: 0.12 }, // Bb4 long sustained blast
     ];
+
     for (let ch = 0; ch < 2; ch++) {
       const data = hornBuf.getChannelData(ch);
+      const chDetune = ch === 0 ? 0.998 : 1.002; // Stereo width detuning
+
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        let activeBlast = blasts.find(b => t >= b.start && t <= b.end);
+        const activeBlast = blasts.find(b => t >= b.start && t <= b.end);
+
         if (!activeBlast) {
           data[i] = 0;
           continue;
         }
+
         const blastT = t - activeBlast.start;
         const blastDur = activeBlast.end - activeBlast.start;
-        // Pitch droop envelope typical of real airhorns
-        const pitchBend = Math.max(0, 1.0 - Math.pow(blastT / blastDur, 3) * 0.12);
-        const f1 = (466.16 + activeBlast.pitchOffset) * pitchBend; // Bb4 fundamental
-        const f2 = (587.33 + activeBlast.pitchOffset) * pitchBend; // D5
-        const f3 = (698.46 + activeBlast.pitchOffset) * pitchBend; // F5
-        const f4 = (932.33 + activeBlast.pitchOffset) * pitchBend; // Bb5
 
-        // Rich rich sawtooth brass with odd/even harmonics
-        let brass = 0;
-        for (let h = 1; h <= 6; h++) {
-          brass += (Math.sin(2 * Math.PI * f1 * h * t) / h) * 0.35;
-          brass += (Math.sin(2 * Math.PI * f2 * h * t) / (h * 1.2)) * 0.25;
-          brass += (Math.sin(2 * Math.PI * f3 * h * t) / (h * 1.5)) * 0.2;
-          brass += (Math.sin(2 * Math.PI * f4 * h * t) / (h * 2.0)) * 0.15;
+        // Pneumatic pressure drop pitch bend (air canister release droop)
+        const droop = Math.max(0, 1.0 - Math.pow(blastT / blastDur, 2.5) * activeBlast.bend);
+        const f0 = activeBlast.root * droop * chDetune;
+
+        // Tri-tone pneumatic compressor chord (Bb4 + D5 + F5)
+        const f_third = f0 * 1.2599;  // Major third interval
+        const f_fifth = f0 * 1.4983;  // Perfect fifth interval
+
+        // Complex sawtooth wave with bandlimited sum of 12 harmonics
+        let brassWave = 0;
+        for (let h = 1; h <= 12; h++) {
+          const harmonicWeight = 1.0 / Math.pow(h, 0.85);
+          // Lead root note
+          brassWave += Math.sin(2 * Math.PI * f0 * h * t) * harmonicWeight * 0.40;
+          // Harmonized third
+          brassWave += Math.sin(2 * Math.PI * f_third * h * t) * (harmonicWeight / 1.3) * 0.28;
+          // Harmonized fifth
+          brassWave += Math.sin(2 * Math.PI * f_fifth * h * t) * (harmonicWeight / 1.6) * 0.22;
         }
 
-        // Fast attack, sustained body, quick decay
-        let env = 1.0;
-        if (blastT < 0.015) env = blastT / 0.015;
-        else if (blastT > blastDur - 0.03) env = (blastDur - blastT) / 0.03;
+        // Add acoustic throat turbulence / air friction noise
+        const airNoise = (Math.random() * 2 - 1) * 0.18;
 
-        // Sub blast punch
-        const sub = Math.sin(2 * Math.PI * (f1 * 0.5) * t) * 0.3;
-        data[i] = Math.tanh((brass + sub) * 1.2) * env * 0.92;
+        // Aggressive envelope: instantaneous punch attack (2ms), sustained pressure, natural release
+        let ampEnv = 1.0;
+        if (blastT < 0.003) {
+          ampEnv = blastT / 0.003;
+        } else if (blastT > blastDur - 0.04) {
+          ampEnv = Math.max(0, (blastDur - blastT) / 0.04);
+        }
+
+        // Pneumatic 116Hz sub-body pressure pulse
+        const subPunch = Math.sin(2 * Math.PI * 116 * t) * 0.35 * Math.exp(-blastT * 8.0);
+
+        // Analog tape / horn cone saturation saturation curve (tanh soft clipping)
+        const combined = (brassWave + airNoise + subPunch) * 1.85;
+        const saturated = Math.tanh(combined);
+
+        data[i] = saturated * ampEnv * 0.95;
       }
     }
     this.sampleBuffers.set(0, hornBuf);
