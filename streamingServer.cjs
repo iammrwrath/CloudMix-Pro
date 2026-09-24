@@ -68,6 +68,74 @@ function fallbackScrape(artist, title, searchKey) {
   });
 }
 
+function searchYouTubeVideos(query) {
+  if (!query || !query.trim()) return Promise.resolve([]);
+  const cleanQ = query.trim();
+
+  // 1. Official YouTube Data API v3 Search
+  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(cleanQ + ' music')}&type=video&videoCategoryId=10&maxResults=15&key=${YOUTUBE_API_KEY}`;
+
+  return new Promise((resolve) => {
+    https.get(apiUrl, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.items && parsed.items.length > 0) {
+            const results = parsed.items.map(item => {
+              const videoId = item.id?.videoId || '';
+              const title = item.snippet?.title || 'Unknown Title';
+              const artist = item.snippet?.channelTitle || 'YouTube Artist';
+              const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+              return {
+                videoId,
+                title,
+                artist,
+                duration: 210,
+                thumbnailUrl
+              };
+            });
+            return resolve(results);
+          }
+        } catch {}
+
+        fallbackScrapeSearch(cleanQ).then(resolve);
+      });
+    }).on('error', () => {
+      fallbackScrapeSearch(cleanQ).then(resolve);
+    });
+  });
+}
+
+function fallbackScrapeSearch(query) {
+  return new Promise((resolve) => {
+    const q = encodeURIComponent(`${query} music`);
+    const url = `https://www.youtube.com/results?search_query=${q}&sp=EgIQAQ%253D%253D`;
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const results = [];
+          const matches = [...data.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})","thumbnail":{"thumbnails":\[{"url":"([^"]+)".*?"title":{"runs":\[{"text":"([^"]+)"}\]}.*?"ownerText":{"runs":\[{"text":"([^"]+)"}\]}/g)];
+          for (const m of matches.slice(0, 15)) {
+            results.push({
+              videoId: m[1],
+              thumbnailUrl: m[2],
+              title: m[3],
+              artist: m[4] || 'YouTube Artist',
+              duration: 210,
+            });
+          }
+          if (results.length > 0) return resolve(results);
+        } catch {}
+        resolve([]);
+      });
+    }).on('error', () => resolve([]));
+  });
+}
+
 /**
  * CloudMix Pro Broadcast & Streaming Server (Port 8088)
  * - Broadcasts to OBS Studio via transparent glassmorphic Browser Source (/obs-overlay)
@@ -829,6 +897,22 @@ function startStreamingServer(port = 8088, callbacks = {}) {
     if (pathname === '/api/nowplaying') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(currentBroadcastState));
+      return;
+    }
+
+    // 2b. REST YouTube Search API (Port 8088)
+    if (pathname === '/api/youtube/search') {
+      const q = parsedUrl.searchParams.get('q') || '';
+      searchYouTubeVideos(q).then((results) => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ results }));
+      }).catch((err) => {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ results: [], error: err.message }));
+      });
       return;
     }
 

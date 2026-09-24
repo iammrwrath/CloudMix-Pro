@@ -31,22 +31,38 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Build & Publish CloudMix Pro Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EP_GH_IGNORE_TIME: true
-        run: npx electron-builder --win nsis portable --publish always
+      - name: Build CloudMix Pro Installers
+        run: npx electron-builder --win nsis portable --publish never
 
-      - name: Build & Publish MixCortex AI Standalone Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EP_GH_IGNORE_TIME: true
-        run: npx electron-builder --config electron-builder.cortex.json --win nsis portable --publish always
+      - name: Build MixCortex AI Standalone Installers
+        run: npx electron-builder --config electron-builder.cortex.json --win nsis portable --publish never
 
-      - name: Undraft GitHub Release
+      - name: Verify Generated Installers
+        shell: bash
+        run: |
+          echo "=== CloudMix Pro Artifacts ==="
+          ls -lh dist-electron/*.exe dist-electron/latest.yml || true
+          echo "=== MixCortex AI Artifacts ==="
+          ls -lh dist-electron-cortex/*.exe || true
+
+      - name: Publish All Binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist-electron/*.exe
+            dist-electron/latest.yml
+            dist-electron-cortex/*.exe
+          fail_on_unmatched_files: false
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fallback Release Upload via GitHub CLI
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          gh release upload ${{ github.ref_name }} dist-electron/*.exe dist-electron/latest.yml dist-electron-cortex/*.exe --clobber || true
           gh release edit ${{ github.ref_name }} --draft=false || true

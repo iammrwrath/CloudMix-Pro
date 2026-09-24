@@ -87,13 +87,13 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
   return (
     <div className="flex flex-col bg-dj-surface/90 rounded-lg p-1 sm:p-1.5 border border-dj-border shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
       {/* Mode Selector Tabs */}
-      <div className="flex items-center justify-between mb-1 px-0.5">
-        <div className="flex space-x-1">
+      <div className="flex items-center justify-between mb-0.5 px-0.5">
+        <div className="flex space-x-0.5 sm:space-x-1">
           {(['HOT CUE', 'AUTO LOOP', 'BEAT JUMP', 'STEMS'] as PadMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => { setPadMode(mode); setDeleteMode(false); }}
-              className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-black rounded-md tracking-wider transition-all cursor-pointer ${
+              className={`px-1 sm:px-1.5 py-0.2 sm:py-0.5 text-[8px] sm:text-[9px] md:text-[9.5px] font-mono font-black rounded tracking-tight transition-all cursor-pointer whitespace-nowrap ${
                 padMode === mode
                   ? 'bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow-[0_0_8px_rgba(255,255,255,0.2)] border border-slate-500'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
@@ -107,7 +107,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
         {padMode === 'HOT CUE' && (
           <button
             onClick={() => setDeleteMode(!deleteMode)}
-            className={`px-2.5 py-1 text-[9.5px] font-mono font-black rounded uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-1.5 py-0.2 sm:py-0.5 text-[8px] sm:text-[9px] font-mono font-black rounded uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
               deleteMode
                 ? 'bg-rose-600 text-white animate-pulse shadow-[0_0_8px_rgba(225,29,72,0.8)]'
                 : 'text-slate-400 hover:text-rose-400 bg-slate-800/80 border border-slate-700'
@@ -163,7 +163,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <button
                 key={i}
                 onClick={() => handleCueClick(i)}
-                className={`relative h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-xs sm:text-[13px] transition-all cursor-pointer select-none active:scale-[0.95] ${
+                className={`relative h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-xs sm:text-[13px] transition-all cursor-pointer select-none active:scale-[0.95] ${
                   cue
                     ? 'text-black font-extrabold shadow-lg'
                     : 'bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-400'
@@ -202,7 +202,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <button
                 key={i}
                 onClick={() => handleLoopClick(beats)}
-                className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex items-center justify-center space-x-1 font-mono font-black text-xs sm:text-[13px] transition-all cursor-pointer active:scale-[0.95] ${
+                className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex items-center justify-center space-x-1 font-mono font-black text-xs sm:text-[13px] transition-all cursor-pointer active:scale-[0.95] ${
                   isCurrentActive
                     ? 'bg-emerald-500 text-black border border-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.8)] font-extrabold'
                     : 'bg-slate-900/90 border border-emerald-500/40 text-emerald-400 hover:bg-slate-800 hover:border-emerald-300'
@@ -222,7 +222,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             <button
               key={i}
               onClick={() => onBeatJump(beats)}
-              className="h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex items-center justify-center font-mono font-black text-xs sm:text-[13px] bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-slate-800 hover:border-cyan-300 active:scale-[0.95] transition-all cursor-pointer shadow-inner"
+              className="h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex items-center justify-center font-mono font-black text-xs sm:text-[13px] bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-slate-800 hover:border-cyan-300 active:scale-[0.95] transition-all cursor-pointer shadow-inner"
               style={{
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
               }}
@@ -237,7 +237,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             {/* Row 1: 4-Stem Mutes (Vocals, Melodics, Bass, Drums) */}
             <button
               onClick={() => onStemMuteToggle?.('vocals')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.vocalsMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-pink-600 text-white border border-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.6)]'
@@ -249,7 +249,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
             <button
               onClick={() => onStemMuteToggle?.('harmonics')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.harmonicsMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-emerald-600 text-white border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.6)]'
@@ -261,7 +261,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
             <button
               onClick={() => onStemMuteToggle?.('bass')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.bassMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-blue-600 text-white border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.6)]'
@@ -273,7 +273,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
             <button
               onClick={() => onStemMuteToggle?.('drums')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.drumsMuted
                   ? 'bg-rose-950/80 border border-rose-600 text-rose-400 shadow-[0_0_8px_rgba(225,29,72,0.4)]'
                   : 'bg-amber-600 text-white border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.6)]'
@@ -286,7 +286,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             {/* Row 2: 4-Stem Solos (Vocals, Melodics, Bass, Drums) */}
             <button
               onClick={() => onStemSoloToggle?.('vocals')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.vocalsSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-pink-700/60 text-pink-400 hover:bg-pink-950/40'
@@ -298,7 +298,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
             <button
               onClick={() => onStemSoloToggle?.('harmonics')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.harmonicsSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-emerald-700/60 text-emerald-400 hover:bg-emerald-950/40'
@@ -310,7 +310,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
             <button
               onClick={() => onStemSoloToggle?.('bass')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.bassSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-blue-700/60 text-blue-400 hover:bg-blue-950/40'
@@ -322,7 +322,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 
             <button
               onClick={() => onStemSoloToggle?.('drums')}
-              className={`h-8 sm:h-9 md:h-10 xl:h-12 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
+              className={`h-5 sm:h-6 md:h-7 xl:h-8 rounded-lg flex flex-col items-center justify-center font-mono font-black text-[10px] transition-all cursor-pointer active:scale-[0.95] ${
                 stems?.drumsSolo
                   ? 'bg-amber-400 text-black font-extrabold border border-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.9)]'
                   : 'bg-slate-900/90 border border-amber-700/60 text-amber-400 hover:bg-amber-950/40'

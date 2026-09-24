@@ -80,9 +80,10 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // SVG Arc calculation
-  const svgSize = size + 8;
+  const isCompact = size <= 20;
+  const svgSize = isCompact ? size + 6 : size + 8;
   const center = svgSize / 2;
-  const radius = size / 2 + 2;
+  const radius = size / 2 + (isCompact ? 1.5 : 2);
   const arcLength = 270; // degrees
   const circumference = 2 * Math.PI * radius;
   const totalArcDash = (arcLength / 360) * circumference;
@@ -114,7 +115,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
     : Math.round(normalized * 100) + '%';
 
   return (
-    <div className="flex flex-col items-center select-none group relative">
+    <div className="flex flex-col items-center select-none group relative shrink-0">
       <div
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClick}
@@ -136,7 +137,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
             r={radius}
             fill="none"
             stroke="rgba(255, 255, 255, 0.08)"
-            strokeWidth="2.5"
+            strokeWidth={isCompact ? '1.8' : '2.5'}
             strokeLinecap="round"
             strokeDasharray={`${totalArcDash} ${circumference}`}
           />
@@ -148,7 +149,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
               r={radius}
               fill="none"
               stroke={accentColor}
-              strokeWidth="2.5"
+              strokeWidth={isCompact ? '1.8' : '2.5'}
               strokeLinecap="round"
               strokeDasharray={activeDashArray}
               strokeDashoffset={activeDashOffset}
@@ -165,7 +166,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
               r={radius}
               fill="none"
               stroke={accentColor}
-              strokeWidth="2.5"
+              strokeWidth={isCompact ? '1.8' : '2.5'}
               strokeLinecap="round"
               strokeDasharray={activeDashArray}
               strokeDashoffset={activeDashOffset}
@@ -193,7 +194,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
           >
             {/* Illuminated Pointer Line */}
             <div
-              className="absolute top-1 left-1/2 -translate-x-1/2 w-1 h-2 rounded-full"
+              className={`absolute top-0.5 left-1/2 -translate-x-1/2 rounded-full ${isCompact ? 'w-0.5 h-1.5' : 'w-1 h-2'}`}
               style={{
                 backgroundColor: accentColor,
                 boxShadow: `0 0 6px ${accentColor}`,
@@ -207,7 +208,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
       </div>
 
       {/* Label */}
-      <span className="text-[8.5px] font-mono font-extrabold text-slate-300 group-hover:text-cyan-300 uppercase mt-0.5 tracking-wider transition-colors">
+      <span className={`font-mono font-extrabold text-slate-300 group-hover:text-cyan-300 uppercase tracking-wider transition-colors leading-none ${isCompact ? 'text-[7.5px] mt-0.5' : 'text-[8.5px] mt-1'}`}>
         {label}
       </span>
     </div>

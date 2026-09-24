@@ -86,33 +86,33 @@ export const ChannelFader: React.FC<ChannelFaderProps> = ({
       aria-valuemax={100}
       aria-label={`${channelName} Volume`}
       title={`${channelName} Volume: ${Math.round(percent)}%`}
-      className="relative flex items-center justify-center h-full w-8 py-2 cursor-pointer select-none outline-none group touch-none"
+      className="relative flex items-center justify-center h-full w-8 py-0.5 cursor-pointer select-none outline-none group touch-none"
     >
-      <div className="absolute top-2 bottom-2 w-2 rounded-full bg-slate-950 border border-slate-800/90 shadow-inner flex items-center justify-center">
+      <div className="absolute top-1 bottom-1 w-2 rounded-full bg-slate-950 border border-slate-800/90 shadow-inner flex items-center justify-center">
         <div className="w-[1px] h-full bg-slate-800" />
       </div>
 
       <div
-        className="absolute bottom-2 w-1.5 rounded-full transition-all duration-75 pointer-events-none"
+        className="absolute bottom-1 w-1.5 rounded-full transition-all duration-75 pointer-events-none"
         style={{
-          height: `calc(${percent}% * (100% - 16px) / 100)`,
+          height: `calc(${percent}% * (100% - 8px) / 100)`,
           background: `linear-gradient(to top, ${accentColor}80, ${accentColor}33)`,
           boxShadow: isDragging ? `0 0 8px ${accentColor}66` : 'none',
         }}
       />
 
       <div
-        className={`absolute left-1/2 -translate-x-1/2 w-7 h-4 rounded-sm border shadow-lg transition-transform duration-75 pointer-events-none flex flex-col items-center justify-center ${
+        className={`absolute left-1/2 -translate-x-1/2 w-6 h-3.5 rounded-sm border shadow-lg transition-transform duration-75 pointer-events-none flex flex-col items-center justify-center ${
           isDragging
             ? 'scale-105 border-white bg-gradient-to-b from-slate-200 via-slate-400 to-slate-600 shadow-black/80'
             : 'border-slate-400/80 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500 shadow-black/60 group-hover:border-slate-300'
         }`}
         style={{
-          bottom: `calc(8px + (100% - 16px) * ${volume} - 8px)`,
+          bottom: `calc(4px + (100% - 8px) * ${volume} - 7px)`,
         }}
       >
-        <div className="w-5 h-[1.5px] bg-slate-950 rounded-full shadow-sm" />
-        <div className="flex justify-between w-5 mt-0.5 opacity-40">
+        <div className="w-4 h-[1px] bg-slate-950 rounded-full shadow-sm" />
+        <div className="flex justify-between w-4 mt-0.5 opacity-40">
           <div className="w-1 h-[1px] bg-slate-900" />
           <div className="w-1 h-[1px] bg-slate-900" />
         </div>

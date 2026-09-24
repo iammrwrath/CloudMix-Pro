@@ -216,22 +216,45 @@ export const App: React.FC = () => {
   const [uiZoom, setUiZoom] = useState<number>(1.0);
 
   const applyZoom = (factor: number) => {
-    // 1. Electron webContents native zoom
+    // If running inside Electron, use native webContents setZoomFactor
     if (typeof window !== 'undefined' && (window as any).desktopAPI?.setZoomFactor) {
       (window as any).desktopAPI.setZoomFactor(factor).catch(() => {});
-    }
-    // 2. DOM root zoom
-    if (typeof document !== 'undefined' && document.documentElement) {
+      if (typeof document !== 'undefined' && document.documentElement) {
+        (document.documentElement.style as any).zoom = '1.0';
+      }
+    } else if (typeof document !== 'undefined' && document.documentElement) {
+      // Browser fallback: scale via documentElement CSS zoom
       (document.documentElement.style as any).zoom = `${factor}`;
     }
   };
 
+  const getAutoZoom = () => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 900;
+    if (w <= 1040 || h <= 640) return 0.75;
+    if (w <= 1280 || h <= 768) return 0.85;
+    return 1.0;
+  };
+
   // Load persisted UI Zoom and Audio Device routing preferences on startup
   useEffect(() => {
-    storageCache.getSetting<number>('ui_zoom', 1.0).then((savedZoom) => {
-      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.8 && savedZoom <= 1.6) {
+    storageCache.getSetting<number | null>('ui_zoom', null).then((savedZoom) => {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
+      const h = typeof window !== 'undefined' ? window.innerHeight : 900;
+      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.7 && savedZoom <= 1.6) {
+        // If on small laptop screen and saved zoom is larger than 0.75, adapt to optimal dense view
+        if ((w <= 1040 || h <= 640) && savedZoom > 0.75) {
+          const auto = getAutoZoom();
+          setUiZoom(auto);
+          applyZoom(auto);
+          return;
+        }
         setUiZoom(savedZoom);
         applyZoom(savedZoom);
+      } else {
+        const auto = getAutoZoom();
+        setUiZoom(auto);
+        applyZoom(auto);
       }
     });
 
@@ -248,7 +271,7 @@ export const App: React.FC = () => {
   }, []);
 
   const handleUiZoomChange = (zoom: number) => {
-    const clamped = Math.max(0.8, Math.min(1.5, Math.round(zoom * 10) / 10));
+    const clamped = Math.max(0.7, Math.min(1.5, Math.round(zoom * 10) / 10));
     setUiZoom(clamped);
     applyZoom(clamped);
     storageCache.setSetting('ui_zoom', clamped);
@@ -1048,7 +1071,6 @@ export const App: React.FC = () => {
 
   return (
     <div
-      style={uiZoom !== 1.0 ? ({ zoom: uiZoom } as React.CSSProperties) : undefined}
       className="flex flex-col h-screen w-screen bg-dj-bg text-slate-100 overflow-hidden select-none relative"
     >
       {/* Ambient Cyberpunk Glow Atmosphere */}
@@ -1224,7 +1246,7 @@ export const App: React.FC = () => {
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[min(38vh,320px)] min-h-[190px] shrink-0'
+            ? 'h-[min(26vh,230px)] min-h-[110px] shrink-0'
             : 'h-[42px] shrink-0 overflow-hidden'
         }`}
       >

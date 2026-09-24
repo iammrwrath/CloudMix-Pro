@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings } from 'lucide-react';
+import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings, Loader2 } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
@@ -818,15 +818,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                         <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">YouTube Music Integration</span>
                       </div>
                       {ytConnected ? (
-                        <span className="text-[11px] text-emerald-400 font-mono">● Connected{ytEmail ? ` (${ytEmail})` : ''}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-[11px] text-emerald-400 font-mono">● Connected{ytEmail ? ` (${ytEmail})` : ''}</span>
+                          <button
+                            onClick={handleYtDisconnect}
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 text-[10px] font-mono border border-slate-700 transition-colors cursor-pointer"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-[11px] text-slate-500 font-mono">Disconnected</span>
                       )}
                     </div>
-                    {!ytConnected && (
-                      <div className="space-y-2">
-                        <YtClientIdInput />
+                    {!ytConnected ? (
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="text-[10px] font-mono text-slate-400 block mb-1">
+                            Google Cloud OAuth Client ID (Optional for custom quota)
+                          </label>
+                          <YtClientIdInput />
+                        </div>
+                        <div className="flex items-center space-x-2 pt-1">
+                          <button
+                            onClick={handleYtConnect}
+                            disabled={ytLoading}
+                            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs font-mono flex items-center space-x-1.5 transition-colors cursor-pointer shadow-md disabled:opacity-50"
+                          >
+                            {ytLoading ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Signing in...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Music2 className="w-3.5 h-3.5" />
+                                <span>Sign In with Google / YouTube</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        {ytError && (
+                          <p className="text-[11px] text-rose-400 font-mono bg-rose-950/40 p-2 rounded border border-rose-800/60">
+                            {ytError}
+                          </p>
+                        )}
                       </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400">
+                        Signed in as <span className="text-white font-mono">{ytEmail || 'YouTube User'}</span>. Your playlists and favorite tracks will automatically synchronize into the Crate Library.
+                      </p>
                     )}
                   </div>
                 </div>

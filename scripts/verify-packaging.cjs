@@ -46,7 +46,7 @@ for (const reqPath of requiredLocalFiles) {
 }
 
 // Verify package.json build.files pattern covers required files
-const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8').replace(/^\uFEFF/, ''));
 const files = pkg.build?.files || [];
 const hasWildcardCjs = files.includes('*.cjs') || files.includes('**/*.cjs');
 
@@ -58,7 +58,7 @@ if (!hasWildcardCjs) {
 
 // Check cortex builder config
 if (fs.existsSync(cortexJsonPath)) {
-  const cortex = JSON.parse(fs.readFileSync(cortexJsonPath, 'utf8'));
+  const cortex = JSON.parse(fs.readFileSync(cortexJsonPath, 'utf8').replace(/^\uFEFF/, ''));
   const cortexFiles = cortex.files || [];
   if (cortexFiles.includes('*.cjs') || cortexFiles.includes('**/*.cjs')) {
     console.log('  ✓ electron-builder.cortex.json contains "*.cjs" wildcard pattern');

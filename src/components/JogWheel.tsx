@@ -141,7 +141,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const liveRpm = (33.33 * playbackRate).toFixed(1);
 
   return (
-    <div className="relative flex items-center justify-center p-0.5 sm:p-1 select-none group w-full h-full flex-1 max-w-[min(46vh,420px)] max-h-[min(46vh,420px)] aspect-square mx-auto">
+    <div className="relative flex items-center justify-center p-0.5 select-none group w-full h-full flex-1 max-w-[min(14vh,118px,100%)] max-h-[min(14vh,118px,100%)] aspect-square mx-auto shrink-0">
       {/* Ambient Platter Glow */}
       <div
         className="absolute inset-2 rounded-full opacity-20 blur-xl pointer-events-none transition-opacity duration-300 group-hover:opacity-40"
@@ -151,11 +151,11 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
       {/* Outer Pitch Bend Rim (Machined Aluminum Strobe Bezel) */}
       <div
         ref={wheelRef}
-        className="relative w-full h-full aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1.5 sm:p-2 shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
+        className="relative w-full h-full aspect-square rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-800 p-1 sm:p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.95)] border border-slate-700/80 cursor-grab active:cursor-grabbing hover:border-cyan-500/40 transition-all active:scale-[0.99] flex items-center justify-center shrink-0 mx-auto"
       >
         {/* Outer Strobe Dot Ring (Pioneer CDJ / Technics Style) */}
         <div className="absolute inset-0 rounded-full border border-dashed border-slate-400/25 pointer-events-none" />
-        <div className="absolute inset-1.5 rounded-full border border-slate-600/30 pointer-events-none" />
+        <div className="absolute inset-1 rounded-full border border-slate-600/30 pointer-events-none" />
 
         {/* Inner Touch Platter (Grooved Vinyl with Anisotropic Sheen) */}
         <div
@@ -166,10 +166,9 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           }}
         >
           {/* Vinyl Microgroove Rings */}
-          <div className="absolute inset-2 rounded-full border border-slate-700/15 pointer-events-none" />
-          <div className="absolute inset-4 rounded-full border border-slate-700/25 pointer-events-none" />
-          <div className="absolute inset-7 rounded-full border border-slate-700/15 pointer-events-none" />
-          <div className="absolute inset-10 rounded-full border border-slate-700/20 pointer-events-none" />
+          <div className="absolute inset-1.5 rounded-full border border-slate-700/15 pointer-events-none" />
+          <div className="absolute inset-3 rounded-full border border-slate-700/25 pointer-events-none" />
+          <div className="absolute inset-5 rounded-full border border-slate-700/15 pointer-events-none" />
 
           {/* Anisotropic Light Sheen (Cross flare reflection) */}
           <div
@@ -188,10 +187,10 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           >
             {/* Illuminated Needle Position Marker with Comet Glow */}
             <div
-              className="absolute top-1 w-1.5 h-3 sm:h-4 rounded-full"
+              className="absolute top-1 w-1 h-2.5 sm:h-3 rounded-full"
               style={{
                 backgroundColor: accentColor,
-                boxShadow: `0 0 10px ${accentColor}, 0 0 20px ${accentColor}`,
+                boxShadow: `0 0 8px ${accentColor}, 0 0 16px ${accentColor}`,
               }}
             />
             {/* Subtle rotating slipmat line */}
@@ -200,32 +199,32 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           </div>
 
       {/* Mechanical Vinyl Tonearm Assembly (djay Pro / Technics turntable emulation) */}
-      <div className="absolute -top-2 -right-1 pointer-events-none z-20">
+      <div className="absolute -top-1.5 -right-0.5 pointer-events-none z-20">
         {/* Tonearm Base & Gimbal Bearing */}
-        <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-500 border border-slate-600 shadow-[0_4px_10px_rgba(0,0,0,0.9)] flex items-center justify-center">
+        <div className="relative w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-500 border border-slate-600 shadow-[0_3px_8px_rgba(0,0,0,0.9)] flex items-center justify-center">
           {/* Gimbal Center Pivot Screw */}
-          <div className="w-2 h-2 rounded-full bg-slate-950 border border-slate-500" />
+          <div className="w-1.5 h-1.5 rounded-full bg-slate-950 border border-slate-500" />
           {/* Counterweight cylinder */}
-          <div className="absolute -top-2 w-3 h-2 rounded-sm bg-gradient-to-r from-slate-700 to-slate-900 border border-slate-600 shadow-sm" />
+          <div className="absolute -top-1.5 w-2.5 h-1.5 rounded-sm bg-gradient-to-r from-slate-700 to-slate-900 border border-slate-600 shadow-sm" />
 
           {/* Pivoting Tonearm Rod & Headshell */}
           <div
-            className="absolute top-2.5 left-2 origin-top transition-transform duration-300 ease-out"
+            className="absolute top-2 left-1.5 origin-top transition-transform duration-300 ease-out"
             style={{
               transform: `rotate(${isPlaying ? 14 + progressRatio * 24 : 6}deg)`,
             }}
           >
             {/* Curved Aluminum Tonearm Wand */}
-            <div className="w-1.5 h-28 sm:h-34 md:h-42 xl:h-54 bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[2px_4px_10px_rgba(0,0,0,0.7)]" />
+            <div className="w-1 h-12 sm:h-16 md:h-22 bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[1px_2px_6px_rgba(0,0,0,0.7)]" />
 
             {/* Headshell & DJ Stylus Cartridge */}
-            <div className="absolute -bottom-4 -left-1 w-3.5 h-5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">
+            <div className="absolute -bottom-3 -left-0.5 w-2.5 h-3.5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">
               {/* Illuminated Stylus / Needle Indicator */}
               <div
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                className="w-1 h-1 rounded-full animate-pulse"
                 style={{
                   backgroundColor: accentColor,
-                  boxShadow: `0 0 6px ${accentColor}`,
+                  boxShadow: `0 0 4px ${accentColor}`,
                 }}
               />
             </div>
@@ -234,7 +233,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
       </div>
 
       {/* Center Jog LCD Display HUD */}
-      <div className="relative z-10 w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 xl:w-38 xl:h-38 rounded-full bg-slate-950/95 border-2 border-slate-800 flex flex-col items-center justify-center shadow-[0_0_24px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
+      <div className="relative z-10 w-[58%] h-[58%] min-w-[58px] min-h-[58px] rounded-full bg-slate-950/95 border border-slate-800 flex flex-col items-center justify-center shadow-[0_0_16px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
         {coverArtUrl && (
           <div className="absolute inset-0 opacity-30 rounded-full overflow-hidden pointer-events-none">
             <img src={coverArtUrl} alt="Cover Art" className="w-full h-full object-cover" />
@@ -242,7 +241,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           </div>
         )}
             {/* Circular SVG Track Progress Arc with viewBox for perfect fluid scaling */}
-            <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none -rotate-90 p-1">
+            <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none -rotate-90 p-0.5">
               <circle
                 cx="50"
                 cy="50"
@@ -268,25 +267,25 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
 
             {/* Status Pill */}
             <span
-              className={`text-[9.5px] sm:text-[10.5px] font-mono font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+              className={`text-[7.5px] sm:text-[8.5px] font-mono font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full leading-none ${
                 isScratching
-                  ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.8)]'
+                  ? 'bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.8)]'
                   : isPlaying
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
                   : 'bg-slate-800 text-slate-300'
               }`}
             >
-              {isScratching ? 'SCRATCH' : isPlaying ? 'PLAY' : 'CUE'}
+              {isScratching ? 'SCR' : isPlaying ? 'PLAY' : 'CUE'}
             </span>
 
             {/* Time Elapsed Readout */}
-            <span className="text-[14px] sm:text-[16px] md:text-[17px] font-mono font-black text-white tracking-tight mt-1 leading-none drop-shadow-md">
+            <span className="text-[11px] sm:text-[13px] md:text-[14px] font-mono font-black text-white tracking-tight mt-0.5 leading-none drop-shadow-md">
               {formatTime(currentTime)}
             </span>
 
             {/* Remaining Time (Pulsing warning when track is ending) */}
             <span
-              className={`text-[10px] sm:text-[11px] font-mono font-black leading-tight mt-0.5 ${
+              className={`text-[8px] sm:text-[9.5px] font-mono font-black leading-tight mt-0.5 ${
                 isNearEnd
                   ? 'text-rose-400 animate-pulse drop-shadow-[0_0_6px_rgba(244,63,94,0.9)]'
                   : 'text-slate-300'
@@ -296,7 +295,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             </span>
 
             {/* Live Virtual RPM */}
-            <span className="text-[9px] sm:text-[9.5px] font-mono font-bold text-slate-400 tracking-wider mt-0.5">
+            <span className="text-[7.5px] sm:text-[8px] font-mono font-bold text-slate-400 tracking-wider mt-0.5 hidden xs:inline">
               {liveRpm} RPM
             </span>
           </div>
