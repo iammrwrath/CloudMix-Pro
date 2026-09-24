@@ -64,6 +64,9 @@ export interface DeckAudioNodes {
   isSandbox: boolean;
   preSandboxTime: number;
   preSandboxPlaying: boolean;
+  isScratching?: boolean;
+  scratchPlaybackPos?: number;
+  scratchLastTimestamp?: number;
 }
 
 class AudioEngine {
@@ -706,6 +709,87 @@ class AudioEngine {
       deck.stemDrumsSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
       deck.stemBassSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
       deck.stemHarmonicsSource?.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+    }
+  }
+
+  // =========================================================================
+  // AUTHENTIC VINYL SCRATCH DSP ENGINE (Continuous Velocity & Pitch Shifting)
+  // Replaces crude buffer restarts with pitch-modulated playback rate
+  // matching authentic Technics 1200 / Serato / djay Pro vinyl physics.
+  // =========================================================================
+  public startScratch(deckId: DeckId) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    deck.isScratching = true;
+    deck.scratchPlaybackPos = this.getCurrentTime(deckId);
+    deck.scratchLastTimestamp = performance.now();
+
+    // Momentarily mute to zero velocity until user moves hand
+    if (deck.sourceNode) {
+      deck.sourceNode.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+    }
+    if (deck.stemVocalsSource) {
+      deck.stemVocalsSource.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+      deck.stemDrumsSource?.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+      deck.stemBassSource?.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+      deck.stemHarmonicsSource?.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
+    }
+  }
+
+  public updateScratch(deckId: DeckId, deltaSec: number) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !deck.audioBuffer || !this.ctx) return;
+
+    const now = performance.now();
+    const dt = Math.max(0.005, (now - (deck.scratchLastTimestamp || now)) / 1000);
+    deck.scratchLastTimestamp = now;
+
+    // Velocity = distance / time
+    const velocity = deltaSec / dt;
+    // Cap velocity between -4x and +4x playback speed
+    const clampedRate = Math.max(-4.0, Math.min(4.0, velocity));
+
+    if (Math.abs(clampedRate) > 0.05) {
+      const targetRate = Math.abs(clampedRate);
+      if (deck.sourceNode) {
+        deck.sourceNode.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
+      }
+      if (deck.stemVocalsSource) {
+        deck.stemVocalsSource.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
+        deck.stemDrumsSource?.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
+        deck.stemBassSource?.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
+        deck.stemHarmonicsSource?.playbackRate.setTargetAtTime(targetRate, this.ctx.currentTime, 0.008);
+      }
+    }
+
+    // Keep playhead synchronized
+    const nextPos = Math.max(0, Math.min(deck.audioBuffer.duration, (deck.scratchPlaybackPos || 0) + deltaSec));
+    deck.scratchPlaybackPos = nextPos;
+    deck.pauseOffset = nextPos;
+    deck.startTime = this.ctx.currentTime - (nextPos / (deck.playbackRate || 1.0));
+  }
+
+  public endScratch(deckId: DeckId) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    deck.isScratching = false;
+
+    // If deck was playing, smoothly spin back up to normal turntable playback rate
+    if (deck.isPlaying) {
+      if (deck.sourceNode) {
+        deck.sourceNode.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
+      }
+      if (deck.stemVocalsSource) {
+        deck.stemVocalsSource.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
+        deck.stemDrumsSource?.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
+        deck.stemBassSource?.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
+        deck.stemHarmonicsSource?.playbackRate.setTargetAtTime(deck.playbackRate, this.ctx.currentTime, 0.035);
+      }
+    } else {
+      // Return to stopped
+      if (deck.sourceNode) {
+        deck.sourceNode.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
+      }
     }
   }
 

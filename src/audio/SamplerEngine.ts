@@ -119,122 +119,170 @@ export class SamplerEngine {
     if (!this.ctx) return;
     const sr = this.ctx.sampleRate;
 
-    // 1. AIRHORN (Layered brass blip with vibrato)
-    const hornSec = 0.8;
+    // 1. AUTHENTIC REGGAE DANCEHALL DJ AIRHORN (Staccato multi-blast brass with pitch drop)
+    const hornSec = 1.35;
     const hornBuf = this.ctx.createBuffer(2, Math.floor(sr * hornSec), sr);
+    // Authentic stutter timing in seconds: blast 1, blast 2, blast 3, sustained tail
+    const blasts = [
+      { start: 0.00, end: 0.14, pitchOffset: 0 },
+      { start: 0.18, end: 0.32, pitchOffset: 2 },
+      { start: 0.36, end: 0.50, pitchOffset: 4 },
+      { start: 0.54, end: 1.30, pitchOffset: 0 },
+    ];
     for (let ch = 0; ch < 2; ch++) {
       const data = hornBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const env = Math.exp(-t * 2.2);
-        const f1 = 440 + Math.sin(t * 30) * 8;
-        const f2 = 554.37 + Math.sin(t * 30) * 8;
-        const f3 = 659.25 + Math.sin(t * 30) * 8;
-        // Sawtooth-like brass synthesis
-        const wave = (Math.sin(2 * Math.PI * f1 * t) * 0.4 +
-                      Math.sin(2 * Math.PI * f2 * t) * 0.35 +
-                      Math.sin(2 * Math.PI * f3 * t) * 0.35 +
-                      (Math.random() - 0.5) * 0.05);
-        data[i] = wave * env * 0.8;
+        let activeBlast = blasts.find(b => t >= b.start && t <= b.end);
+        if (!activeBlast) {
+          data[i] = 0;
+          continue;
+        }
+        const blastT = t - activeBlast.start;
+        const blastDur = activeBlast.end - activeBlast.start;
+        // Pitch droop envelope typical of real airhorns
+        const pitchBend = Math.max(0, 1.0 - Math.pow(blastT / blastDur, 3) * 0.12);
+        const f1 = (466.16 + activeBlast.pitchOffset) * pitchBend; // Bb4 fundamental
+        const f2 = (587.33 + activeBlast.pitchOffset) * pitchBend; // D5
+        const f3 = (698.46 + activeBlast.pitchOffset) * pitchBend; // F5
+        const f4 = (932.33 + activeBlast.pitchOffset) * pitchBend; // Bb5
+
+        // Rich rich sawtooth brass with odd/even harmonics
+        let brass = 0;
+        for (let h = 1; h <= 6; h++) {
+          brass += (Math.sin(2 * Math.PI * f1 * h * t) / h) * 0.35;
+          brass += (Math.sin(2 * Math.PI * f2 * h * t) / (h * 1.2)) * 0.25;
+          brass += (Math.sin(2 * Math.PI * f3 * h * t) / (h * 1.5)) * 0.2;
+          brass += (Math.sin(2 * Math.PI * f4 * h * t) / (h * 2.0)) * 0.15;
+        }
+
+        // Fast attack, sustained body, quick decay
+        let env = 1.0;
+        if (blastT < 0.015) env = blastT / 0.015;
+        else if (blastT > blastDur - 0.03) env = (blastDur - blastT) / 0.03;
+
+        // Sub blast punch
+        const sub = Math.sin(2 * Math.PI * (f1 * 0.5) * t) * 0.3;
+        data[i] = Math.tanh((brass + sub) * 1.2) * env * 0.92;
       }
     }
     this.sampleBuffers.set(0, hornBuf);
 
-    // 2. LASER SIREN (Fast downward frequency sweep)
-    const laserSec = 0.6;
+    // 2. DUB LASER SIREN (Exponential sweep with LFO modulation)
+    const laserSec = 0.9;
     const laserBuf = this.ctx.createBuffer(2, Math.floor(sr * laserSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = laserBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const freq = 1800 * Math.exp(-t * 8) + 100;
-        const env = Math.exp(-t * 4);
-        data[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.85;
+        const lfo = Math.sin(2 * Math.PI * 14 * t);
+        const baseFreq = 2600 * Math.exp(-t * 5.5) + 180 + lfo * 120;
+        const env = Math.exp(-t * 2.8);
+        const osc = Math.sin(2 * Math.PI * baseFreq * t) + 0.3 * Math.sin(4 * Math.PI * baseFreq * t);
+        data[i] = Math.tanh(osc * 1.4) * env * 0.88;
       }
     }
     this.sampleBuffers.set(1, laserBuf);
 
-    // 3. 808 BOOM (Deep sine drop with pitch glide)
-    const boomSec = 1.2;
+    // 3. 808 SUB BOOM (Heavy distorted sub drop)
+    const boomSec = 1.6;
     const boomBuf = this.ctx.createBuffer(2, Math.floor(sr * boomSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = boomBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const freq = 140 * Math.exp(-t * 4.5) + 38;
-        const env = Math.exp(-t * 2.5);
-        data[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.9;
+        const freq = 135 * Math.exp(-t * 5.0) + 34;
+        const env = Math.exp(-t * 1.6);
+        const sat = Math.tanh(Math.sin(2 * Math.PI * freq * t) * 1.8);
+        data[i] = sat * env * 0.95;
       }
     }
     this.sampleBuffers.set(2, boomBuf);
 
-    // 4. VINYL SCRATCH (Modulated noise chirp)
-    const scratchSec = 0.35;
+    // 4. REAL VINYL SCRATCH CHIRP (Bi-directional forward-back slice)
+    const scratchSec = 0.45;
     const scratchBuf = this.ctx.createBuffer(2, Math.floor(sr * scratchSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = scratchBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const mod = Math.sin(2 * Math.PI * 18 * t);
-        const env = Math.sin((i / data.length) * Math.PI);
-        data[i] = ((Math.random() * 2 - 1) * 0.4 + Math.sin(2 * Math.PI * (600 + mod * 400) * t) * 0.6) * env * 0.8;
+        // Two-stroke scratch: forward (0 - 0.22s) and backward (0.22 - 0.45s)
+        const isBack = t > 0.22;
+        const phase = isBack ? (0.45 - t) / 0.23 : t / 0.22;
+        const scratchFreq = 350 + Math.sin(phase * Math.PI) * 1400;
+        const noise = (Math.random() * 2 - 1) * 0.25;
+        const env = Math.sin((t / scratchSec) * Math.PI);
+        const tone = Math.sin(2 * Math.PI * scratchFreq * t);
+        data[i] = Math.tanh((tone * 0.75 + noise) * 1.6) * env * 0.85;
       }
     }
     this.sampleBuffers.set(3, scratchBuf);
 
-    // 5. DROP BASS / VOX ACCENT
-    const dropSec = 0.5;
+    // 5. DROP BASS / SUB GLIDE
+    const dropSec = 0.8;
     const dropBuf = this.ctx.createBuffer(2, Math.floor(sr * dropSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = dropBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const freq = 220 * Math.exp(-t * 3.5) + 45;
-        const env = Math.exp(-t * 4.0);
-        data[i] = Math.tanh(Math.sin(2 * Math.PI * freq * t) * 1.5) * env * 0.85;
+        const freq = 240 * Math.exp(-t * 4.0) + 40;
+        const env = Math.exp(-t * 2.5);
+        data[i] = Math.tanh(Math.sin(2 * Math.PI * freq * t) * 2.2) * env * 0.9;
       }
     }
     this.sampleBuffers.set(4, dropBuf);
 
-    // 6. CLUB KICK (Tight punchy 909 kick)
-    const kickSec = 0.4;
+    // 6. CLUB KICK (909 Punch with 55Hz Thump)
+    const kickSec = 0.45;
     const kickBuf = this.ctx.createBuffer(2, Math.floor(sr * kickSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = kickBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const freq = 160 * Math.exp(-t * 22) + 50;
-        const env = Math.exp(-t * 9);
-        const click = i < 80 ? (Math.random() - 0.5) * 0.5 : 0;
-        data[i] = (Math.sin(2 * Math.PI * freq * t) + click) * env * 0.9;
+        const freq = 180 * Math.exp(-t * 26) + 48;
+        const env = Math.exp(-t * 7.5);
+        const click = i < 120 ? (Math.random() - 0.5) * 0.6 : 0;
+        data[i] = Math.tanh((Math.sin(2 * Math.PI * freq * t) + click) * 1.5) * env * 0.95;
       }
     }
     this.sampleBuffers.set(5, kickBuf);
 
-    // 7. SNARE CLAP (Noise burst with 200Hz body)
-    const snareSec = 0.3;
+    // 7. SNARE CLAP (Layered 808 Clap + Tight Snare Body)
+    const snareSec = 0.38;
     const snareBuf = this.ctx.createBuffer(2, Math.floor(sr * snareSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = snareBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const body = Math.sin(2 * Math.PI * 190 * t) * Math.exp(-t * 20);
-        const noise = (Math.random() * 2 - 1) * Math.exp(-t * 12);
-        data[i] = (body * 0.5 + noise * 0.6) * 0.85;
+        const body = Math.sin(2 * Math.PI * 185 * t) * Math.exp(-t * 18);
+        // Pre-clap bursts at 0ms, 12ms, 24ms
+        let clapBurst = 0;
+        [0, 0.012, 0.024].forEach((burstTime) => {
+          if (t >= burstTime) {
+            clapBurst += (Math.random() * 2 - 1) * Math.exp(-(t - burstTime) * 80);
+          }
+        });
+        const mainNoise = (Math.random() * 2 - 1) * Math.exp(-t * 11);
+        data[i] = Math.tanh((body * 0.6 + clapBurst * 0.4 + mainNoise * 0.7) * 1.3) * 0.88;
       }
     }
     this.sampleBuffers.set(6, snareBuf);
 
-    // 8. HAT ROLL (Crisp metallic hi-hat)
-    const hatSec = 0.2;
+    // 8. HAT ROLL (Crisp 909 Open/Closed Hat)
+    const hatSec = 0.25;
     const hatBuf = this.ctx.createBuffer(2, Math.floor(sr * hatSec), sr);
     for (let ch = 0; ch < 2; ch++) {
       const data = hatBuf.getChannelData(ch);
       for (let i = 0; i < data.length; i++) {
         const t = i / sr;
-        const noise = Math.random() * 2 - 1;
-        const env = Math.exp(-t * 30);
-        data[i] = noise * env * 0.7;
+        // 6-oscillator metallic inharmonic cluster
+        const metal = (Math.sin(2 * Math.PI * 2800 * t) +
+                       Math.sin(2 * Math.PI * 3420 * t) +
+                       Math.sin(2 * Math.PI * 4100 * t) +
+                       Math.sin(2 * Math.PI * 5200 * t) +
+                       (Math.random() * 2 - 1) * 1.5);
+        const env = Math.exp(-t * 22);
+        data[i] = Math.tanh(metal * 0.5) * env * 0.75;
       }
     }
     this.sampleBuffers.set(7, hatBuf);

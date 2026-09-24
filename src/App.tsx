@@ -644,9 +644,19 @@ export const App: React.FC = () => {
     audioEngine.releaseNudge(deckId);
   };
 
+  const handleScratchStart = (deckId: DeckId) => {
+    audioEngine.startScratch(deckId);
+  };
+
   const handleScratch = (deckId: DeckId, deltaSec: number) => {
-    const current = audioEngine.getCurrentTime(deckId);
-    audioEngine.seekDeck(deckId, current + deltaSec);
+    audioEngine.updateScratch(deckId, deltaSec);
+    const newPos = audioEngine.getCurrentTime(deckId);
+    if (deckId === 'A') setDeckA((prev) => ({ ...prev, currentTime: newPos }));
+    else setDeckB((prev) => ({ ...prev, currentTime: newPos }));
+  };
+
+  const handleScratchEnd = (deckId: DeckId) => {
+    audioEngine.endScratch(deckId);
   };
 
   // Hot Cues
@@ -1125,6 +1135,8 @@ export const App: React.FC = () => {
               onNudge={(f) => handleNudge('A', f)}
               onReleaseNudge={() => handleReleaseNudge('A')}
               onScratch={(d) => handleScratch('A', d)}
+              onScratchStart={() => handleScratchStart('A')}
+              onScratchEnd={() => handleScratchEnd('A')}
               onTriggerCue={(id) => handleTriggerCue('A', id)}
               onSetCue={(id, pos) => handleSetCue('A', id, pos)}
               onClearCue={(id) => handleClearCue('A', id)}
@@ -1185,6 +1197,8 @@ export const App: React.FC = () => {
               onNudge={(f) => handleNudge('B', f)}
               onReleaseNudge={() => handleReleaseNudge('B')}
               onScratch={(d) => handleScratch('B', d)}
+              onScratchStart={() => handleScratchStart('B')}
+              onScratchEnd={() => handleScratchEnd('B')}
               onTriggerCue={(id) => handleTriggerCue('B', id)}
               onSetCue={(id, pos) => handleSetCue('B', id, pos)}
               onClearCue={(id) => handleClearCue('B', id)}

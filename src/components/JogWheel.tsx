@@ -11,6 +11,8 @@ interface JogWheelProps {
   onNudge: (factor: number) => void;
   onReleaseNudge: () => void;
   onScratch: (deltaSec: number) => void;
+  onScratchStart?: () => void;
+  onScratchEnd?: () => void;
   accentColor?: string;
   coverArtUrl?: string;
 }
@@ -24,6 +26,8 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   onNudge,
   onReleaseNudge,
   onScratch,
+  onScratchStart,
+  onScratchEnd,
   accentColor = '#00e5ff',
   coverArtUrl,
 }) => {
@@ -83,6 +87,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
     setIsScratching(true);
     const angle = getAngle(e);
     setLastAngle(angle);
+    onScratchStart?.();
   };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -106,9 +111,10 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const handleMouseUp = useCallback(() => {
     if (isScratching) {
       setIsScratching(false);
+      onScratchEnd?.();
       onReleaseNudge();
     }
-  }, [isScratching, onReleaseNudge]);
+  }, [isScratching, onScratchEnd, onReleaseNudge]);
 
   useEffect(() => {
     if (isScratching) {

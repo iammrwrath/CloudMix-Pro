@@ -22,6 +22,8 @@ interface DeckProps {
   onNudge: (factor: number) => void;
   onReleaseNudge: () => void;
   onScratch: (deltaSec: number) => void;
+  onScratchStart?: () => void;
+  onScratchEnd?: () => void;
   onTriggerCue: (cueId: number) => void;
   onSetCue: (cueId: number, position: number) => void;
   onClearCue: (cueId: number) => void;
@@ -55,6 +57,8 @@ export const Deck = React.memo<DeckProps>(({
   onNudge,
   onReleaseNudge,
   onScratch,
+  onScratchStart,
+  onScratchEnd,
   onTriggerCue,
   onSetCue,
   onClearCue,
@@ -432,6 +436,8 @@ export const Deck = React.memo<DeckProps>(({
             onNudge={onNudge}
             onReleaseNudge={onReleaseNudge}
             onScratch={onScratch}
+            onScratchStart={onScratchStart}
+            onScratchEnd={onScratchEnd}
             accentColor={accentColor}
             coverArtUrl={track?.coverArtUrl}
           />

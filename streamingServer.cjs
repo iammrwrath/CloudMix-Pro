@@ -7,7 +7,7 @@ const os = require('os');
 
 // In-memory cache for resolved YouTube video IDs
 const videoIdCache = new Map();
-let pendingVideoSearch = null;
+const YOUTUBE_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
 
 function resolveYouTubeVideoId(artist, title) {
   if (!artist && !title) return Promise.resolve(null);
@@ -22,30 +22,38 @@ function resolveYouTubeVideoId(artist, title) {
     return Promise.resolve(videoIdCache.get(searchKey));
   }
 
-  // Check user StreamerBot / OBS output text files first
-  const outputFiles = [
-    'G:\\My Drive\\Backup\\Streamerbot\\Output\\video_url.txt',
-    'C:\\StreamerBot\\Output\\video_url.txt',
-    path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro', 'obs', 'video_url.txt'),
-  ];
-  for (const fp of outputFiles) {
-    try {
-      if (fs.existsSync(fp)) {
-        const content = fs.readFileSync(fp, 'utf8').trim();
-        const m = content.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || content.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-        if (m) {
-          videoIdCache.set(searchKey, m[1]);
-          return Promise.resolve(m[1]);
-        }
-      }
-    } catch {}
-  }
+  // 1. Official YouTube Data API v3 Search
+  const query = `${cleanArtist} ${cleanTitle} official music video`;
+  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=id&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${YOUTUBE_API_KEY}`;
 
-  // Direct YouTube Search Scraper fallback
   return new Promise((resolve) => {
-    const q = encodeURIComponent(`${cleanArtist} ${cleanTitle} official music video`);
+    https.get(apiUrl, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.items && parsed.items.length > 0 && parsed.items[0].id?.videoId) {
+            const vidId = parsed.items[0].id.videoId;
+            videoIdCache.set(searchKey, vidId);
+            return resolve(vidId);
+          }
+        } catch {}
+
+        // Fallback: Web Scraping if API quota is reached
+        fallbackScrape(cleanArtist, cleanTitle, searchKey).then(resolve);
+      });
+    }).on('error', () => {
+      fallbackScrape(cleanArtist, cleanTitle, searchKey).then(resolve);
+    });
+  });
+}
+
+function fallbackScrape(artist, title, searchKey) {
+  return new Promise((resolve) => {
+    const q = encodeURIComponent(`${artist} ${title} official music video`);
     const url = `https://www.youtube.com/results?search_query=${q}&sp=EgIQAQ%253D%253D`;
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
