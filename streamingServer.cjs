@@ -23,7 +23,10 @@ function resolveYouTubeVideoId(artist, title) {
   }
 
   // 1. Official YouTube Data API v3 Search
-  const query = `${cleanArtist} ${cleanTitle} official music video`;
+  const searchQuery = cleanArtist && cleanArtist !== 'CloudMix Pro DJ' && cleanArtist !== 'Unknown Artist'
+    ? `${cleanArtist} ${cleanTitle}`
+    : cleanTitle;
+  const query = `${searchQuery} music video`;
   const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=id&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${YOUTUBE_API_KEY}`;
 
   return new Promise((resolve) => {
@@ -51,7 +54,10 @@ function resolveYouTubeVideoId(artist, title) {
 
 function fallbackScrape(artist, title, searchKey) {
   return new Promise((resolve) => {
-    const q = encodeURIComponent(`${artist} ${title} official music video`);
+    const searchQuery = artist && artist !== 'CloudMix Pro DJ' && artist !== 'Unknown Artist'
+      ? `${artist} ${title}`
+      : title;
+    const q = encodeURIComponent(`${searchQuery} music video`);
     const url = `https://www.youtube.com/results?search_query=${q}&sp=EgIQAQ%253D%253D`;
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }, (res) => {
       let data = '';
@@ -134,6 +140,8 @@ function fallbackScrapeSearch(query) {
       });
     }).on('error', () => resolve([]));
   });
+}
+
 function fetchYouTubePlaylist(playlistId) {
   if (!playlistId || !playlistId.trim()) return Promise.resolve({ title: 'YouTube Playlist', items: [] });
   const cleanId = playlistId.trim();
@@ -744,7 +752,7 @@ function getObsOverlayHtml() {
 
     <!-- 4. YouTube Music Video Feed -->
     <div class="video-container" id="videoWidget" style="display: none;">
-      <iframe id="videoIframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen src=""></iframe>
+      <iframe id="videoIframe" allow="autoplay *; encrypted-media *; picture-in-picture *; accelerometer *; clipboard-write *; gyroscope *" allowfullscreen src=""></iframe>
     </div>
   </div>
 
@@ -873,6 +881,10 @@ function getObsOverlayHtml() {
         } else {
           lyricsTransEl.style.display = 'none';
         }
+      } else if (allowLyrics && data.title && data.title !== 'Ready for Playback') {
+        lyricsWidget.style.display = 'block';
+        lyricsTextEl.innerText = '♪ ' + (data.artist ? data.artist + ' - ' : '') + data.title;
+        lyricsTransEl.style.display = 'none';
       } else {
         lyricsWidget.style.display = 'none';
       }
@@ -882,7 +894,8 @@ function getObsOverlayHtml() {
         videoWidget.style.display = 'block';
         if (currentVideoId !== data.youtubeVideoId) {
           currentVideoId = data.youtubeVideoId;
-          videoIframeEl.src = 'https://www.youtube.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId + '&enablejsapi=1&origin=' + encodeURIComponent(window.location.origin);
+          // Use standard youtube-nocookie embed without restrictive origin that breaks in OBS Browser Source
+          videoIframeEl.src = 'https://www.youtube-nocookie.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId + '&playsinline=1&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1';
         }
       } else {
         videoWidget.style.display = 'none';

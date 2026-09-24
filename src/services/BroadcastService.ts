@@ -80,8 +80,17 @@ export class BroadcastService {
             const line = lyricsService.getLineAtTime(lines, elapsedSec);
             if (line) {
               this.currentState.currentLyrics = line;
-              this.notify();
+            } else if (lines.length > 0) {
+              this.currentState.currentLyrics = lines[0];
+            } else {
+              this.currentState.currentLyrics = {
+                timestampMs: 0,
+                text: `♪ ${activeTrack.artist ? activeTrack.artist + ' - ' : ''}${activeTrack.title}`,
+                translation: 'CloudMix Pro DJ Stream',
+              };
             }
+            this.notify();
+            this.sendDesktopBroadcast();
           }
         });
       } else if (this.activeLyricsLines.length > 0) {
@@ -109,61 +118,67 @@ export class BroadcastService {
     }
 
     this.notify();
+    this.sendDesktopBroadcast();
+  }
 
-    // Native Desktop StreamerBot / OBS writer
-    if (typeof window !== 'undefined' && (window as any).desktopAPI) {
-      const nextTrack = this.currentState.nextTrack;
-      const overlayConfig = this.currentState.overlayConfig;
-      const lyrics = this.currentState.currentLyrics;
-      const activeVid = this.currentState.youtubeVideoId;
+  private sendDesktopBroadcast() {
+    if (typeof window === 'undefined' || !(window as any).desktopAPI) return;
 
-      if (activeTrack) {
-        // Debounce IPC calls so we don't bombard Electron with repetitive payload
-        const sig = `${activeTrack.id}-${activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${activeVid}-${JSON.stringify(overlayConfig)}`;
-        if (sig === this.lastBroadcastSig) return;
-        this.lastBroadcastSig = sig;
+    let activeDeck: 'A' | 'B' = this.currentState.activeDeck || 'A';
+    const activeTrack = activeDeck === 'B' ? this.currentState.trackB : this.currentState.trackA;
+    const elapsedSec = Math.floor(activeDeck === 'B' ? this.currentState.elapsedSecB : this.currentState.elapsedSecA);
+    const isPlaying = activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
+    const nextTrack = this.currentState.nextTrack;
+    const overlayConfig = this.currentState.overlayConfig;
+    const lyrics = this.currentState.currentLyrics;
+    const activeVid = this.currentState.youtubeVideoId;
 
-        // Universal Streamer.bot event trigger
-        if (isPlaying) {
-          streamerbotService.onTrackChange(activeTrack, activeDeck);
-        }
+    if (activeTrack) {
+      // Debounce IPC calls so we don't bombard Electron with repetitive payload
+      const sig = `${activeTrack.id}-${activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${activeVid}-${JSON.stringify(overlayConfig)}`;
+      if (sig === this.lastBroadcastSig) return;
+      this.lastBroadcastSig = sig;
 
-        if ((window as any).desktopAPI.writeNowPlayingBroadcast) {
-          (window as any).desktopAPI.writeNowPlayingBroadcast({
-            title: activeTrack.title,
-            artist: activeTrack.artist,
-            bpm: activeTrack.bpm,
-            key: activeTrack.camelotKey || activeTrack.key,
-            deck: activeDeck,
-          });
-        }
-        if ((window as any).desktopAPI.updateStreamingBroadcast) {
-          (window as any).desktopAPI.updateStreamingBroadcast({
-            activeDeck: activeDeck,
-            title: activeTrack.title,
-            artist: activeTrack.artist,
-            bpm: activeTrack.bpm,
-            key: activeTrack.camelotKey || activeTrack.key,
-            deck: activeDeck,
-            elapsedSec,
-            duration: activeTrack.duration || 180,
-            isPlaying,
-            coverArtUrl: activeTrack.coverArtUrl || '',
-            nextTrack: nextTrack ? {
-              title: nextTrack.title,
-              artist: nextTrack.artist,
-              bpm: nextTrack.bpm,
-              key: nextTrack.camelotKey || nextTrack.key,
-              coverArtUrl: nextTrack.coverArtUrl || '',
-            } : null,
-            lyrics: lyrics ? {
-              text: lyrics.text,
-              translation: lyrics.translation || '',
-            } : null,
-            overlayConfig,
-            youtubeVideoId: activeVid,
-          });
-        }
+      // Universal Streamer.bot event trigger
+      if (isPlaying) {
+        streamerbotService.onTrackChange(activeTrack, activeDeck);
+      }
+
+      if ((window as any).desktopAPI.writeNowPlayingBroadcast) {
+        (window as any).desktopAPI.writeNowPlayingBroadcast({
+          title: activeTrack.title,
+          artist: activeTrack.artist,
+          bpm: activeTrack.bpm,
+          key: activeTrack.camelotKey || activeTrack.key,
+          deck: activeDeck,
+        });
+      }
+      if ((window as any).desktopAPI.updateStreamingBroadcast) {
+        (window as any).desktopAPI.updateStreamingBroadcast({
+          activeDeck: activeDeck,
+          title: activeTrack.title,
+          artist: activeTrack.artist,
+          bpm: activeTrack.bpm,
+          key: activeTrack.camelotKey || activeTrack.key,
+          deck: activeDeck,
+          elapsedSec,
+          duration: activeTrack.duration || 180,
+          isPlaying,
+          coverArtUrl: activeTrack.coverArtUrl || '',
+          nextTrack: nextTrack ? {
+            title: nextTrack.title,
+            artist: nextTrack.artist,
+            bpm: nextTrack.bpm,
+            key: nextTrack.camelotKey || nextTrack.key,
+            coverArtUrl: nextTrack.coverArtUrl || '',
+          } : null,
+          lyrics: lyrics ? {
+            text: lyrics.text,
+            translation: lyrics.translation || '',
+          } : null,
+          overlayConfig,
+          youtubeVideoId: activeVid,
+        });
       }
     }
   }

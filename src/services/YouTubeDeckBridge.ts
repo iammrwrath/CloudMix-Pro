@@ -1,4 +1,5 @@
-import { DeckId } from '../types/dj';
+import { DeckId, StreamingQuality } from '../types/dj';
+import { storageCache } from './StorageCacheService';
 
 declare global {
   interface Window {
@@ -31,6 +32,7 @@ class YouTubeDeckBridge {
   private isDeckPlaying: Map<DeckId, boolean> = new Map([['A', false], ['B', false]]);
   private timePollInterval: any = null;
   private listeners: Set<(deckId: DeckId, time: number, duration: number) => void> = new Set();
+  private currentQuality: StreamingQuality = 'high';
 
   constructor() {
     this.apiReadyPromise = new Promise((resolve) => {
@@ -39,7 +41,13 @@ class YouTubeDeckBridge {
 
     if (typeof window !== 'undefined') {
       this.initializeApi();
+      this.loadQualityPreference();
     }
+  }
+
+  private async loadQualityPreference() {
+    const q = await storageCache.getSetting<StreamingQuality>('streaming_audio_quality', 'high');
+    this.currentQuality = q || 'high';
   }
 
   private initializeApi() {
@@ -161,6 +169,10 @@ class YouTubeDeckBridge {
     this.isDeckPlaying.set(deckId, false);
 
     if (player && typeof player.cueVideoById === 'function') {
+      const qStr = this.mapQualityToYt(this.currentQuality);
+      if (typeof player.setPlaybackQuality === 'function') {
+        try { player.setPlaybackQuality(qStr); } catch {}
+      }
       player.cueVideoById(videoId);
       player.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
 
@@ -266,6 +278,36 @@ class YouTubeDeckBridge {
 
   public isYouTubeDeck(deckId: DeckId): boolean {
     return this.activeVideoIds.has(deckId);
+  }
+
+  public setAudioQuality(quality: StreamingQuality) {
+    this.currentQuality = quality;
+    const ytQualityStr = this.mapQualityToYt(quality);
+    this.players.forEach((player) => {
+      try {
+        if (player && typeof player.setPlaybackQuality === 'function') {
+          player.setPlaybackQuality(ytQualityStr);
+        }
+      } catch {}
+    });
+  }
+
+  public getAudioQuality(): StreamingQuality {
+    return this.currentQuality;
+  }
+
+  private mapQualityToYt(quality: StreamingQuality): string {
+    switch (quality) {
+      case 'max':
+        return 'highres'; // 1080p+ streams allocate highest 256kbps audio bitrate
+      case 'high':
+        return 'hd720';   // 720p streams allocate 160-192kbps AAC/Opus
+      case 'low':
+        return 'small';   // 240p/360p allocates low data-saver 48-64kbps stream
+      case 'auto':
+      default:
+        return 'default';
+    }
   }
 
   public clearDeck(deckId: DeckId) {

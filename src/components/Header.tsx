@@ -391,11 +391,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '1.6.5'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '1.6.6'} - Click to check GitHub for patches`}
               className="flex items-center space-x-1 px-2 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-cyan-300 text-xs font-mono transition-all cursor-pointer shadow-sm group"
             >
               <Sparkles className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.6.5'}</span>
+              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.6.6'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}

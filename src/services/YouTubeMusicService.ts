@@ -17,6 +17,8 @@ export interface YouTubePlaylist {
   thumbnailUrl?: string;
 }
 
+const YOUTUBE_DATA_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
+
 class YouTubeMusicService {
   private _accessToken: string | null = null;
 
@@ -291,7 +293,12 @@ class YouTubeMusicService {
           'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
           { headers: { Authorization: `Bearer ${this._accessToken}` } }
         );
-        if (res.ok) {
+        if (res.status === 401) {
+          // Token expired: clear cached invalid token
+          console.warn('[YouTube Music] OAuth token expired (401). Clearing stale token.');
+          this._accessToken = null;
+          await storageCache.setSetting('yt_oauth_token', null);
+        } else if (res.ok) {
           const data = await res.json();
           oauthPlaylists = (data.items || []).map((item: any) => ({
             id: item.id,
@@ -329,8 +336,81 @@ class YouTubeMusicService {
 
     if (!playlistId) return null;
 
+    // 1. Direct query to YouTube Data API v3 (most reliable, zero dependencies)
     try {
-      // Query local streaming server (Port 8088) with server-side YouTube Data API key
+      const [itemsRes, metaRes] = await Promise.all([
+        fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(playlistId)}&maxResults=50&key=${YOUTUBE_DATA_API_KEY}`
+        ),
+        fetch(
+          `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${encodeURIComponent(playlistId)}&key=${YOUTUBE_DATA_API_KEY}`
+        ),
+      ]);
+
+      if (itemsRes.ok) {
+        const itemsData = await itemsRes.json();
+        let plTitle = 'Imported Playlist';
+        if (metaRes.ok) {
+          try {
+            const metaData = await metaRes.json();
+            if (metaData.items && metaData.items[0]?.snippet?.title) {
+              plTitle = metaData.items[0].snippet.title;
+            }
+          } catch {}
+        }
+
+        const tracks: TrackMetadata[] = (itemsData.items || [])
+          .map((item: any) => {
+            const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
+            const rawTitle = item.snippet?.title || 'Unknown Title';
+            let title = rawTitle;
+            let artist = item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist';
+            if (rawTitle.includes(' - ')) {
+              const parts = rawTitle.split(' - ');
+              artist = parts[0].trim();
+              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+            }
+            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            return {
+              id: `yt_${videoId}`,
+              title,
+              artist,
+              duration: 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              fileSource: 'youtube' as const,
+              coverArtUrl: thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+            };
+          })
+          .filter((t: TrackMetadata) => t.id !== 'yt_' && t.title !== 'Private video' && t.title !== 'Deleted video');
+
+        if (tracks.length > 0) {
+          const newPl: YouTubePlaylist = {
+            id: playlistId,
+            title: plTitle,
+            trackCount: tracks.length,
+            thumbnailUrl: tracks[0]?.coverArtUrl || '',
+          };
+
+          await storageCache.setSetting(`yt_pl_tracks_${newPl.id}`, tracks);
+          const existing: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
+          const updated = [newPl, ...existing.filter((p) => p.id !== newPl.id)];
+          await storageCache.setSetting('yt_user_saved_playlists', updated);
+          return newPl;
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[YouTube Music] Direct API playlist fetch warning:', apiErr);
+    }
+
+    // 2. Fallback: Query local streaming server (Port 8088)
+    try {
       const res = await fetch(`http://127.0.0.1:8088/api/youtube/playlist?id=${encodeURIComponent(playlistId)}`);
       if (res.ok) {
         const data = await res.json();
@@ -342,14 +422,10 @@ class YouTubeMusicService {
             thumbnailUrl: data.items[0]?.coverArtUrl || '',
           };
 
-          // Cache tracks in storageCache for offline access
           await storageCache.setSetting(`yt_pl_tracks_${newPl.id}`, data.items);
-
-          // Save to user saved playlists list
           const existing: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
           const updated = [newPl, ...existing.filter((p) => p.id !== newPl.id)];
           await storageCache.setSetting('yt_user_saved_playlists', updated);
-
           return newPl;
         }
       }
@@ -385,7 +461,54 @@ class YouTubeMusicService {
       return cachedTracks;
     }
 
-    // 3. Query local streaming server (Port 8088) with Data API key
+    // 3. Direct Google YouTube Data API v3 query with API key (instant client execution)
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(playlistId)}&maxResults=50&key=${YOUTUBE_DATA_API_KEY}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const tracks: TrackMetadata[] = (data.items || [])
+          .map((item: any) => {
+            const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
+            const rawTitle = item.snippet?.title || 'Unknown Title';
+            let title = rawTitle;
+            let artist = item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist';
+            if (rawTitle.includes(' - ')) {
+              const parts = rawTitle.split(' - ');
+              artist = parts[0].trim();
+              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+            }
+            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            return {
+              id: `yt_${videoId}`,
+              title,
+              artist,
+              duration: 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              fileSource: 'youtube' as const,
+              coverArtUrl: thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+            };
+          })
+          .filter((t: TrackMetadata) => t.id !== 'yt_' && t.title !== 'Private video' && t.title !== 'Deleted video');
+
+        if (tracks.length > 0) {
+          await storageCache.setSetting(`yt_pl_tracks_${playlistId}`, tracks);
+          return tracks;
+        }
+      }
+    } catch (e) {
+      console.warn('[YouTube Music] Direct API track fetch error:', e);
+    }
+
+    // 4. Query local streaming server (Port 8088) with Data API key
     try {
       const res = await fetch(`http://127.0.0.1:8088/api/youtube/playlist?id=${encodeURIComponent(playlistId)}`);
       if (res.ok) {
@@ -397,7 +520,7 @@ class YouTubeMusicService {
       }
     } catch {}
 
-    // 4. Try OAuth if token present
+    // 5. Try OAuth if token present
     if (!this._accessToken) {
       this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
     }
@@ -463,7 +586,50 @@ class YouTubeMusicService {
         t.artist.toLowerCase().includes(trimmed.toLowerCase())
     );
 
-    // 1. If signed in, query Google YouTube Data API v3 directly
+    // 1. Direct YouTube Data API v3 Search
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=20&q=${encodeURIComponent(trimmed)}&key=${YOUTUBE_DATA_API_KEY}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          const apiTracks: TrackMetadata[] = data.items.map((item: any) => {
+            const videoId = item.id?.videoId || '';
+            const rawTitle = item.snippet?.title || 'Unknown Title';
+            let title = rawTitle;
+            let artist = item.snippet?.channelTitle || 'YouTube Artist';
+            if (rawTitle.includes(' - ')) {
+              const parts = rawTitle.split(' - ');
+              artist = parts[0].trim();
+              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+            }
+            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
+            return {
+              id: `yt_${videoId}`,
+              title,
+              artist,
+              duration: 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              fileSource: 'youtube' as const,
+              coverArtUrl: thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+            };
+          }).filter((t: TrackMetadata) => t.id !== 'yt_');
+          return [...matchedFeatured, ...apiTracks];
+        }
+      }
+    } catch (e) {
+      console.warn('[YouTube Music] Direct API search error:', e);
+    }
+
+    // 2. If signed in, query Google YouTube Data API v3 with OAuth token
     if (!this._accessToken) {
       this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
     }
@@ -507,7 +673,7 @@ class YouTubeMusicService {
       }
     }
 
-    // 2. Query local Streaming Server on Port 8088 (/api/youtube/search?q=...)
+    // 3. Query local Streaming Server on Port 8088 (/api/youtube/search?q=...)
     try {
       const res = await fetch(`http://127.0.0.1:8088/api/youtube/search?q=${encodeURIComponent(trimmed)}`, {
         signal: AbortSignal.timeout(3000),

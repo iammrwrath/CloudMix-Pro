@@ -216,3 +216,44 @@ export interface LyricsLine {
   translation?: string;
 }
 
+export type StreamingQuality = 'auto' | 'max' | 'high' | 'low';
+
+export interface StreamingQualityConfig {
+  quality: StreamingQuality;
+  label: string;
+  bitrate: string;
+  description: string;
+  codec: string;
+}
+
+export const STREAMING_QUALITY_PRESETS: Record<StreamingQuality, StreamingQualityConfig> = {
+  auto: {
+    quality: 'auto',
+    label: 'Auto (Adaptive)',
+    bitrate: 'Adaptive (96–256 kbps)',
+    description: 'Dynamically balances audio fidelity and network conditions',
+    codec: 'AAC / Opus Dynamic',
+  },
+  max: {
+    quality: 'max',
+    label: 'Max / Lossless',
+    bitrate: '256–320 kbps (Lossless / Hi-Fi)',
+    description: 'Streams at the highest available studio bitrate with uncompromised fidelity',
+    codec: '256 kbps Opus / AAC / FLAC',
+  },
+  high: {
+    quality: 'high',
+    label: 'High (Studio 256 kbps)',
+    bitrate: '256 kbps AAC / 160 kbps Opus',
+    description: 'Best for club sound systems, PA speakers, and studio headphones',
+    codec: '256 kbps AAC / 160 kbps Opus',
+  },
+  low: {
+    quality: 'low',
+    label: 'Low (Data Saver)',
+    bitrate: '48–64 kbps',
+    description: 'Conserves bandwidth on metered and slow mobile hotspots',
+    codec: '48–64 kbps Opus / HE-AAC',
+  },
+};
+

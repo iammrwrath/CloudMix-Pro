@@ -5,6 +5,8 @@ import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
 import { youtubeMusicService } from '../services/YouTubeMusicService';
 import { audioEngine } from '../audio/AudioEngine';
+import { StreamingQuality, STREAMING_QUALITY_PRESETS } from '../types/dj';
+import { youtubeDeckBridge } from '../services/YouTubeDeckBridge';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -87,6 +89,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [themeMode, setThemeMode] = useState<'pro_dark' | 'midnight' | 'neon'>('pro_dark');
   const [deckLayout, setDeckLayout] = useState<'2_deck' | '4_deck'>('2_deck');
 
+  // Streaming Audio Quality State (AuraMusic Engine)
+  const [streamingQuality, setStreamingQuality] = useState<StreamingQuality>('high');
+
   // Advanced State
   const [stemModelQuality, setStemModelQuality] = useState<'high' | 'ultra'>('high');
   const [gpuAcceleration, setGpuAcceleration] = useState(true);
@@ -109,6 +114,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   // Load all persisted settings on mount
   useEffect(() => {
     const loadSettings = async () => {
+      // Load streaming audio quality (AuraMusic engine)
+      const savedQuality = await storageCache.getSetting<StreamingQuality>('streaming_audio_quality', 'high');
+      setStreamingQuality(savedQuality);
+      youtubeDeckBridge.setAudioQuality(savedQuality);
+
       // Load audio output devices
       try {
         const devices = await audioEngine.getAvailableAudioDevices();
@@ -172,6 +182,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   }, []);
 
   const handleSave = async () => {
+    // 0. Persist streaming audio quality & sync with deck bridge
+    await storageCache.setSetting('streaming_audio_quality', streamingQuality);
+    youtubeDeckBridge.setAudioQuality(streamingQuality);
+
     // 1. Persist local music path
     await storageCache.setSetting('local_music_path', localDrivePath);
 
@@ -366,8 +380,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
           </div>
 
           {/* Right Main Content Pane */}
-          <div className="flex-1 flex flex-col justify-between p-5 sm:p-6 overflow-y-auto bg-dj-surface/40 min-w-0">
-            <div className="space-y-5">
+          <div className="flex-1 flex flex-col min-w-0 bg-dj-surface/40 h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
               {/* 1. GENERAL TAB */}
               {activeTab === 'general' && (
                 <div className="space-y-4">
@@ -870,6 +884,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </p>
                     )}
                   </div>
+
+                  {/* Streaming Audio Quality Selector (AuraMusic Engine) */}
+                  <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Radio className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                          Streaming Audio Quality
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-purple-400/90 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/50">
+                        AuraMusic Engine
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Applies studio-grade bitrate and codec negotiation when streaming from YouTube Music, Apple Music, and cloud providers.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                      {(Object.keys(STREAMING_QUALITY_PRESETS) as StreamingQuality[]).map((qKey) => {
+                        const preset = STREAMING_QUALITY_PRESETS[qKey];
+                        const isSelected = streamingQuality === qKey;
+                        return (
+                          <button
+                            key={qKey}
+                            type="button"
+                            onClick={() => {
+                              setStreamingQuality(qKey);
+                              youtubeDeckBridge.setAudioQuality(qKey);
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-purple-950/40 border-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.3)] ring-1 ring-purple-500/50'
+                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold font-mono text-white flex items-center space-x-1.5">
+                                <span>{preset.label}</span>
+                              </span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-purple-300 mt-1 block">
+                              {preset.bitrate}
+                            </span>
+                            <span className="text-[10px] text-slate-400 mt-1 block leading-tight line-clamp-2">
+                              {preset.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1071,9 +1138,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
               )}
             </div>
 
-            {/* Bottom Footer Save Buttons */}
-            <div className="flex items-center justify-between pt-4 border-t border-dj-border shrink-0 mt-4">
-              <span className="text-[11px] font-mono text-slate-500">CloudMix Pro v1.6.0 • Production Grade</span>
+            {/* Bottom Footer Save Buttons (Sticky at bottom) */}
+            <div className="flex items-center justify-between px-6 py-3.5 border-t border-dj-border bg-[#0b0e14]/90 shrink-0">
+              <span className="text-[11px] font-mono text-slate-500">CloudMix Pro v1.6.6 • Production Grade</span>
               <div className="flex space-x-2">
                 <button
                   onClick={onClose}
