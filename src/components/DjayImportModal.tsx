@@ -80,6 +80,29 @@ export const DjayImportModal: React.FC<DjayImportModalProps> = ({ onClose, onImp
         musicLibraryService.addTrack(musicLibraryService.convertDjTrackToPulse(t));
       }
 
+      // Also import playlists directly from djay Pro MediaLibrary.db
+      if ((window as any).desktopAPI?.readDjayPlaylists) {
+        try {
+          const rawPlaylists = await (window as any).desktopAPI.readDjayPlaylists();
+          if (Array.isArray(rawPlaylists) && rawPlaylists.length > 0) {
+            const now = new Date().toISOString();
+            for (const pl of rawPlaylists) {
+              await storageCache.savePlaylist({
+                id: pl.id || `pl_${Math.random()}`,
+                name: pl.name,
+                trackIds: pl.trackIds || [],
+                dateCreated: now,
+                dateUpdated: now,
+                isCloudSynced: false,
+                isPinnedOffline: false,
+              });
+            }
+          }
+        } catch (plErr) {
+          console.warn('Failed to import djay playlists:', plErr);
+        }
+      }
+
       setImportCount(importedTracks.length);
       onImportSuccess();
     } catch (err) {

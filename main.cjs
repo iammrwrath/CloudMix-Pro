@@ -808,6 +808,77 @@ ipcMain.handle('read-djay-library', async () => {
   }
 });
 
+// Full djay Pro Playlist Extraction (Loads all user crates/playlists directly from MediaLibrary.db)
+ipcMain.handle('read-djay-playlists', async () => {
+  try {
+    const db = getDjayDb();
+    if (!db) return [];
+
+    log('[DJAY PLAYLISTS] Reading playlists and items from MediaLibrary.db...');
+
+    // 1. Read all playlist definitions
+    const playlistRows = db.prepare("SELECT key, data FROM database2 WHERE collection='mediaItemPlaylists'").all();
+    const playlists = [];
+    const playlistKeyToObj = new Map();
+
+    for (const r of playlistRows) {
+      const buf = Buffer.from(r.data);
+      const str = buf.toString('utf8');
+      const matches = [...str.matchAll(/[\u0020-\u007E\u00A0-\u024F]{2,}/gu)].map((m) => m[0].trim());
+
+      let name = null;
+      for (let i = 0; i < matches.length; i++) {
+        if (matches[i].toLowerCase() === 'name' && i > 0) {
+          name = matches[i - 1];
+        }
+      }
+
+      if (name && name !== 'mediaItemPlaylist-root' && name !== 'ADCMediaItemPlaylist') {
+        const pl = {
+          id: r.key,
+          name,
+          trackIds: [],
+        };
+        playlists.push(pl);
+        playlistKeyToObj.set(r.key, pl);
+      }
+    }
+
+    // 2. Read playlist item assignments
+    const itemRows = db.prepare("SELECT key, data FROM database2 WHERE collection='mediaItemPlaylistItems'").all();
+    for (const r of itemRows) {
+      const buf = Buffer.from(r.data);
+      const str = buf.toString('utf8');
+      const matches = [...str.matchAll(/[\u0020-\u007E\u00A0-\u024F]{2,}/gu)].map((m) => m[0].trim());
+
+      let playlistUuid = null;
+      let mediaItemUuid = null;
+
+      for (let i = 0; i < matches.length; i++) {
+        if (matches[i].toLowerCase() === 'playlistuuid' && i > 0) {
+          playlistUuid = matches[i - 1];
+        }
+        if (matches[i].toLowerCase() === 'mediaitemuuid' && i > 0) {
+          mediaItemUuid = matches[i - 1];
+        }
+      }
+
+      if (playlistUuid && mediaItemUuid) {
+        const pl = playlistKeyToObj.get(playlistUuid);
+        if (pl && !pl.trackIds.includes(mediaItemUuid)) {
+          pl.trackIds.push(mediaItemUuid);
+        }
+      }
+    }
+
+    log(`[DJAY PLAYLISTS] Extracted ${playlists.length} playlists with track mappings`);
+    return playlists;
+  } catch (err) {
+    log('[DJAY PLAYLISTS ERROR] ' + err.message);
+    return [];
+  }
+});
+
 // Native Windows OS File Drag-and-Drop
 ipcMain.on('start-native-drag', (event, payload) => {
   try {

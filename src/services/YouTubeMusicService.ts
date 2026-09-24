@@ -150,13 +150,19 @@ class YouTubeMusicService {
    * Fetch the signed-in user's YouTube Music playlists.
    */
   public async getUserPlaylists(): Promise<YouTubePlaylist[]> {
+    if (!this._accessToken) {
+      this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
+    }
     if (!this._accessToken) return [];
     try {
       const res = await fetch(
         'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
         { headers: { Authorization: `Bearer ${this._accessToken}` } }
       );
-      if (!res.ok) return [];
+      if (!res.ok) {
+        console.warn(`[YouTube Music] Failed to fetch playlists: ${res.status} ${res.statusText}`);
+        return [];
+      }
       const data = await res.json();
       return (data.items || []).map((item: any) => ({
         id: item.id,
@@ -165,7 +171,8 @@ class YouTubeMusicService {
         trackCount: item.contentDetails?.itemCount,
         thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
       }));
-    } catch {
+    } catch (e) {
+      console.warn('[YouTube Music] Error fetching playlists:', e);
       return [];
     }
   }
@@ -174,6 +181,9 @@ class YouTubeMusicService {
    * Fetch tracks from a specific YouTube playlist.
    */
   public async getPlaylistTracks(playlistId: string): Promise<TrackMetadata[]> {
+    if (!this._accessToken) {
+      this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
+    }
     if (!this._accessToken) return [];
     try {
       const res = await fetch(

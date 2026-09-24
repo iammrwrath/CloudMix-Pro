@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   writeNowPlayingBroadcast: (payload) => ipcRenderer.invoke('write-now-playing-broadcast', payload),
   readDjayNowPlaying: () => ipcRenderer.invoke('read-djay-nowplaying'),
   readDjayLibrary: () => ipcRenderer.invoke('read-djay-library'),
+  readDjayPlaylists: () => ipcRenderer.invoke('read-djay-playlists'),
   readExternalNowPlayingFile: (filePath) => ipcRenderer.invoke('read-external-nowplaying-file', filePath),
   startNativeDrag: (payload) => ipcRenderer.send('start-native-drag', payload),
 

@@ -85,18 +85,15 @@ const TrackRow = React.memo<TrackRowProps>(({
   onAddToQueue,
   currentMasterKey,
 }) => {
-  const handleRowClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName !== 'BUTTON') {
-      onLoadTrack('A', track);
-    }
-  };
-
   return (
     <tr
       draggable
       onDragStart={(e) => onDragStart(e, track)}
-      onContextMenu={(e) => onContextMenu(e, track)}
-      onClick={handleRowClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(e, track);
+      }}
       onDoubleClick={() => onLoadTrack('A', track)}
       className="hover:bg-slate-800/80 transition-colors group cursor-pointer"
     >
@@ -520,6 +517,41 @@ export const Library = React.memo<LibraryProps>(({
       setTracks(savedTracks);
     }
 
+    // Ingest real djay Pro playlists from MediaLibrary.db if present
+    try {
+      const desktopAPI = (window as any).desktopAPI;
+      if (desktopAPI?.readDjayPlaylists) {
+        const djayPlaylists = await desktopAPI.readDjayPlaylists();
+        if (Array.isArray(djayPlaylists) && djayPlaylists.length > 0) {
+          const now = new Date().toISOString();
+          const mappedDjayPlaylists: Playlist[] = djayPlaylists.map((dp: any) => ({
+            id: dp.id || `djay-pl-${Math.random()}`,
+            name: dp.name,
+            trackIds: dp.trackIds || [],
+            dateCreated: now,
+            dateUpdated: now,
+            isCloudSynced: false,
+            isPinnedOffline: false,
+          }));
+
+          // Merge with any existing custom playlists
+          const existingIds = new Set(mappedDjayPlaylists.map((p) => p.name.toLowerCase()));
+          for (const sp of savedPlaylists) {
+            if (!existingIds.has(sp.name.toLowerCase()) && sp.name !== 'Music') {
+              mappedDjayPlaylists.push(sp);
+            }
+          }
+          setPlaylists(mappedDjayPlaylists);
+          for (const p of mappedDjayPlaylists) {
+            await storageCache.savePlaylist(p);
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load djay Pro playlists:', e);
+    }
+
     if (savedPlaylists.length === 0) {
       const now = new Date().toISOString();
       const initialPlaylists: Playlist[] = DEFAULT_PLAYLIST_NAMES.map((name, idx) => ({
@@ -748,7 +780,7 @@ export const Library = React.memo<LibraryProps>(({
                   if (ytResults.length === 0) {
                     setYtResults(youtubeMusicService.getFeaturedTracks());
                   }
-                  if (ytPlaylists.length === 0 && youtubeMusicService.isSignedIn()) {
+                  if (ytPlaylists.length === 0) {
                     handleLoadYtPlaylists();
                   }
                 }}
@@ -788,7 +820,7 @@ export const Library = React.memo<LibraryProps>(({
                         )}
                       </button>
                     ))
-                  ) : youtubeMusicService.isSignedIn() ? (
+                  ) : (
                     <button
                       onClick={handleLoadYtPlaylists}
                       className="w-full flex items-center space-x-2 px-2 py-1 rounded text-[10px] text-slate-400 hover:text-rose-300 hover:bg-slate-800 transition-colors cursor-pointer"
@@ -796,10 +828,6 @@ export const Library = React.memo<LibraryProps>(({
                       <Database className="w-3 h-3" />
                       <span>Load Playlists</span>
                     </button>
-                  ) : (
-                    <div className="px-2 py-1 text-[9px] text-slate-500">
-                      Sign in to load playlists
-                    </div>
                   )}
                 </div>
               )}
