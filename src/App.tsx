@@ -1042,6 +1042,7 @@ export const App: React.FC = () => {
           onSeek={(d, sec) => audioEngine.seekDeck(d, sec)}
           onCrossfaderChange={handleCrossfaderChange}
           onToggleExpandedLibrary={() => setDrawerMode('split')}
+          onLoadTrack={(deckId, track) => handleLoadTrack(deckId, track)}
         />
       ) : (
         /* 1. Header Toolbar */

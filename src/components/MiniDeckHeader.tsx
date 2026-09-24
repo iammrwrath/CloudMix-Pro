@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { DeckState, WaveformData, MixerState } from '../types/dj';
+import React, { useRef, useEffect, useState } from 'react';
+import { DeckState, WaveformData, MixerState, TrackMetadata } from '../types/dj';
 import { Play, Pause, Disc, Repeat, Minimize2, Music } from 'lucide-react';
 
 interface MiniDeckHeaderProps {
@@ -18,6 +18,7 @@ interface MiniDeckHeaderProps {
   onSeek: (deckId: 'A' | 'B', seconds: number) => void;
   onCrossfaderChange: (value: number) => void;
   onToggleExpandedLibrary: () => void;
+  onLoadTrack?: (deckId: 'A' | 'B', track: TrackMetadata) => void;
 }
 
 const formatTime = (seconds: number): string => {
@@ -44,9 +45,12 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
   onSeek,
   onCrossfaderChange,
   onToggleExpandedLibrary,
+  onLoadTrack,
 }) => {
   const canvasRefA = useRef<HTMLCanvasElement | null>(null);
   const canvasRefB = useRef<HTMLCanvasElement | null>(null);
+  const [isDragOverA, setIsDragOverA] = useState(false);
+  const [isDragOverB, setIsDragOverB] = useState(false);
 
   // Render Mini Waveform for Deck
   const drawWaveform = (
@@ -170,8 +174,52 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
     const duration = deck.duration || (deck.track?.duration ?? 0);
     const remainingTime = Math.max(0, duration - deck.currentTime);
 
+    const isDragOver = isA ? isDragOverA : isDragOverB;
+    const setIsDragOver = isA ? setIsDragOverA : setIsDragOverB;
+
     return (
-      <div className={`flex-1 flex items-center space-x-2 bg-slate-900/90 rounded-xl p-2 border ${accentBorder} shadow-lg overflow-hidden`}>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          try {
+            const raw = e.dataTransfer.getData('text/plain');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && parsed.title && onLoadTrack) {
+                onLoadTrack(deckId, {
+                  ...parsed,
+                  hotCues: parsed.hotCues || [],
+                  savedLoops: parsed.savedLoops || [],
+                  beatGrid: parsed.beatGrid || { bpm: parsed.bpm || 124, firstBeatOffset: 0, meter: 4 },
+                });
+              }
+            }
+          } catch {}
+        }}
+        className={`relative flex-1 flex items-center space-x-2 bg-slate-900/90 rounded-xl p-2 border shadow-lg overflow-hidden transition-all duration-150 ${
+          isDragOver
+            ? isA
+              ? 'border-cyan-400 ring-2 ring-cyan-400/80 shadow-[0_0_20px_rgba(6,182,212,0.6)]'
+              : 'border-rose-400 ring-2 ring-rose-400/80 shadow-[0_0_20px_rgba(244,63,94,0.6)]'
+            : accentBorder
+        }`}
+      >
+        {/* Illuminated Drag-over Drop Zone Overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-cyan-400 rounded-xl animate-pulse pointer-events-none space-x-2">
+            <Disc className={`w-6 h-6 ${accentText} animate-spin`} />
+            <span className="text-xs font-black text-white tracking-wider">
+              DROP TO LOAD DECK {deckId}
+            </span>
+          </div>
+        )}
+
         {/* Track Artwork & Vinyl Platter Icon */}
         <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-950 border border-white/10 shrink-0 flex items-center justify-center group shadow-md">
           {deck.track?.coverArtUrl ? (
