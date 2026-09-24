@@ -3,7 +3,17 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
-const { startStreamingServer, updateBroadcastState, getBroadcastState } = require('./streamingServer.cjs');
+let startStreamingServer = () => {};
+let updateBroadcastState = () => {};
+let getBroadcastState = () => ({});
+try {
+  const streamingModule = require('./streamingServer.cjs');
+  startStreamingServer = streamingModule.startStreamingServer || startStreamingServer;
+  updateBroadcastState = streamingModule.updateBroadcastState || updateBroadcastState;
+  getBroadcastState = streamingModule.getBroadcastState || getBroadcastState;
+} catch (e) {
+  console.warn('[STREAMING SERVER] Could not load streamingServer.cjs:', e.message);
+}
 
 const logFile = path.join(os.tmpdir(), 'cloudmix_electron.log');
 function log(msg) {

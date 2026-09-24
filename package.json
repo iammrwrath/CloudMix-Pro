@@ -1,7 +1,7 @@
 {
   "name": "cloudmix-pro",
   "productName": "CloudMix Pro",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Next-Gen Cloud-Native DJ Application",
   "main": "main.cjs",
   "author": "iammrwrath",
@@ -38,7 +38,8 @@
     "files": [
       "dist/**/*",
       "main.cjs",
-      "preload.cjs"
+      "preload.cjs",
+      "streamingServer.cjs"
     ],
     "win": {
       "target": [

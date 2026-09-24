@@ -1,4 +1,4 @@
-﻿{
+{
   "appId": "com.mixcortex.ai",
   "productName": "MixCortex AI",
   "publish": [
@@ -16,6 +16,7 @@
     "dist/**/*",
     "main.cjs",
     "preload.cjs",
+    "streamingServer.cjs",
     "build/cortex-icon.png",
     "public/cortex-icon.png"
   ],
