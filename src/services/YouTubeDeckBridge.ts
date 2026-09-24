@@ -80,6 +80,7 @@ class YouTubeDeckBridge {
   }
 
   private createPlayers() {
+    console.log('[YouTubeDeckBridge] createPlayers() — initializing hidden YT IFrame players for Deck A and Deck B');
     ['A', 'B'].forEach((deck) => {
       const deckId = deck as DeckId;
       let el = document.getElementById(`yt-player-bridge-${deckId.toLowerCase()}`);
@@ -99,6 +100,7 @@ class YouTubeDeckBridge {
       }
 
       try {
+        console.log(`[YouTubeDeckBridge] Instantiating YT.Player for Deck ${deckId} (el.id=${el.id})`);
         const player = new window.YT.Player(el.id, {
           height: '150',
           width: '200',
@@ -115,10 +117,21 @@ class YouTubeDeckBridge {
           },
           events: {
             onReady: (event: any) => {
+              console.log(`[YouTubeDeckBridge] Player READY on Deck ${deckId}`);
               this.players.set(deckId, event.target);
               event.target.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
             },
             onStateChange: (event: any) => {
+              const stateNames: Record<number, string> = {
+                [-1]: 'UNSTARTED',
+                [0]: 'ENDED',
+                [1]: 'PLAYING',
+                [2]: 'PAUSED',
+                [3]: 'BUFFERING',
+                [5]: 'CUED',
+              };
+              const stateName = stateNames[event.data] ?? `UNKNOWN(${event.data})`;
+              console.log(`[YouTubeDeckBridge] State change on Deck ${deckId}: ${stateName}`);
               if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
                 this.isDeckPlaying.set(deckId, true);
               } else if (
@@ -129,13 +142,25 @@ class YouTubeDeckBridge {
               }
             },
             onError: (err: any) => {
-              console.warn(`[YouTubeDeckBridge] Player error on Deck ${deckId}:`, err);
+              const code = err?.data;
+              const codeMap: Record<number, string> = {
+                2: 'Invalid parameter value (2)',
+                5: 'HTML5 player error (5)',
+                100: 'Video not found or private (100)',
+                101: 'Embedding not allowed by owner (101)',
+                150: 'Embedding not allowed by owner (150)',
+              };
+              const desc = code !== undefined
+                ? (codeMap[code] ?? `Unknown error code (${code})`)
+                : 'No error code in event';
+              console.warn(`[YouTubeDeckBridge] Player error on Deck ${deckId}: ${desc}`);
             },
           },
         });
         this.players.set(deckId, player);
+        console.log(`[YouTubeDeckBridge] YT.Player constructed for Deck ${deckId} — awaiting onReady`);
       } catch (e) {
-        console.error(`[YouTubeDeckBridge] Error instantiating player for Deck ${deckId}:`, e);
+        console.error(`[YouTubeDeckBridge] Error instantiating player for Deck ${deckId}: ${e instanceof Error ? e.message : String(e)}`);
       }
     });
 
@@ -180,6 +205,7 @@ class YouTubeDeckBridge {
   }
 
   public async loadVideo(deckId: DeckId, videoId: string): Promise<number> {
+    console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId}`);
     await this.apiReadyPromise;
     const player = this.players.get(deckId);
     this.activeVideoIds.set(deckId, videoId);
@@ -190,6 +216,7 @@ class YouTubeDeckBridge {
       if (typeof player.setPlaybackQuality === 'function') {
         try { player.setPlaybackQuality(qStr); } catch {}
       }
+      console.log(`[YouTubeDeckBridge] Cueing videoId=${videoId} on Deck ${deckId} at quality=${qStr}`);
       player.cueVideoById(videoId);
       player.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
 
@@ -200,21 +227,26 @@ class YouTubeDeckBridge {
           attempts++;
           const dur = player.getDuration();
           if (dur && dur > 0) {
+            console.log(`[YouTubeDeckBridge] Duration resolved for Deck ${deckId}: ${dur.toFixed(2)}s (attempt ${attempts})`);
             resolve(dur);
           } else if (attempts < 15) {
             setTimeout(checkDuration, 100);
           } else {
+            console.warn(`[YouTubeDeckBridge] Duration not available for Deck ${deckId} after ${attempts} attempts — using fallback 210s`);
             resolve(210); // sensible default fallback if pending
           }
         };
         setTimeout(checkDuration, 150);
       });
     }
+    console.warn(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — player not ready or cueVideoById unavailable`);
     return 210;
   }
 
   public play(deckId: DeckId) {
     const player = this.players.get(deckId);
+    const playerState = player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : 'n/a';
+    console.log(`[YouTubeDeckBridge] play() Deck ${deckId} — playerState=${playerState} playerReady=${!!player}`);
     if (player && typeof player.playVideo === 'function') {
       try {
         if (typeof player.unMute === 'function') {
@@ -226,13 +258,16 @@ class YouTubeDeckBridge {
         player.playVideo();
         this.isDeckPlaying.set(deckId, true);
       } catch (err) {
-        console.warn(`[YouTubeDeckBridge] play error on Deck ${deckId}:`, err);
+        console.warn(`[YouTubeDeckBridge] play error on Deck ${deckId}: ${err instanceof Error ? err.message : String(err)}`);
       }
+    } else {
+      console.warn(`[YouTubeDeckBridge] play() Deck ${deckId} — player not ready, cannot play`);
     }
   }
 
   public pause(deckId: DeckId) {
     const player = this.players.get(deckId);
+    console.log(`[YouTubeDeckBridge] pause() Deck ${deckId} — playerReady=${!!player}`);
     if (player && typeof player.pauseVideo === 'function') {
       try {
         player.pauseVideo();

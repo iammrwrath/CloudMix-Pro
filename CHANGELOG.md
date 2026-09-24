@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.9] - 2026-09-24
+
+### Added
+- **Comprehensive Debug Logging — YouTube Deck Bridge**:
+  - `createPlayers()` now logs entry, per-deck `YT.Player` instantiation start, and post-construction confirmation.
+  - `onReady` handler logs when each player becomes fully ready (replaces the silent no-op that made startup race conditions invisible).
+  - `onStateChange` handler now logs the human-readable state name (`UNSTARTED`, `PLAYING`, `PAUSED`, `BUFFERING`, `CUED`, `ENDED`) instead of a raw integer.
+  - `onError` handler decodes the numeric YouTube IFrame API error code into a descriptive string (`Invalid parameter value (2)`, `HTML5 player error (5)`, `Video not found or private (100)`, `Embedding not allowed by owner (101/150)`) — eliminates the useless `[object Object]` previously seen in the log.
+  - `loadVideo()` logs deck ID, video ID, quality setting at cue time, duration resolution (with attempt count), and a clear warning when the player is not ready.
+  - `play()` logs deck ID, current player state integer, and player readiness; warns explicitly when `playVideo` cannot be called due to unready player.
+  - `pause()` logs deck ID and player readiness.
+  - All error messages in `play()`, `pause()`, and player instantiation catch blocks now serialize `Error` objects via `.message` instead of passing raw objects to `console.warn/error`, ensuring they survive Chromium's IPC string serialization.
+
+---
+
 ## [v1.6.8] - 2026-09-24
 
 ### Fixed
