@@ -14,9 +14,8 @@
   "compression": "normal",
   "files": [
     "dist/**/*",
-    "main.cjs",
-    "preload.cjs",
-    "streamingServer.cjs",
+    "*.cjs",
+    "package.json",
     "build/cortex-icon.png",
     "public/cortex-icon.png"
   ],

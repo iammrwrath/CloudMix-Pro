@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   // In-App Auto-Updater & GitHub Patching Engine
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  checkGitHubReleases: () => ipcRenderer.invoke('check-github-releases'),
   startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
   restartAndInstallPatch: () => ipcRenderer.invoke('restart-and-install-patch'),
   // Live Streaming (OBS, Streamer.bot, Stream Deck) Hub

@@ -24,7 +24,15 @@ function log(msg) {
 }
 
 process.on('exit', (code) => log(`[PROCESS EXIT] code: ${code}`));
-process.on('uncaughtException', (err) => log('[UNCAUGHT EXCEPTION] ' + (err.stack || err)));
+process.on('uncaughtException', (err) => {
+  log('[UNCAUGHT EXCEPTION] ' + (err.stack || err));
+  try {
+    dialog.showErrorBox(
+      'CloudMix Pro Warning',
+      `An unexpected background error occurred, but CloudMix Pro recovered safely:\n\n${err.message || err}`
+    );
+  } catch {}
+});
 process.on('unhandledRejection', (reason) => log('[UNHANDLED REJECTION] ' + reason));
 
 log('Electron main process starting up...');

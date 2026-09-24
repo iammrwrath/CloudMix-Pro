@@ -11,12 +11,14 @@
   },
   "scripts": {
     "dev": "node node_modules/vite/bin/vite",
+    "prebuild": "node scripts/verify-packaging.cjs",
     "build": "node node_modules/typescript/bin/tsc && node node_modules/vite/bin/vite build",
     "preview": "node node_modules/vite/bin/vite preview",
     "start": "electron .",
     "start:cortex": "electron . --cortex",
-    "pack": "electron-builder --win --dir",
-    "pack:cortex": "electron-builder --config electron-builder.cortex.json --win --dir",
+    "predist": "node scripts/verify-packaging.cjs",
+    "pack": "node scripts/verify-packaging.cjs && electron-builder --win --dir",
+    "pack:cortex": "node scripts/verify-packaging.cjs && electron-builder --config electron-builder.cortex.json --win --dir",
     "dist": "electron-builder --win portable nsis",
     "dist:cortex": "electron-builder --config electron-builder.cortex.json --win portable nsis",
     "dist:all": "npm run dist && npm run dist:cortex"
@@ -37,9 +39,8 @@
     "compression": "normal",
     "files": [
       "dist/**/*",
-      "main.cjs",
-      "preload.cjs",
-      "streamingServer.cjs"
+      "*.cjs",
+      "package.json"
     ],
     "win": {
       "target": [
