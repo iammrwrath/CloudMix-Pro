@@ -114,6 +114,7 @@ class YouTubeDeckBridge {
             rel: 0,
             playsinline: 1,
             enablejsapi: 1,
+            origin: 'https://www.youtube.com',
           },
           events: {
             onReady: (event: any) => {

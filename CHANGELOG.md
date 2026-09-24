@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.0] - 2026-09-24
+
+### Fixed
+- **YouTube IFrame API Error 153 — Playback Completely Broken**:
+  - Root cause identified via debug logging added in v1.6.9: YouTube began enforcing a strict `Referer` / `Origin` header check in July 2025. Electron's renderer loads from a `file://` URL which sends no `Referer` or `Origin` header, causing YouTube to reject every IFrame embed with error code 153 ("Video player configuration error"). This is why tracks loaded but playback never started — the player was technically ready (`onReady` fired) but the video cue always failed with 153 immediately.
+  - **Fix 1 — `main.cjs`**: Added a `session.webRequest.onBeforeSendHeaders` interceptor that fires for all requests to `*.youtube.com`, `*.youtube-nocookie.com`, and `*.googlevideo.com`. It injects `Referer: https://www.youtube.com/` and `Origin: https://www.youtube.com` on any request that is missing those headers. This runs at the Electron session level, so it covers all IFrame API traffic before YouTube ever sees it.
+  - **Fix 2 — `YouTubeDeckBridge.ts`**: Added `origin: 'https://www.youtube.com'` to the `playerVars` object passed to `new YT.Player(...)`. This tells the IFrame API to declare the correct origin when initializing, matching the injected headers.
+
+---
+
 ## [v1.6.9] - 2026-09-24
 
 ### Added

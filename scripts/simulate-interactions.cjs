@@ -145,6 +145,13 @@ async function runComprehensiveSimulation() {
   assert(appCode.includes('youtubeDeckBridge.play(deckId)'), 'YouTube Deck play trigger', 'Routes transport play command directly to YouTube player');
   assert(appCode.includes('youtubeDeckBridge.pause(deckId)'), 'YouTube Deck pause trigger', 'Routes transport pause command directly to YouTube player');
 
+  const ytBridgePath = path.join(__dirname, '..', 'src', 'services', 'YouTubeDeckBridge.ts');
+  const ytBridgeCode = fs.readFileSync(ytBridgePath, 'utf8');
+  assert(ytBridgeCode.includes("origin: 'https://www.youtube.com'"), 'YouTube IFrame origin playerVar', 'Declares valid origin in playerVars to prevent error 153');
+
+  assert(mainCode.includes('onBeforeSendHeaders'), 'YouTube Referer header injection', 'Session-level Referer/Origin injection prevents YouTube error 153 in Electron');
+  assert(mainCode.includes("Referer'] = 'https://www.youtube.com/'"), 'YouTube Referer value', 'Injects correct Referer header value for YouTube embed authorization');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

@@ -117,6 +117,26 @@ function createStandaloneCortexWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Fix YouTube IFrame API error 153 (enforced by YouTube since July 2025):
+  // Electron renders from file:// origin which sends no Referer or Origin header.
+  // YouTube rejects the IFrame embed with error 153 when these are missing.
+  // Intercept all outgoing requests to youtube domains and inject valid headers.
+  const ytSession = mainWindow.webContents.session;
+  ytSession.webRequest.onBeforeSendHeaders(
+    { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
+    (details, callback) => {
+      const headers = Object.assign({}, details.requestHeaders);
+      if (!headers['Referer'] && !headers['referer']) {
+        headers['Referer'] = 'https://www.youtube.com/';
+      }
+      if (!headers['Origin'] && !headers['origin']) {
+        headers['Origin'] = 'https://www.youtube.com';
+      }
+      callback({ cancel: false, requestHeaders: headers });
+    }
+  );
+  log('[YouTubeReferer] Injecting Referer/Origin headers for YouTube requests to fix error 153');
 }
 
 function createWindow() {
