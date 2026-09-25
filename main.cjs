@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -117,26 +117,6 @@ function createStandaloneCortexWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-
-  // Fix YouTube IFrame API error 153 (enforced by YouTube since July 2025):
-  // Electron renders from file:// origin which sends no Referer or Origin header.
-  // YouTube rejects the IFrame embed with error 153 when these are missing.
-  // Intercept all outgoing requests to youtube domains and inject valid headers.
-  const ytSession = mainWindow.webContents.session;
-  ytSession.webRequest.onBeforeSendHeaders(
-    { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
-    (details, callback) => {
-      const headers = Object.assign({}, details.requestHeaders);
-      if (!headers['Referer'] && !headers['referer']) {
-        headers['Referer'] = 'https://www.youtube.com/';
-      }
-      if (!headers['Origin'] && !headers['origin']) {
-        headers['Origin'] = 'https://www.youtube.com';
-      }
-      callback({ cancel: false, requestHeaders: headers });
-    }
-  );
-  log('[YouTubeReferer] Injecting Referer/Origin headers for YouTube requests to fix error 153');
 }
 
 function createWindow() {
@@ -243,6 +223,49 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    // YouTube IFrame API & Stream Interceptors:
+    // Electron renders from file:// origin which sends no Referer or Origin header.
+    // YouTube rejects IFrame embeds with error 153 when these are missing.
+    // In addition, strip restrictive CSP / frame-ancestors headers so YouTube embeds play flawlessly.
+    try {
+      const defaultSess = session.defaultSession;
+      defaultSess.webRequest.onBeforeSendHeaders(
+        { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
+        (details, callback) => {
+          const headers = Object.assign({}, details.requestHeaders);
+          if (!headers['Referer'] && !headers['referer']) {
+            headers['Referer'] = 'https://www.youtube.com/';
+          }
+          if (!headers['Origin'] && !headers['origin']) {
+            headers['Origin'] = 'https://www.youtube.com';
+          }
+          callback({ cancel: false, requestHeaders: headers });
+        }
+      );
+
+      defaultSess.webRequest.onHeadersReceived(
+        { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
+        (details, callback) => {
+          const responseHeaders = Object.assign({}, details.responseHeaders);
+          delete responseHeaders['content-security-policy-report-only'];
+          delete responseHeaders['Content-Security-Policy-Report-Only'];
+          delete responseHeaders['content-security-policy'];
+          delete responseHeaders['Content-Security-Policy'];
+          delete responseHeaders['x-frame-options'];
+          delete responseHeaders['X-Frame-Options'];
+
+          if (!responseHeaders['access-control-allow-origin'] && !responseHeaders['Access-Control-Allow-Origin']) {
+            responseHeaders['access-control-allow-origin'] = ['*'];
+          }
+
+          callback({ cancel: false, responseHeaders });
+        }
+      );
+      log('[YouTubeInterceptors] Registered global Referer/Origin and CSP interceptors on session.defaultSession');
+    } catch (e) {
+      log('[YouTubeInterceptors ERROR] ' + e.message);
+    }
+
     try {
       startStreamingServer(8088, {
         onStreamerbotRequest: (reqData) => {

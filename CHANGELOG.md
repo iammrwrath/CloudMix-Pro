@@ -3,6 +3,16 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.3] - 2026-09-25
+
+### Fixed
+- **YouTube Native Deck Bridge Readiness Synchronization**:
+  - Implemented per-deck readiness promises (`deckReadyPromises`), resolvers, and cue queueing (`pendingCues`). Tracks cued before the YouTube IFrame player finishes readying now queue gracefully and cue automatically on `onReady`.
+  - Added safe await `waitForDeckReady(deckId, 3500)` before attempting `cueVideoById` and `waitForDeckReady(deckId, 2500)` before `playVideo()`, resolving player race conditions and unstarted deck states.
+- **Network Interception & CSP Header Stripping**:
+  - Added session-wide `onHeadersReceived` filter in Electron `main.cjs` to strip restrictive `content-security-policy` and `x-frame-options` response headers from YouTube domains while enforcing permissive CORS.
+  - Reinforced `onBeforeSendHeaders` to reliably provide YouTube `Referer` and `Origin` headers on all iframe media transport requests.
+
 ---
 
 ## [v1.7.2] - 2026-09-25

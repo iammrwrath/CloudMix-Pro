@@ -27,6 +27,9 @@ class YouTubeDeckBridge {
   private isApiReady: boolean = false;
   private apiReadyPromise: Promise<void>;
   private resolveApiReady!: () => void;
+  private deckReadyPromises: Map<DeckId, Promise<void>> = new Map();
+  private deckReadyResolvers: Map<DeckId, () => void> = new Map();
+  private pendingCues: Map<DeckId, string> = new Map();
   private activeVideoIds: Map<DeckId, string> = new Map();
   private deckVolumes: Map<DeckId, number> = new Map([['A', 1.0], ['B', 1.0]]);
   private isDeckPlaying: Map<DeckId, boolean> = new Map([['A', false], ['B', false]]);
@@ -37,6 +40,15 @@ class YouTubeDeckBridge {
   constructor() {
     this.apiReadyPromise = new Promise((resolve) => {
       this.resolveApiReady = resolve;
+    });
+
+    (['A', 'B'] as DeckId[]).forEach((deckId) => {
+      this.deckReadyPromises.set(
+        deckId,
+        new Promise<void>((res) => {
+          this.deckReadyResolvers.set(deckId, res);
+        })
+      );
     });
 
     if (typeof window !== 'undefined') {
@@ -121,6 +133,19 @@ class YouTubeDeckBridge {
               console.log(`[YouTubeDeckBridge] Player READY on Deck ${deckId}`);
               this.players.set(deckId, event.target);
               event.target.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
+              const resolver = this.deckReadyResolvers.get(deckId);
+              if (resolver) resolver();
+
+              // If a video was queued before onReady fired, cue it now
+              const pendingVid = this.pendingCues.get(deckId);
+              if (pendingVid && typeof event.target.cueVideoById === 'function') {
+                console.log(`[YouTubeDeckBridge] Executing pending cue for Deck ${deckId}: videoId=${pendingVid}`);
+                try {
+                  event.target.cueVideoById(pendingVid);
+                } catch (e) {
+                  console.warn(`[YouTubeDeckBridge] Error executing pending cue on Deck ${deckId}:`, e);
+                }
+              }
             },
             onStateChange: (event: any) => {
               const stateNames: Record<number, string> = {
@@ -205,12 +230,41 @@ class YouTubeDeckBridge {
     return () => this.listeners.delete(listener);
   }
 
+  private async waitForDeckReady(deckId: DeckId, timeoutMs = 4000): Promise<boolean> {
+    const readyPromise = this.deckReadyPromises.get(deckId);
+    if (!readyPromise) return false;
+    let timer: any;
+    const timeout = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), timeoutMs);
+    });
+    const ready = readyPromise.then(() => true);
+    const result = await Promise.race([ready, timeout]);
+    clearTimeout(timer);
+    return result;
+  }
+
   public async loadVideo(deckId: DeckId, videoId: string): Promise<number> {
     console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId}`);
-    await this.apiReadyPromise;
-    const player = this.players.get(deckId);
     this.activeVideoIds.set(deckId, videoId);
+    this.pendingCues.set(deckId, videoId);
     this.isDeckPlaying.set(deckId, false);
+
+    // Wait for the YouTube Iframe API to initialize
+    await this.apiReadyPromise;
+
+    // Ensure the player is instantiated if it was not yet created
+    if (!this.players.has(deckId)) {
+      this.createPlayers();
+    }
+
+    let player = this.players.get(deckId);
+
+    // If player does not yet have cueVideoById, wait for onReady
+    if (!player || typeof player.cueVideoById !== 'function') {
+      console.log(`[YouTubeDeckBridge] Deck ${deckId} player not yet ready, awaiting onReady...`);
+      await this.waitForDeckReady(deckId, 3500);
+      player = this.players.get(deckId);
+    }
 
     if (player && typeof player.cueVideoById === 'function') {
       const qStr = this.mapQualityToYt(this.currentQuality);
@@ -218,15 +272,19 @@ class YouTubeDeckBridge {
         try { player.setPlaybackQuality(qStr); } catch {}
       }
       console.log(`[YouTubeDeckBridge] Cueing videoId=${videoId} on Deck ${deckId} at quality=${qStr}`);
-      player.cueVideoById(videoId);
-      player.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
+      try {
+        player.cueVideoById(videoId);
+        player.setVolume(Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100));
+      } catch (err) {
+        console.warn(`[YouTubeDeckBridge] cueVideoById error on Deck ${deckId}:`, err);
+      }
 
       // Wait a moment to get actual duration if available
       return new Promise<number>((resolve) => {
         let attempts = 0;
         const checkDuration = () => {
           attempts++;
-          const dur = player.getDuration();
+          const dur = typeof player.getDuration === 'function' ? player.getDuration() : 0;
           if (dur && dur > 0) {
             console.log(`[YouTubeDeckBridge] Duration resolved for Deck ${deckId}: ${dur.toFixed(2)}s (attempt ${attempts})`);
             resolve(dur);
@@ -240,12 +298,19 @@ class YouTubeDeckBridge {
         setTimeout(checkDuration, 150);
       });
     }
-    console.warn(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — player not ready or cueVideoById unavailable`);
+
+    console.warn(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — player not ready or cueVideoById unavailable after wait. Video queued.`);
     return 210;
   }
 
-  public play(deckId: DeckId) {
-    const player = this.players.get(deckId);
+  public async play(deckId: DeckId) {
+    let player = this.players.get(deckId);
+    if (!player || typeof player.playVideo !== 'function') {
+      console.log(`[YouTubeDeckBridge] play() Deck ${deckId} — awaiting player readiness`);
+      await this.waitForDeckReady(deckId, 2500);
+      player = this.players.get(deckId);
+    }
+
     const playerState = player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : 'n/a';
     console.log(`[YouTubeDeckBridge] play() Deck ${deckId} — playerState=${playerState} playerReady=${!!player}`);
     if (player && typeof player.playVideo === 'function') {
