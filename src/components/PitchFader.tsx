@@ -95,7 +95,7 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
       </button>
 
       {/* Vertical Slider Track with Calibrated Ticks */}
-      <div className="relative h-24 sm:h-32 md:h-40 xl:h-48 w-full flex items-center justify-center my-1">
+      <div className="relative h-28 sm:h-36 md:h-48 xl:h-56 w-full flex items-center justify-center my-1">
         {/* Pitch Scale Ticks on Left */}
         <div className="absolute left-1 inset-y-2 flex flex-col justify-between items-end pointer-events-none text-[8.5px] sm:text-[9.5px] font-mono text-slate-400 font-bold pr-1">
           <span>+</span>

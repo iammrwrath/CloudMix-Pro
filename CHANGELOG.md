@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.2] - 2026-09-25
+
+### Improved
+- **Massive Vinyl Platter & Full-Canvas UI Overhaul (djay Pro Style)**:
+  - **Fluid Jog Wheel Scaling**: Lifted the hard 118px jog wheel diameter ceiling. Platters now dynamically expand up to 340px (`max-w-[min(38vh,340px,100%)]`), filling empty deck space with large tactile grooved vinyl platters, needle drops, and circular progress rings.
+  - **Extended Vertical Pitch Faders**: Pitch slider tracks expanded from 96–192px up to `h-28 sm:h-36 md:h-48 xl:h-56` (112–224px), matching the scaled jog wheel height and providing fine-grained pitch resolution.
+  - **Expanded Performance Pad Buttons**: Hot Cue, Auto Loop, Beat Jump, and Stem pad heights increased to `h-6 sm:h-7 md:h-8 xl:h-10` for tactile, bold hardware-style controls.
+  - **Full-Height Mixer Channel Faders**: Channel volume faders and dB calibration scales increased from `h-10–h-16` to `h-16 sm:h-20 md:h-24 xl:h-28` for professional vertical throw matching industry-standard DJ mixers.
+  - **4-Stem Neural Quick Strip**: Vertical height expanded to `h-28 sm:h-36 md:h-44 xl:h-56` to cleanly align with the enlarged platter.
+
+---
+
 ## [v1.7.1] - 2026-09-24
 
 ### Improved

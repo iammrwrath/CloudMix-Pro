@@ -340,7 +340,7 @@ export const Deck = React.memo<DeckProps>(({
       {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader */}
       <div className="flex items-center justify-between flex-1 my-0.5 py-0.5 gap-1.5 sm:gap-2 min-h-0">
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
-        <div className="flex flex-col justify-between h-24 sm:h-28 md:h-34 xl:h-44 bg-slate-950/70 rounded-xl p-1 sm:p-1.5 border border-white/5 w-16 sm:w-20 xl:w-24 shrink-0 shadow-inner">
+        <div className="flex flex-col justify-between h-28 sm:h-36 md:h-44 xl:h-56 bg-slate-950/70 rounded-xl p-1 sm:p-1.5 border border-white/5 w-16 sm:w-20 xl:w-24 shrink-0 shadow-inner">
           <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
             <span className="text-[8.5px] sm:text-[10px] font-mono font-bold text-slate-300">STEMS</span>
             <span className="text-[7.5px] sm:text-[9px] font-mono text-purple-400 font-bold">4-WAY</span>

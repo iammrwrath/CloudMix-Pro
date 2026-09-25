@@ -353,7 +353,7 @@ export const Mixer = React.memo<MixerProps>(({
           {/* Channel Fader & Meter with Calibrated Scale */}
           <div className="flex items-end justify-center space-x-1 sm:space-x-1.5 mt-auto pt-0.5 w-full px-0.5 shrink-0">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-10 sm:h-12 md:h-16 text-[6.5px] sm:text-[7.5px] font-mono font-bold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0">
+            <div className="flex flex-col justify-between h-16 sm:h-20 md:h-24 xl:h-28 text-[6.5px] sm:text-[7.5px] font-mono font-bold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0">
               <span className="text-emerald-400 font-black">+6</span>
               <span className="text-white font-black">0</span>
               <span>-6</span>
@@ -362,7 +362,7 @@ export const Mixer = React.memo<MixerProps>(({
             </div>
 
             {/* Tactile Pro Vertical Fader */}
-            <div className="relative flex items-center justify-center h-10 sm:h-12 md:h-16 w-6 sm:w-7">
+            <div className="relative flex items-center justify-center h-16 sm:h-20 md:h-24 xl:h-28 w-6 sm:w-7">
               <ChannelFader
                 volume={deckA.volume}
                 onChange={(v) => onFaderChange('A', v)}
@@ -647,7 +647,7 @@ export const Mixer = React.memo<MixerProps>(({
           {/* Channel Fader & Meter with Calibrated Scale */}
           <div className="flex items-end justify-center space-x-1 sm:space-x-1.5 mt-auto pt-0.5 w-full px-0.5 shrink-0">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-10 sm:h-12 md:h-16 text-[6.5px] sm:text-[7.5px] font-mono font-bold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0">
+            <div className="flex flex-col justify-between h-16 sm:h-20 md:h-24 xl:h-28 text-[6.5px] sm:text-[7.5px] font-mono font-bold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0">
               <span className="text-emerald-400 font-black">+6</span>
               <span className="text-white font-black">0</span>
               <span>-6</span>
@@ -656,7 +656,7 @@ export const Mixer = React.memo<MixerProps>(({
             </div>
 
             {/* Tactile Pro Vertical Fader */}
-            <div className="relative flex items-center justify-center h-10 sm:h-12 md:h-16 w-6 sm:w-7">
+            <div className="relative flex items-center justify-center h-16 sm:h-20 md:h-24 xl:h-28 w-6 sm:w-7">
               <ChannelFader
                 volume={deckB.volume}
                 onChange={(v) => onFaderChange('B', v)}
