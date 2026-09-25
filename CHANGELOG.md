@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.1] - 2026-09-24
+
+### Improved
+- **Full-Width Layout — Decks Now Use All Available Screen Space**:
+  - Removed `justify-center` from the deck row container — decks now stretch edge-to-edge across the full window width instead of being centered with empty margins.
+  - Reduced main workspace padding from `p-1.5/p-2` to `p-1/p-1.5` and vertical spacing from `space-y-1.5/space-y-2` to `space-y-1/space-y-1.5`, giving decks more vertical room.
+  - Reduced bottom drawer horizontal padding from `px-1.5/px-2` to `px-1/px-1.5` and removed excess bottom padding so the library/FX panel spans the full window width.
+  - Slimmed the central Mixer panel from `w-[260px] xl:w-[360px]` to `w-[230px] xl:w-[300px]`, redistributing ~60–90px back to Deck A and Deck B on large displays.
+  - Increased split-mode drawer height from `min(26vh, 230px)` to `min(28vh, 260px)` so more library tracks are visible simultaneously.
+  - Reduced tab navigation strip bottom padding from `pb-1.5` to `pb-1` for tighter vertical rhythm.
+
+---
+
 ## [v1.7.0] - 2026-09-24
 
 ### Fixed

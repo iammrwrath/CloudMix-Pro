@@ -1271,7 +1271,7 @@ export const App: React.FC = () => {
 
       {/* 2. Main DJ Decks & Mixer Workspace */}
       {drawerMode !== 'expanded' && (
-        <div className="flex-1 flex flex-col p-1.5 sm:p-2 space-y-1.5 sm:space-y-2 overflow-hidden relative z-10 min-h-0">
+        <div className="flex-1 flex flex-col p-1 sm:p-1.5 space-y-1 sm:space-y-1.5 overflow-hidden relative z-10 min-h-0">
           {/* Stacked Vertical Waveforms (Rekordbox / Serato Pro mode) */}
           {layoutMode === 'vertical' && (
             <div className="w-full">
@@ -1285,7 +1285,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          <div className="flex flex-1 space-x-2 overflow-hidden justify-center">
+          <div className="flex flex-1 space-x-2 overflow-hidden">
             {/* Deck A */}
             <Deck
               deckId="A"
@@ -1386,16 +1386,16 @@ export const App: React.FC = () => {
 
       {/* 3. Bottom Pro DJ Workstation Drawer */}
       <div
-        className={`px-1.5 sm:px-2 pb-1.5 flex flex-col ${
+        className={`px-1 sm:px-1.5 pb-1 flex flex-col ${
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[min(26vh,230px)] min-h-[110px] shrink-0'
+            ? 'h-[min(28vh,260px)] min-h-[120px] shrink-0'
             : 'h-[42px] shrink-0 overflow-hidden'
         }`}
       >
         {/* Drawer Tab Navigation Strip */}
-        <div className="flex items-center justify-between pb-1.5 px-1">
+        <div className="flex items-center justify-between pb-1 px-0.5">
           <div className="flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-white/10">
             <button
               onClick={() => {
