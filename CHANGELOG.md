@@ -3,6 +3,31 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.4] - 2026-09-30
+
+### Fixed & Overhauled
+- **Persistent YouTube Authentication Across Patches & Restarts**:
+  - Eliminated automatic wiping of cached OAuth credentials and user email on 401 token expirations.
+  - User profiles, saved libraries, and cached collections remain persistently signed in across updates until an explicit "Sign Out" action is taken.
+- **YouTube Deck Audio Playback & Transport Handshake (AuraMusic-Desktop Bridge)**:
+  - Added a global window `message` listener intercepting YouTube iframe events (`onReady`, `initialDelivery`, `infoDelivery`) to eliminate player race conditions.
+  - Implemented resilient fallback postMessage triggers for `unMute`, `setVolume`, `playVideo`, and `pauseVideo` to ensure immediate audio playback even if the external JS wrapper hooks lag.
+- **Production-Grade Studio Multi-FX (djay Pro / VirtualDJ Benchmark)**:
+  - High-density algorithmic concert hall reverb with stereo diffusion, pre-delay spread, and frequency-damped exponential decay.
+  - Studio tape delay with resonant analog lowpass feedback filtering.
+  - Resonant comb flanger with triangular LFO sweep for classic club sweeps.
+  - 8-step quantized waveshaping bitcrusher with warm hyperbolic tangent saturation.
+  - High-Q resonant bandpass filter sweep.
+- **Authentic DJ Drops for 8-Pad Sampler**:
+  - Replaced generic tones with authentic club drops (Iconic Reggae/Dancehall Airhorn stutter, Dub Laser Siren, 808 Sub Boom, Dual-Stroke Vinyl Scratch chirp, Drop Bass sub dive, 909 Club Kick, Layered Snare Clap, and Inharmonic Metallic Hi-Hat Roll).
+- **AutoMix AI Assistant Phrase Alignment & Dynamic Bass Swap**:
+  - Implemented 16/32-beat phrase-synchronized crossfader curves.
+  - Integrated dynamic low-end EQ swapping: scoops incoming bass prior to midpoint and drops outgoing bass at transition point to prevent low-end mud.
+- **Dynamic MixCortex AI Recommendation Tracking**:
+  - MixCortex AI Co-Pilot immediately detects track load and swap events on either Deck A or Deck B, instantly updating harmonic Camelot wheel keys, BPM radars, and track recommendations.
+
+---
+
 ## [v1.7.3] - 2026-09-25
 
 ### Fixed

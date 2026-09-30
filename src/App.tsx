@@ -1092,6 +1092,12 @@ export const App: React.FC = () => {
         if (updates.crossfader !== undefined) {
           handleCrossfaderChange(updates.crossfader);
         }
+        if (updates.deckA?.eqLow !== undefined) {
+          setDeckA((p) => ({ ...p, eqLow: updates.deckA!.eqLow! }));
+        }
+        if (updates.deckB?.eqLow !== undefined) {
+          setDeckB((p) => ({ ...p, eqLow: updates.deckB!.eqLow! }));
+        }
       },
       (action, deckId) => {
         if (action === 'play') {

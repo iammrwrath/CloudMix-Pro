@@ -52,9 +52,70 @@ class YouTubeDeckBridge {
     });
 
     if (typeof window !== 'undefined') {
+      this.setupMessageListener();
       this.initializeApi();
       this.loadQualityPreference();
     }
+  }
+
+  /**
+   * Listens for raw postMessage events from the YouTube iframe (infoDelivery, initialDelivery, onReady)
+   * Ensures the deck is marked ready and synchronized even if the JS wrapper onReady event is delayed or intercepted.
+   */
+  private setupMessageListener() {
+    window.addEventListener('message', (event) => {
+      try {
+        let data: any = event.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            return;
+          }
+        }
+        if (!data || typeof data !== 'object') return;
+
+        // Check if message is from a YouTube player iframe
+        if (data.event === 'onReady' || data.event === 'initialDelivery') {
+          // Identify deck from iframe element id or id in message
+          const id = data.id || '';
+          (['A', 'B'] as DeckId[]).forEach((deckId) => {
+            const elId = `yt-player-bridge-${deckId.toLowerCase()}`;
+            if (id === elId || id === deckId.toLowerCase()) {
+              const resolver = this.deckReadyResolvers.get(deckId);
+              if (resolver) resolver();
+              const pendingVid = this.pendingCues.get(deckId);
+              const player = this.players.get(deckId);
+              if (pendingVid && player && typeof player.cueVideoById === 'function') {
+                try { player.cueVideoById(pendingVid); } catch {}
+              }
+            }
+          });
+        }
+
+        // Synchronize infoDelivery state changes and playhead positions
+        if (data.event === 'infoDelivery' && data.info) {
+          const id = data.id || '';
+          (['A', 'B'] as DeckId[]).forEach((deckId) => {
+            const elId = `yt-player-bridge-${deckId.toLowerCase()}`;
+            if (id === elId || id === deckId.toLowerCase()) {
+              if (data.info.playerState !== undefined) {
+                if (data.info.playerState === 1) {
+                  this.isDeckPlaying.set(deckId, true);
+                } else if (data.info.playerState === 2 || data.info.playerState === 0) {
+                  this.isDeckPlaying.set(deckId, false);
+                }
+              }
+              if (typeof data.info.currentTime === 'number' && typeof data.info.duration === 'number') {
+                if (data.info.duration > 0) {
+                  this.listeners.forEach((fn) => fn(deckId, data.info.currentTime, data.info.duration));
+                }
+              }
+            }
+          });
+        }
+      } catch {}
+    });
   }
 
   private async loadQualityPreference() {
@@ -327,8 +388,20 @@ class YouTubeDeckBridge {
         console.warn(`[YouTubeDeckBridge] play error on Deck ${deckId}: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
-      console.warn(`[YouTubeDeckBridge] play() Deck ${deckId} — player not ready, cannot play`);
+      console.warn(`[YouTubeDeckBridge] play() Deck ${deckId} — player not ready, falling back to direct iframe postMessage`);
     }
+
+    // Direct iframe postMessage fallback (matches AuraMusic-Desktop resilient bridge)
+    try {
+      const iframe = document.querySelector<HTMLIFrameElement>(`#yt-player-bridge-${deckId.toLowerCase()} iframe`) ||
+                    (document.getElementById(`yt-player-bridge-${deckId.toLowerCase()}`) as HTMLIFrameElement);
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: [] }), '*');
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100)] }), '*');
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
+        this.isDeckPlaying.set(deckId, true);
+      }
+    } catch {}
   }
 
   public pause(deckId: DeckId) {
@@ -342,6 +415,15 @@ class YouTubeDeckBridge {
         console.warn(`[YouTubeDeckBridge] pause error on Deck ${deckId}:`, err);
       }
     }
+    // Direct iframe postMessage fallback
+    try {
+      const iframe = document.querySelector<HTMLIFrameElement>(`#yt-player-bridge-${deckId.toLowerCase()} iframe`) ||
+                    (document.getElementById(`yt-player-bridge-${deckId.toLowerCase()}`) as HTMLIFrameElement);
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
+        this.isDeckPlaying.set(deckId, false);
+      }
+    } catch {}
   }
 
   public seek(deckId: DeckId, seconds: number) {

@@ -276,59 +276,76 @@ class AudioEngine {
     fxDryNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
     fxWetNode.gain.setValueAtTime(0.0, this.ctx.currentTime);
 
-    // 1. Echo / Delay
+    // 1. Studio Tape Echo / Ping-Pong Delay with analog high-damping filter
     const fxDelayNode = this.ctx.createDelay(4.0);
     fxDelayNode.delayTime.setValueAtTime(0.35, this.ctx.currentTime);
     const fxDelayFeedback = this.ctx.createGain();
-    fxDelayFeedback.gain.setValueAtTime(0.4, this.ctx.currentTime);
+    fxDelayFeedback.gain.setValueAtTime(0.45, this.ctx.currentTime);
     const fxDelayFilter = this.ctx.createBiquadFilter();
     fxDelayFilter.type = 'lowpass';
-    fxDelayFilter.frequency.setValueAtTime(2500, this.ctx.currentTime);
+    fxDelayFilter.frequency.setValueAtTime(3200, this.ctx.currentTime);
+    fxDelayFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     fxDelayNode.connect(fxDelayFeedback);
     fxDelayFeedback.connect(fxDelayFilter);
     fxDelayFilter.connect(fxDelayNode);
 
-    // 2. Reverb (Synthesized algorithmic impulse response)
+    // 2. High-Density Algorithmic Concert Hall Reverb with Stereo Diffusion & Decay
     const fxConvolverNode = this.ctx.createConvolver();
-    const revSamples = Math.floor(this.ctx.sampleRate * 2.0);
+    const revLengthSec = 2.6;
+    const revSamples = Math.floor(this.ctx.sampleRate * revLengthSec);
     const revBuffer = this.ctx.createBuffer(2, revSamples, this.ctx.sampleRate);
     for (let c = 0; c < 2; c++) {
       const d = revBuffer.getChannelData(c);
+      const preDelaySamples = Math.floor(0.018 * this.ctx.sampleRate * (c === 0 ? 1 : 1.25)); // Stereo pre-delay spread
       for (let i = 0; i < revSamples; i++) {
-        d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.45));
+        if (i < preDelaySamples) {
+          d[i] = 0;
+          continue;
+        }
+        const sampleIdx = i - preDelaySamples;
+        const t = sampleIdx / this.ctx.sampleRate;
+        // High density early reflections + exponential decay diffuse envelope
+        const earlyReflections = (sampleIdx < 1200 && sampleIdx % 180 === 0) ? (Math.random() - 0.5) * 0.4 : 0;
+        const decayEnvelope = Math.exp(-t / 0.55);
+        // Multi-frequency damped noise diffuse tail
+        const noise = (Math.random() * 2 - 1) * decayEnvelope * 0.7 + earlyReflections;
+        d[i] = noise;
       }
     }
     fxConvolverNode.buffer = revBuffer;
 
-    // 3. Flanger
+    // 3. Pro DJ Resonant Flanger / Comb Modulator (0.001s - 0.007s sweep)
     const fxFlangerDelay = this.ctx.createDelay(0.05);
-    fxFlangerDelay.delayTime.setValueAtTime(0.003, this.ctx.currentTime);
+    fxFlangerDelay.delayTime.setValueAtTime(0.0035, this.ctx.currentTime);
     const fxFlangerDepth = this.ctx.createGain();
-    fxFlangerDepth.gain.setValueAtTime(0.002, this.ctx.currentTime);
+    fxFlangerDepth.gain.setValueAtTime(0.0028, this.ctx.currentTime);
     let fxFlangerOsc: OscillatorNode | null = null;
     try {
       fxFlangerOsc = this.ctx.createOscillator();
-      fxFlangerOsc.type = 'sine';
-      fxFlangerOsc.frequency.setValueAtTime(0.4, this.ctx.currentTime);
+      fxFlangerOsc.type = 'triangle'; // Triangular sweep creates classic djay Pro swoosh
+      fxFlangerOsc.frequency.setValueAtTime(0.35, this.ctx.currentTime);
       fxFlangerOsc.connect(fxFlangerDepth);
       fxFlangerDepth.connect(fxFlangerDelay.delayTime);
       fxFlangerOsc.start();
     } catch {}
 
-    // 4. Bitcrusher
+    // 4. Analog Saturation Bitcrusher / Downsampler WaveShaper (harmonic warm drive)
     const fxBitcrusherCurve = this.ctx.createWaveShaper();
-    const bcCurve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) {
-      const x = (i * 2) / 256 - 1;
-      bcCurve[i] = Math.round(x * 6) / 6;
+    const bcCurve = new Float32Array(512);
+    for (let i = 0; i < 512; i++) {
+      const x = (i * 2) / 512 - 1;
+      // Quantized steps with warm tanh saturation curve
+      const steps = 8;
+      const quantized = Math.round(x * steps) / steps;
+      bcCurve[i] = Math.tanh(quantized * 1.35);
     }
     fxBitcrusherCurve.curve = bcCurve;
 
-    // 5. Filter Sweep
+    // 5. Djay Pro Resonant Bi-Directional Filter Sweep (LPF / HPF / Bandpass)
     const fxFilterSweep = this.ctx.createBiquadFilter();
     fxFilterSweep.type = 'bandpass';
     fxFilterSweep.frequency.setValueAtTime(1000, this.ctx.currentTime);
-    fxFilterSweep.Q.setValueAtTime(3.5, this.ctx.currentTime);
+    fxFilterSweep.Q.setValueAtTime(4.2, this.ctx.currentTime); // Punchy resonant peak
 
     // Routing: channelFader -> analyser -> fxInputNode -> fxDryNode -> crossfaderGain
     channelFader.connect(analyser);

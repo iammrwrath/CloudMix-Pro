@@ -37,6 +37,9 @@ export class CortexMonitorService {
   private deckStateProvider: (() => { deckA: DeckState; deckB: DeckState; crossfader?: number }) | null = null;
   private lastTrackId: string | null = null;
   private manualTrack: CortexTrack | null = null;
+  private lastTrackIdA: string | null = null;
+  private lastTrackIdB: string | null = null;
+  private lastActiveDeckId: 'A' | 'B' = 'A';
 
   constructor() {
     this.startPolling();
@@ -60,6 +63,9 @@ export class CortexMonitorService {
 
   public setDeckStateProvider(provider: () => { deckA: DeckState; deckB: DeckState; crossfader?: number }) {
     this.deckStateProvider = provider;
+    if (this.nowPlaying.source === 'cloudmix') {
+      this.pollCloudMix();
+    }
   }
 
   public setManualTrack(track: CortexTrack) {
@@ -110,32 +116,42 @@ export class CortexMonitorService {
     const isPlayingA = deckA.isPlaying;
     const isPlayingB = deckB.isPlaying;
 
-    let activeDeckId: 'A' | 'B' = 'A';
-    let activeDeck = deckA;
+    // Detect instant track swap on either deck to adjust recommendation focus immediately
+    const currentIdA = deckA.track?.id || null;
+    const currentIdB = deckB.track?.id || null;
+    const trackSwappedA = currentIdA !== null && currentIdA !== this.lastTrackIdA;
+    const trackSwappedB = currentIdB !== null && currentIdB !== this.lastTrackIdB;
+    this.lastTrackIdA = currentIdA;
+    this.lastTrackIdB = currentIdB;
 
-    if (isPlayingA && !isPlayingB) {
+    let activeDeckId: 'A' | 'B' = this.lastActiveDeckId;
+
+    if (trackSwappedA && !trackSwappedB) {
       activeDeckId = 'A';
-      activeDeck = deckA;
+    } else if (trackSwappedB && !trackSwappedA) {
+      activeDeckId = 'B';
+    } else if (isPlayingA && !isPlayingB) {
+      activeDeckId = 'A';
     } else if (!isPlayingA && isPlayingB) {
       activeDeckId = 'B';
-      activeDeck = deckB;
     } else if (isPlayingA && isPlayingB) {
       if (crossfader > 0.1) {
         activeDeckId = 'B';
-        activeDeck = deckB;
       } else {
         activeDeckId = 'A';
-        activeDeck = deckA;
       }
     } else {
       if (deckB.track && !deckA.track) {
         activeDeckId = 'B';
-        activeDeck = deckB;
-      } else {
+      } else if (deckA.track && !deckB.track) {
         activeDeckId = 'A';
-        activeDeck = deckA;
+      } else {
+        activeDeckId = this.lastActiveDeckId;
       }
     }
+
+    this.lastActiveDeckId = activeDeckId;
+    const activeDeck = activeDeckId === 'A' ? deckA : deckB;
 
     const currentLiveTime = activeDeck.currentTime || 0;
     const duration = activeDeck.duration || (activeDeck.track?.duration ?? 180);

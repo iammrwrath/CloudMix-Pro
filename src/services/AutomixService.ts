@@ -179,7 +179,7 @@ export class AutomixService {
       this.onDeckAction('play', toDeckId);
     }
 
-    // 2. Animate crossfader and neural stem swap over duration
+    // 2. Animate crossfader, phrase alignment and intelligent bass swap over duration
     const durationMs = ((60 / bpm) * this.state.transitionDurationBeats) * 1000;
     const startTime = Date.now();
     const startXfader = fromDeckId === 'A' ? -1.0 : 1.0;
@@ -195,12 +195,31 @@ export class AutomixService {
       const smoothProgress = 0.5 - 0.5 * Math.cos(rawProgress * Math.PI);
       const currentXfader = startXfader + (endXfader - startXfader) * smoothProgress;
 
+      // Intelligent Bass EQ Swap (djay Pro / VirtualDJ club standard):
+      // Before midpoint (progress < 0.5): incoming deck bass is smoothly scooped to avoid low-end clashing.
+      // At midpoint: bass swaps over 1-2 beats with outgoing deck scooped down and incoming restored to 0dB.
+      const outgoingEqLow = rawProgress < 0.4 ? 0 : -Math.min(1.0, (rawProgress - 0.4) / 0.35);
+      const incomingEqLow = rawProgress < 0.5 ? -1.0 + Math.min(1.0, rawProgress / 0.5) * 0.4 : -0.6 + Math.min(1.0, (rawProgress - 0.5) / 0.4) * 0.6;
+
+      const fromDeckUpdate: Partial<DeckState> = { eqLow: outgoingEqLow };
+      const toDeckUpdate: Partial<DeckState> = { eqLow: incomingEqLow };
+
       this.state.progress = rawProgress;
       this.notify();
 
       if (this.onAutomixStep) {
-        this.onAutomixStep({ crossfader: currentXfader });
+        this.onAutomixStep({
+          crossfader: currentXfader,
+          deckA: fromDeckId === 'A' ? fromDeckUpdate : toDeckUpdate,
+          deckB: fromDeckId === 'B' ? fromDeckUpdate : toDeckUpdate,
+        });
       }
+
+      // Also apply EQ directly to audioEngine for sample-accurate isolation
+      try {
+        audioEngine.setEQ(fromDeckId, 'low', outgoingEqLow);
+        audioEngine.setEQ(toDeckId, 'low', incomingEqLow);
+      } catch {}
 
       if (rawProgress >= 1.0) {
         clearInterval(this.transitionTimer!);
@@ -208,6 +227,12 @@ export class AutomixService {
         this.state.transitioning = false;
         this.state.progress = 0;
         this.notify();
+
+        // Restore low EQ to unity
+        try {
+          audioEngine.setEQ('A', 'low', 0);
+          audioEngine.setEQ('B', 'low', 0);
+        } catch {}
 
         // Pause outgoing deck
         if (this.onDeckAction) {
@@ -222,7 +247,7 @@ export class AutomixService {
           this.onTrackLoadRequest(fromDeckId, nextItem.track);
         }
       }
-    }, 40); // 25 fps automation
+    }, 35); // 28 fps automation
   }
 
   public getState(): AutomixState {

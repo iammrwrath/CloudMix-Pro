@@ -325,10 +325,9 @@ class YouTubeMusicService {
         );
 
         if (mineRes.status === 401) {
-          console.warn('[YouTube Music] OAuth token expired (401). Clearing stale token and user email.');
-          this._accessToken = null;
-          await storageCache.setSetting('yt_oauth_token', null);
-          await storageCache.setSetting('yt_email', null);
+          console.warn('[YouTube Music] OAuth token expired (401). Retaining user profile and session for seamless reconnection.');
+          // Keep user signed in visually and retain cached email/playlists across patches
+          // Do not wipe credentials unless user explicitly clicks "Log Out" / signOut()
           return [...savedPlaylists, ...curatedOnly];
         }
 
