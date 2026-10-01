@@ -1409,7 +1409,7 @@ export const App: React.FC = () => {
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[min(28vh,260px)] min-h-[120px] shrink-0'
+            ? 'h-[38vh] min-h-[160px] max-h-[380px] shrink-0'
             : 'h-[42px] shrink-0 overflow-hidden'
         }`}
       >

@@ -150,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Layout Switcher */}
-        <div className="hidden lg:flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-white/10 ml-1">
+        <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-white/10 ml-0.5 sm:ml-1">
           <button
             onClick={() => onLayoutModeChange('horizontal')}
             title="Classic Horizontal 2-Deck Jog View"
@@ -159,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <LayoutGrid className="w-3 h-3" />
-            <span className="hidden 2xl:inline">2-DECK</span>
+            <span className="hidden xl:inline">2-DECK</span>
           </button>
           <button
             onClick={() => onLayoutModeChange('vertical')}
@@ -169,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <Columns className="w-3 h-3" />
-            <span className="hidden 2xl:inline">STACKED</span>
+            <span className="hidden xl:inline">STACKED</span>
           </button>
           <button
             onClick={() => onDrawerModeChange?.(drawerMode === 'expanded' ? 'split' : 'expanded')}
@@ -181,110 +181,13 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <BookOpen className="w-3 h-3 text-indigo-400" />
-            <span className="hidden 2xl:inline">LIBRARY</span>
+            <span className="hidden xl:inline">LIBRARY</span>
           </button>
         </div>
-      </div>
 
-      {/* 2. Master BPM & Quantize Hub */}
-      <div className="flex items-center space-x-1.5 bg-slate-900/90 px-2 py-0.5 rounded-xl border border-white/10 shadow-inner shrink-0">
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">
-            CLOCK
-          </span>
-          <div className="flex items-center space-x-0.5">
-            <button
-              onClick={() => onMasterBpmChange(Math.max(60, masterBpm - 0.5))}
-              className="w-4 h-4 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
-            >
-              -
-            </button>
-            <span className="font-mono font-black text-sm md:text-base text-white min-w-[46px] text-center tracking-tight">
-              {masterBpm.toFixed(1)}
-            </span>
-            <button
-              onClick={() => onMasterBpmChange(Math.min(220, masterBpm + 0.5))}
-              className="w-4 h-4 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={handleTapTempo}
-          className="px-2 py-0.5 text-[11px] font-mono font-black rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 active:scale-95 transition-all cursor-pointer shadow-sm"
-        >
-          TAP
-        </button>
-
-        <button
-          onClick={() => setQuantize(!quantize)}
-          className={`px-2 py-0.5 text-[11px] font-mono font-black rounded border transition-all cursor-pointer ${
-            quantize
-              ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(160,185,129,0.7)]'
-              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-          }`}
-        >
-          QNT
-        </button>
-      </div>
-
-      {/* 3. System Status Badges, Recording & Feature Toggles */}
-      <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
-        {/* Master Mix Recording Button */}
-        <button
-          onClick={onToggleRecording}
-          title={isRecording ? "Click to Stop & Save Mix Recording" : "Record Live Master Mix to Lossless Audio"}
-          className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer border ${
-            isRecording
-              ? 'bg-red-600 text-white border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse'
-              : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400'
-          }`}
-        >
-          <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
-          <span>{isRecording ? formatDuration(recordingDuration) : 'REC'}</span>
-          <span className="hidden 2xl:inline">{!isRecording && ' MIX'}</span>
-        </button>
-
-        {/* Automix AI Assistant Quick Toggle */}
-        <button
-          onClick={onToggleAutomix}
-          title="Toggle Automix AI Autonomous Transition Engine"
-          className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
-            isAutomixActive
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.7)] animate-pulse'
-              : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-slate-800'
-          }`}
-        >
-          <Bot className="w-3.5 h-3.5" />
-          <span className="hidden xl:inline">AUTOMIX</span>
-        </button>
-
-        {/* MixCortex AI Co-Pilot Quick Toggle */}
-        {(() => {
-          const isCortexActive = isCortexOpen ?? isPulseDjOpen;
-          const handleToggle = onToggleCortex || onTogglePulseDj;
-          return (
-            <button
-              onClick={handleToggle}
-              title="Toggle MixCortex AI Co-Pilot (Real-time Harmonic & Vibe Next Track Ideas)"
-              className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
-                isCortexActive
-                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.8)] font-black'
-                  : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
-              }`}
-            >
-              <Brain className={`w-3.5 h-3.5 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
-              <span className="font-extrabold tracking-wide text-[11px]">CORTEX</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping hidden sm:inline-block" />
-            </button>
-          );
-        })()}
-
-        {/* Interactive UI Zoom / Scale Controller */}
+        {/* Global UI Zoom / Scale Controller (Always Visible & Accessible) */}
         {onUiZoomChange && (
-          <div className="flex items-center space-x-0.5 bg-slate-900/90 px-1 py-0.5 rounded-lg border border-slate-800 shadow-sm" title="Global UI Zoom / Display Scale (Ctrl + / Ctrl -)">
+          <div className="flex items-center space-x-0.5 bg-slate-900/90 px-1 py-0.5 rounded-lg border border-slate-800 shadow-sm shrink-0" title="Global UI Zoom / Display Scale (Ctrl + / Ctrl -)">
             <button
               onClick={() => onUiZoomChange(Math.max(0.7, Math.round((uiZoom - 0.05) * 100) / 100))}
               title="Zoom Out (Ctrl -)"
@@ -308,6 +211,103 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
         )}
+      </div>
+
+      {/* 2. Master BPM & Quantize Hub */}
+      <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900/90 px-1.5 sm:px-2 py-0.5 rounded-xl border border-white/10 shadow-inner shrink-0">
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">
+            CLOCK
+          </span>
+          <div className="flex items-center space-x-0.5">
+            <button
+              onClick={() => onMasterBpmChange(Math.max(60, masterBpm - 0.5))}
+              className="w-4 h-4 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
+            >
+              -
+            </button>
+            <span className="font-mono font-black text-xs sm:text-sm md:text-base text-white min-w-[42px] sm:min-w-[46px] text-center tracking-tight">
+              {masterBpm.toFixed(1)}
+            </span>
+            <button
+              onClick={() => onMasterBpmChange(Math.min(220, masterBpm + 0.5))}
+              className="w-4 h-4 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={handleTapTempo}
+          className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-mono font-black rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+        >
+          TAP
+        </button>
+
+        <button
+          onClick={() => setQuantize(!quantize)}
+          className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-mono font-black rounded border transition-all cursor-pointer ${
+            quantize
+              ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(160,185,129,0.7)]'
+              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+          }`}
+        >
+          QNT
+        </button>
+      </div>
+
+      {/* 3. System Status Badges, Recording & Feature Toggles */}
+      <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+        {/* Master Mix Recording Button */}
+        <button
+          onClick={onToggleRecording}
+          title={isRecording ? "Click to Stop & Save Mix Recording" : "Record Live Master Mix to Lossless Audio"}
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer border ${
+            isRecording
+              ? 'bg-red-600 text-white border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400'
+          }`}
+        >
+          <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
+          <span>{isRecording ? formatDuration(recordingDuration) : 'REC'}</span>
+          <span className="hidden 2xl:inline">{!isRecording && ' MIX'}</span>
+        </button>
+
+        {/* Automix AI Assistant Quick Toggle */}
+        <button
+          onClick={onToggleAutomix}
+          title="Toggle Automix AI Autonomous Transition Engine"
+          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+            isAutomixActive
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.7)] animate-pulse'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-slate-800'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span className="hidden xl:inline">AUTOMIX</span>
+        </button>
+
+        {/* MixCortex AI Co-Pilot Quick Toggle */}
+        {(() => {
+          const isCortexActive = isCortexOpen ?? isPulseDjOpen;
+          const handleToggle = onToggleCortex || onTogglePulseDj;
+          return (
+            <button
+              onClick={handleToggle}
+              title="Toggle MixCortex AI Co-Pilot (Real-time Harmonic & Vibe Next Track Ideas)"
+              className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+                isCortexActive
+                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.8)] font-black'
+                  : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
+              }`}
+            >
+              <Brain className={`w-3.5 h-3.5 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
+              <span className="font-extrabold tracking-wide text-[11px] hidden sm:inline">CORTEX</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping hidden sm:inline-block" />
+            </button>
+          );
+        })()}
 
         {/* Google Drive Status Badge */}
         <div
@@ -316,7 +316,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
           <Cloud className="w-3.5 h-3.5 text-blue-400" />
-          <span className="hidden 2xl:inline">Drive: Online</span>
+          <span className="hidden 2xl:inline">Drive</span>
         </div>
 
         {/* Real-time Cloud Progression Sync Badge */}
@@ -326,7 +326,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] animate-pulse" />
           <Wifi className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden 2xl:inline">Sync: Active</span>
+          <span className="hidden 2xl:inline">Sync</span>
         </div>
 
         {/* MIDI Hardware Button */}

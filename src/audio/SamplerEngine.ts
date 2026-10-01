@@ -167,10 +167,17 @@ export class SamplerEngine {
     if (!this.ctx) return;
     this.sampleBuffers.clear();
 
+    const baseUrl = typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file:')
+      ? window.location.origin
+      : 'http://127.0.0.1:8088';
+
     for (const slot of this.slots) {
       if (slot.sampleUrl) {
         try {
-          const res = await fetch(slot.sampleUrl);
+          const fetchUrl = slot.sampleUrl.startsWith('http') || slot.sampleUrl.startsWith('data:') || slot.sampleUrl.startsWith('blob:')
+            ? slot.sampleUrl
+            : `${baseUrl}${slot.sampleUrl.startsWith('/') ? '' : '/'}${slot.sampleUrl}`;
+          const res = await fetch(fetchUrl);
           if (res.ok) {
             const arrayBuffer = await res.arrayBuffer();
             const decoded = await this.ctx.decodeAudioData(arrayBuffer);

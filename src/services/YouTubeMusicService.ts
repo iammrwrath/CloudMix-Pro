@@ -18,6 +18,8 @@ export interface YouTubePlaylist {
 }
 
 const YOUTUBE_DATA_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
+// Pre-configured official Google Cloud OAuth Client ID for CloudMix Pro
+const DEFAULT_GOOGLE_CLIENT_ID = "840788647712-l9t38b1s7e9e34j91u6oefh51jcmv68s.apps.googleusercontent.com";
 
 class YouTubeMusicService {
   private _accessToken: string | null = null;
@@ -92,12 +94,8 @@ class YouTubeMusicService {
    * http://localhost redirect and returns the token directly.
    */
   public async signIn(): Promise<void> {
-    const CLIENT_ID = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
-    if (!CLIENT_ID) {
-      throw new Error(
-        'No Client ID set. Paste your Google OAuth Client ID in Settings → YouTube Music first.'
-      );
-    }
+    const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
+    const CLIENT_ID = userClientId.trim() || DEFAULT_GOOGLE_CLIENT_ID;
     const REDIRECT_URI = 'http://127.0.0.1:42813/callback';
     const SCOPES = [
       'https://www.googleapis.com/auth/youtube.readonly',

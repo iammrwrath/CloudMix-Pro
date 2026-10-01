@@ -849,34 +849,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       )}
                     </div>
                     {!ytConnected ? (
-                      <div className="space-y-2.5">
-                        <div>
-                          <label className="text-[10px] font-mono text-slate-400 block mb-1">
-                            Google Cloud OAuth Client ID (Optional for custom quota)
-                          </label>
-                          <YtClientIdInput />
-                        </div>
-                        <div className="flex items-center space-x-2 pt-1">
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                          <div>
+                            <span className="text-xs font-bold text-white block">1-Click Google / YouTube Account Sync</span>
+                            <span className="text-[11px] text-slate-400 block mt-0.5">
+                              Seamlessly sign into your Google account (like gmail.com) to load your playlists & liked tracks.
+                            </span>
+                          </div>
                           <button
                             onClick={handleYtConnect}
                             disabled={ytLoading}
-                            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs font-mono flex items-center space-x-1.5 transition-colors cursor-pointer shadow-md disabled:opacity-50"
+                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs font-mono flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg hover:shadow-red-500/25 active:scale-95 disabled:opacity-50 shrink-0"
                           >
                             {ytLoading ? (
                               <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                <span>Signing in...</span>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Connecting...</span>
                               </>
                             ) : (
                               <>
-                                <Music2 className="w-3.5 h-3.5" />
-                                <span>Sign In with Google / YouTube</span>
+                                <Music2 className="w-4 h-4" />
+                                <span>Sign In with Google</span>
                               </>
                             )}
                           </button>
                         </div>
+
+                        {/* Optional Advanced Developer Quota Toggle */}
+                        <details className="text-[10px] text-slate-500 font-mono group">
+                          <summary className="cursor-pointer hover:text-slate-400 select-none transition-colors">
+                            ▸ Advanced: Use Custom Google Cloud Client ID (Optional)
+                          </summary>
+                          <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1">
+                            <label className="text-[10px] font-mono text-slate-400 block mb-1">
+                              Custom Google Cloud OAuth Client ID (Overrides built-in CloudMix Pro quota)
+                            </label>
+                            <YtClientIdInput />
+                          </div>
+                        </details>
+
                         {ytError && (
-                          <p className="text-[11px] text-rose-400 font-mono bg-rose-950/40 p-2 rounded border border-rose-800/60">
+                          <p className="text-[11px] text-rose-400 font-mono bg-rose-950/40 p-2.5 rounded-lg border border-rose-800/60">
                             {ytError}
                           </p>
                         )}

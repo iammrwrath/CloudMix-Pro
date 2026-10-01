@@ -144,8 +144,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 1024,
-    minHeight: 700,
+    minWidth: 960,
+    minHeight: 520,
     backgroundColor: '#0a0d14',
     title: 'CloudMix Pro — Next-Gen Cloud DJ',
     autoHideMenuBar: true,
