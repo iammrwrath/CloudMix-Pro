@@ -36,6 +36,8 @@ class YouTubeDeckBridge {
   private timePollInterval: any = null;
   private listeners: Set<(deckId: DeckId, time: number, duration: number) => void> = new Set();
   private currentQuality: StreamingQuality = 'high';
+  private deckTrackInfo: Map<DeckId, { videoId: string; title: string; artist: string }> = new Map();
+  private recoveredVideos: Map<DeckId, string> = new Map();
 
   constructor() {
     this.apiReadyPromise = new Promise((resolve) => {
@@ -173,11 +175,15 @@ class YouTubeDeckBridge {
       }
 
       try {
-        console.log(`[YouTubeDeckBridge] Instantiating YT.Player for Deck ${deckId} (el.id=${el.id})`);
+        const appOrigin =
+          typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file:')
+            ? window.location.origin
+            : 'http://127.0.0.1:8088';
+
+        console.log(`[YouTubeDeckBridge] Instantiating YT.Player for Deck ${deckId} (el.id=${el.id}, origin=${appOrigin})`);
         const player = new window.YT.Player(el.id, {
           height: '150',
           width: '200',
-          host: 'https://www.youtube-nocookie.com',
           playerVars: {
             autoplay: 0,
             controls: 0,
@@ -187,7 +193,7 @@ class YouTubeDeckBridge {
             rel: 0,
             playsinline: 1,
             enablejsapi: 1,
-            origin: 'https://www.youtube.com',
+            origin: appOrigin,
           },
           events: {
             onReady: (event: any) => {
@@ -236,11 +242,23 @@ class YouTubeDeckBridge {
                 100: 'Video not found or private (100)',
                 101: 'Embedding not allowed by owner (101)',
                 150: 'Embedding not allowed by owner (150)',
+                152: 'Embedding not allowed by owner (152)',
               };
               const desc = code !== undefined
                 ? (codeMap[code] ?? `Unknown error code (${code})`)
                 : 'No error code in event';
               console.warn(`[YouTubeDeckBridge] Player error on Deck ${deckId}: ${desc}`);
+
+              // Automatic failover recovery for restricted / un-embeddable videos (101, 150, 152)
+              if (code === 101 || code === 150 || code === 152) {
+                const currentVid = this.activeVideoIds.get(deckId);
+                const hasRecovered = this.recoveredVideos.get(deckId) === currentVid;
+                if (currentVid && !hasRecovered) {
+                  this.recoveredVideos.set(deckId, currentVid);
+                  console.log(`[YouTubeDeckBridge] Attempting auto-failover for restricted video (${currentVid}) on Deck ${deckId}...`);
+                  this.recoverRestrictedTrack(deckId, currentVid);
+                }
+              }
             },
           },
         });
@@ -304,10 +322,47 @@ class YouTubeDeckBridge {
     return result;
   }
 
-  public async loadVideo(deckId: DeckId, videoId: string): Promise<number> {
-    console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId}`);
+  private async recoverRestrictedTrack(deckId: DeckId, currentVid: string) {
+    const info = this.deckTrackInfo.get(deckId);
+    const searchQuery = info && (info.title || info.artist)
+      ? `${info.artist} ${info.title} audio`.trim()
+      : 'music audio';
+
+    try {
+      console.log(`[YouTubeDeckBridge] Searching alternative stream for Deck ${deckId}: "${searchQuery}"`);
+      const searchRes = await fetch(`http://127.0.0.1:8088/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
+      if (searchRes.ok) {
+        const data = await searchRes.json();
+        const alts = (data.results || []).filter((r: any) => r.videoId && r.videoId !== currentVid);
+        if (alts.length > 0) {
+          const altVideoId = alts[0].videoId;
+          console.log(`[YouTubeDeckBridge] Auto-failover found alternative videoId=${altVideoId} ("${alts[0].title}"). Cueing on Deck ${deckId}...`);
+          this.activeVideoIds.set(deckId, altVideoId);
+          const player = this.players.get(deckId);
+          if (player && typeof player.cueVideoById === 'function') {
+            setTimeout(() => {
+              try {
+                player.cueVideoById(altVideoId);
+                if (this.isDeckPlaying.get(deckId)) {
+                  player.playVideo();
+                }
+              } catch (e) {
+                console.warn(`[YouTubeDeckBridge] Error cueing alternative video on Deck ${deckId}:`, e);
+              }
+            }, 250);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[YouTubeDeckBridge] Auto-failover query failed on Deck ${deckId}:`, e);
+    }
+  }
+
+  public async loadVideo(deckId: DeckId, videoId: string, trackTitle?: string, trackArtist?: string): Promise<number> {
+    console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId} title="${trackTitle || ''}" artist="${trackArtist || ''}"`);
     this.activeVideoIds.set(deckId, videoId);
     this.pendingCues.set(deckId, videoId);
+    this.deckTrackInfo.set(deckId, { videoId, title: trackTitle || '', artist: trackArtist || '' });
     this.isDeckPlaying.set(deckId, false);
 
     // Wait for the YouTube Iframe API to initialize
@@ -389,19 +444,18 @@ class YouTubeDeckBridge {
       }
     } else {
       console.warn(`[YouTubeDeckBridge] play() Deck ${deckId} — player not ready, falling back to direct iframe postMessage`);
+      // Direct iframe postMessage fallback (matches AuraMusic-Desktop resilient bridge)
+      try {
+        const iframe = document.querySelector<HTMLIFrameElement>(`#yt-player-bridge-${deckId.toLowerCase()} iframe`) ||
+                      (document.getElementById(`yt-player-bridge-${deckId.toLowerCase()}`) as HTMLIFrameElement);
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: [] }), '*');
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100)] }), '*');
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
+          this.isDeckPlaying.set(deckId, true);
+        }
+      } catch {}
     }
-
-    // Direct iframe postMessage fallback (matches AuraMusic-Desktop resilient bridge)
-    try {
-      const iframe = document.querySelector<HTMLIFrameElement>(`#yt-player-bridge-${deckId.toLowerCase()} iframe`) ||
-                    (document.getElementById(`yt-player-bridge-${deckId.toLowerCase()}`) as HTMLIFrameElement);
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute', args: [] }), '*');
-        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [Math.round((this.deckVolumes.get(deckId) ?? 1.0) * 100)] }), '*');
-        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
-        this.isDeckPlaying.set(deckId, true);
-      }
-    } catch {}
   }
 
   public pause(deckId: DeckId) {

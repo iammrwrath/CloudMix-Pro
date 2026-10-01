@@ -940,7 +940,29 @@ function getObsOverlayHtml() {
 </html>`;
 }
 
-function startStreamingServer(port = 8088, callbacks = {}) {
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.map': 'application/json',
+};
+
+function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
   const server = http.createServer(async (req, res) => {
     // CORS headers for Stream Deck & local automation
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1101,6 +1123,49 @@ function startStreamingServer(port = 8088, callbacks = {}) {
 
       handlePayload(null);
       return;
+    }
+
+    // 7. Static file serving for CloudMix Pro Application (SPA)
+    if (distDir && (req.method === 'GET' || req.method === 'HEAD')) {
+      const cleanPath = pathname.replace(/^\/+/, '');
+      let filePath = path.join(distDir, cleanPath === '' ? 'index.html' : cleanPath);
+
+      // Verify path stays within distDir
+      const resolvedDist = path.resolve(distDir);
+      const resolvedFile = path.resolve(filePath);
+
+      if (resolvedFile.startsWith(resolvedDist)) {
+        if (fs.existsSync(resolvedFile)) {
+          try {
+            if (fs.statSync(resolvedFile).isDirectory()) {
+              filePath = path.join(resolvedFile, 'index.html');
+            }
+          } catch {}
+        }
+
+        // SPA Fallback: if not found, serve index.html
+        if (!fs.existsSync(filePath)) {
+          const spaIndex = path.join(distDir, 'index.html');
+          if (fs.existsSync(spaIndex)) {
+            filePath = spaIndex;
+          }
+        }
+
+        if (fs.existsSync(filePath)) {
+          const ext = path.extname(filePath).toLowerCase();
+          const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+          res.writeHead(200, {
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+          });
+          if (req.method === 'HEAD') {
+            res.end();
+            return;
+          }
+          fs.createReadStream(filePath).pipe(res);
+          return;
+        }
+      }
     }
 
     // Default 404

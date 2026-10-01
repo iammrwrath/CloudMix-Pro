@@ -528,7 +528,7 @@ export const App: React.FC = () => {
           // Pause AudioEngine source so no local audio conflicts
           audioEngine.pauseDeck(deckId);
 
-          const duration = await youtubeDeckBridge.loadVideo(deckId, vidId);
+          const duration = await youtubeDeckBridge.loadVideo(deckId, vidId, track.title, track.artist);
           track.duration = duration || track.duration || 210;
 
           // Generate silent visual waveform buffer for deck rendering

@@ -119,6 +119,26 @@ function createStandaloneCortexWindow() {
   });
 }
 
+function getDistInfo() {
+  const distPaths = [
+    path.join(__dirname, 'dist', 'index.html'),
+    path.join(process.resourcesPath || '', 'app.asar', 'dist', 'index.html'),
+    path.join(process.resourcesPath || '', 'app', 'dist', 'index.html'),
+    path.join(__dirname, '..', 'dist', 'index.html'),
+  ];
+
+  let targetPath = null;
+  for (const p of distPaths) {
+    if (fs.existsSync(p)) {
+      targetPath = p;
+      break;
+    }
+  }
+
+  const distDir = targetPath ? path.dirname(targetPath) : null;
+  return { targetPath, distDir };
+}
+
 function createWindow() {
   log('createWindow() called (CloudMix Pro Workstation)');
   mainWindow = new BrowserWindow({
@@ -142,25 +162,28 @@ function createWindow() {
     },
   });
 
-  const distPaths = [
-    path.join(__dirname, 'dist', 'index.html'),
-    path.join(process.resourcesPath || '', 'app.asar', 'dist', 'index.html'),
-    path.join(process.resourcesPath || '', 'app', 'dist', 'index.html'),
-    path.join(__dirname, '..', 'dist', 'index.html'),
-  ];
-
-  let targetPath = null;
-  for (const p of distPaths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-
+  const { targetPath } = getDistInfo();
   log(`Target index.html path: ${targetPath}`);
 
   if (targetPath) {
-    mainWindow.loadFile(targetPath);
+    // Load from local broadcast server (http://127.0.0.1:8088) so the renderer has a valid HTTP origin.
+    // This allows YouTube IFrame API (postMessage handshakes) and WebSockets to work seamlessly
+    // without file:// origin mismatches.
+    const serverUrl = 'http://127.0.0.1:8088';
+    let retries = 3;
+    const loadApp = () => {
+      mainWindow.loadURL(serverUrl).catch((err) => {
+        if (retries > 0) {
+          retries--;
+          log(`[createWindow] loadURL ${serverUrl} pending (${err.message}), retrying in 250ms...`);
+          setTimeout(loadApp, 250);
+        } else {
+          log(`[createWindow] loadURL ${serverUrl} failed, falling back to loadFile: ${targetPath}`);
+          mainWindow.loadFile(targetPath);
+        }
+      });
+    };
+    loadApp();
   } else {
     mainWindow.loadURL('http://localhost:3000');
   }
@@ -267,6 +290,8 @@ if (!gotTheLock) {
     }
 
     try {
+      const { distDir } = getDistInfo();
+      log(`[STREAM SERVER] Initializing with distDir: ${distDir}`);
       startStreamingServer(8088, {
         onStreamerbotRequest: (reqData) => {
           log('[STREAM SERVER] Received viewer request: ' + JSON.stringify(reqData));
@@ -280,7 +305,7 @@ if (!gotTheLock) {
           log('[STREAM SERVER] Remote Stream Deck action: ' + JSON.stringify(actionData));
           mainWindow?.webContents.send('streamdeck-action', actionData);
         },
-      });
+      }, distDir);
     } catch (e) {
       log('[STREAM SERVER INIT ERROR] ' + e.message);
     }
