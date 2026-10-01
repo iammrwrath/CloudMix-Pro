@@ -1,79 +1,83 @@
-﻿# ⚡ CloudMix Pro & MixCortex AI
+# 🎧 CloudMix Pro
 
 <p align="center">
-  <img src="public/mixcortex-banner.svg" alt="MixCortex AI Banner" width="100%" />
+  <img src="public/mixcortex-banner.svg" alt="CloudMix Pro Workstation Banner" width="100%" />
 </p>
 
-> **Next-Gen Cloud-Native Professional DJ Workstation with MixCortex AI Neural Co-Pilot, Real-Time Stem Separation, and Universal Integration for Algoriddim djay Pro, Serato, Rekordbox, Traktor, and VirtualDJ.**
+> **The Next-Gen All-in-One Cloud DJ Workstation & Content Creator Hub.**  
+> Featuring real-time **Neural Stems on live streaming audio**, multi-screen resolution auto-scaling, cloud streaming (YouTube Music & Google Drive), studio multi-FX, pro 8-pad sampler, OBS HUD broadcast overlay, and AI-assisted harmonic mixing.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-informational.svg)](https://github.com/iammrwrath/CloudMix-Pro/releases)
-[![MixCortex AI](https://img.shields.io/badge/MixCortex_AI-Standalone_Desktop_App-8b5cf6?logo=brain&logoColor=white)](https://github.com/iammrwrath/CloudMix-Pro/releases)
+[![Version: v1.8.0](https://img.shields.io/badge/Version-v1.8.0-emerald.svg)](https://github.com/iammrwrath/CloudMix-Pro/releases/tag/v1.8.0)
 [![Electron](https://img.shields.io/badge/Electron-44.2.0-47848F?logo=electron&logoColor=white)](https://electronjs.org)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
 
 ---
 
-## 🧠 Introducing MixCortex AI — Neural DJ Co-Pilot
+## 🌟 Why CloudMix Pro?
 
-**MixCortex AI** is an ultra-fast, intelligent harmonic mixing companion. Available both embedded directly inside **CloudMix Pro** and as a **Standalone Independent Windows Desktop App** (`MixCortex-AI-Setup.exe`), MixCortex listens to what you're playing and serves the next best tracks in **sub-millisecond speed (0.93ms)**.
+Traditional DJ applications like Serato, Traktor, VirtualDJ, and Algoriddim djay Pro either lock your music behind local offline hard drives, disable stem separation on streaming audio, or lack direct integration for live streamers and content creators.
 
-### MixCortex AI Highlights
-- ⚡ **0.936ms Harmonic Retrieval**: Instantaneous 24-key Camelot wheel harmonic & tempo matching across thousands of tracks with zero latency.
-- 🎛️ **Studio Web Audio Audition Player**: Instant headphone pre-listening with 80ms anti-pop crossfading and 64-bin FFT canvas oscilloscope visualizer.
-- 🎯 **Interactive Camelot Wheel Radar**: 24-sector visual radar displaying harmonic proximity, energy transitions, and key compatibility.
-- 🧬 **"My Style" Machine Learning Taste Adaptation**: Learns your signature mixing transitions, preferred energy arcs, and custom pairing patterns over time.
-- 🪟 **Floating See-Through HUD Overlay**: Frameless desktop window with adjustable transparency (40%–100%) and always-on-top pin toggle—designed to hover non-intrusively over any DJ software during live performances.
-- 🔄 **In-App GitHub Patch Downloader**: Checks GitHub Releases in real-time, displays visual patch notes with progress tracking, and applies updates in 1 click.
+**CloudMix Pro** combines the best capabilities of all industry-leading DJ suites into a single, high-performance workstation:
+
+1. **Live Neural Stems on Streaming Audio**: Isolate **Vocals**, **Bass**, **Harmonies**, and **Drums** in real time directly from **YouTube Music** and cloud streams—no manual downloading or pre-rendering needed.
+2. **Cloud-Native Music Library**: Seamlessly stream and blend tracks directly from **YouTube Music** (with persistent authentication) and **Google Drive** collections, alongside local drive audio.
+3. **Multi-Screen & Dynamic DPI Auto-Scaling**: Automatically senses display resolution and monitor scaling changes when dragging across 1080p, 1440p, 4K, or high-DPI laptop displays so every control fits and renders sharply.
+4. **Studio Multi-FX Suite**: High-density concert hall reverb with stereo diffusion, analog tape delay with resonant lowpass feedback, comb flanger, quantized bitcrusher, and resonant filters.
+5. **Pro 8-Pad Sampler & Sound Banks**: Authentic club sound effects (Kingston Dancehall airhorns, dub sirens, 808 sub drops, turntable scratches, spinbacks, and hype vocal drops) with One-Shot, Gate Hold, Toggle, and Beatloop quantize modes.
+6. **OBS & Live Broadcast Integration**: Built-in HTTP streaming server, transparent HUD overlay browser source (`/overlay`), and Streamer.bot webhooks for viewer song requests and channel-point sound triggers.
+7. **Zero-Latency Settings & Instant Library Indexing**: Non-blocking background library caching and automatic genre detection (Dancehall, Afrobeats, Hip-Hop, House, Techno, R&B, Drum & Bass, Latin, Pop, Rock, etc.).
+8. **Intelligent Harmonic Mixing Assistant**: Built-in harmonic co-pilot providing sub-millisecond Camelot wheel key matching, BPM radars, and dynamic AutoMix transitions.
 
 ---
 
-## 🌐 Universal DJ Software Compatibility Matrix
+## 🎛️ CloudMix Pro Core Capabilities
 
-MixCortex AI seamlessly bridges with all leading DJ software suites without requiring complex plugins:
+### 💽 Dual Decks & Motorized Vinyl Physics
+- **Holographic Jog Wheels**: Authentic vinyl platter physics at 33.3 RPM with anisotropic radial sheen, scratch physics, needle seeking, and center LCD displaying elapsed/remaining time and warning pulses.
+- **Tri-Band Real-Time Waveforms**: Multi-layer frequency visualization (Sub/Bass, Mid/Vocals, Treble/Hi-Hats) with mirrored baseline reflection, downbeat beatgrid flags, and illuminated Hot Cue pins.
+- **Precision Rotary Dials**: 3D LED arc dials with dual unipolar and bipolar modes, tactile 0 dB center detent snapping, and double-click instant reset.
 
-| DJ Software | Integration Method | Capabilities |
+### 🧬 Real-Time Neural Stems
+- **4-Stem Independent Control**: Vocals, Bass, Drums, and Harmonics with live level sliders, mute toggles, and solo audition.
+- **Live Streaming Support**: Stem isolation works on live YouTube Music streams as well as local files.
+- **One-Click Quick Isolations**: Instant Acapella, Instrumental, and Drums-only performance shortcuts.
+
+### 🎚️ Pro Sampler (VirtualDJ & Mixxx Benchmark)
+- **8-Pad Performance Matrix**: Velocity-sensitive trigger pads with visual waveform feedback.
+- **Sound Banks**: Soundclash / Reggae, Hip-Hop / Trap, EDM / Club, and Custom user sound banks.
+- **Trigger Modes**: One-Shot, Gate Hold, Toggle, and Beatloop with beatgrid quantize synchronization.
+
+### 📺 Live Streaming & OBS Studio HUD
+- **Transparent OBS Browser Source**: Connect OBS Studio to `http://localhost:3000/overlay` for a broadcast-ready HUD displaying album art, animated audio visualizer, elapsed progress bar, BPM, and key tags.
+- **Streamer.bot Integration**: Native endpoints for viewer song requests and twitch/kick channel point soundboard activations.
+
+### 🧠 Built-In Harmonic Co-Pilot
+- **Sub-Millisecond Key Matching**: Instant 24-key Camelot wheel harmonic search across your entire library.
+- **Interactive Camelot Radar**: Visualizes harmonic compatibility and energy jumps before mixing.
+- **Dynamic AutoMix Transitions**: Phrase-synchronized 16/32-beat crossfading with automatic low-end bass EQ swapping.
+
+---
+
+## 🌐 Universal Library & Ecosystem Compatibility
+
+CloudMix Pro integrates seamlessly with your existing DJ crates and collections:
+
+| Source / Software | Integration Method | Capabilities |
 | :--- | :--- | :--- |
-| **CloudMix Pro** | Direct Two-Way IPC / BroadcastChannel | Instant 1-click remote deck load, bi-directional sync, zero latency |
-| **Algoriddim djay Pro** | SQLite `MediaLibrary.db` + Streamer Hook | Real-time deck detection, metadata synchronization |
-| **Serato DJ Pro** | Session History + `nowplaying.txt` | Auto-detect active track, BPM, key, and deck assignment |
-| **Pioneer Rekordbox** | Text Stream / Pro DJ Link watcher | Continuous harmonic recommendations based on live master deck |
-| **Native Instruments Traktor** | Broadcast stream metadata reader | Automated crate matching and key energy curve analysis |
-| **VirtualDJ** | NetSearch / History Log Bridge | Dynamic track suggestion feed during live mix |
-| **Manual / Universal** | Audio Drag & Drop / Pin Reference Track | Explore harmonic transitions for any song on the fly |
-
----
-
-## 🌟 CloudMix Pro Workstation Features
-
-- 🎧 **Motorized Holographic Jog Wheels**: Authentic vinyl platter spinning at 33.3 RPM with anisotropic radial sheen, 360° circular progress needle arc, and center LCD HUD with live warning pulses.
-- 🧬 **Neural Mix Real-Time Stems**: Isolate **Vocals**, **Bass**, **Harmonies**, and **Drums** on the fly with live multi-band frequency filtering and Neural FX transition algorithms (Bass Swap, Vocal Swap, Harmonic Crossfade).
-- ☁️ **Cloud-Native Music Sync**: Direct streaming and sync support for **Google Drive** libraries and **AuraMusic / YouTube Music** integration without redownloading local copies.
-- 📊 **High-Definition Tri-Band Waveforms**: Multi-layer frequency separation (Sub/Bass, Mid/Vocals, Treble/Hi-Hats) with mirrored baseline reflection, downbeat beatgrid flags, and illuminated Hot Cue pins.
-- 🎛️ **Studio-Grade Rotary Dials**: Perimeter circular SVG LED arc with dual unipolar and bipolar modes, tactile 0 dB center detent snapping, and double-click instant reset.
-- 🟩 **Tactile 3D RGB Performance Pads**: Authentic Pioneer DDJ and Akai MPC style silicone pads with Hot Cues (1–8), Auto Loop, Beat Jump, and Stem Mute/Solo modes.
-- 📡 **StreamerBot & Broadcast Integration**: Automatically broadcasts real-time `nowplaying.txt` and beat triggers for OBS overlays and stream automation.
-
----
-
-## 🚀 Installation & Downloads
-
-Head over to the **[Latest GitHub Releases](https://github.com/iammrwrath/CloudMix-Pro/releases/latest)** to download:
-
-### 1. CloudMix Pro (Complete DJ Workstation + Embedded MixCortex)
-- **`CloudMix-Pro-Setup.exe`**: Full Windows installer with desktop and start menu shortcuts.
-- **`CloudMix-Pro-Portable.exe`**: Zero-install standalone executable.
-
-### 2. MixCortex AI (Standalone Neural DJ Co-Pilot)
-- **`MixCortex-AI-Setup.exe`**: Dedicated standalone installer for MixCortex AI companion app.
-- **`MixCortex-AI-Portable.exe`**: Lightweight portable version to keep on a USB drive alongside your music crate.
+| **YouTube Music** | Native Embedded Deck Bridge | Stream directly to Deck A/B, import Liked Music & playlists, live stems |
+| **Google Drive** | Direct Cloud Indexing | Stream and index remote cloud music directories |
+| **Algoriddim djay Pro** | Native SQLite `MediaLibrary.db` | Auto-detects local djay Pro cue points, playlists, and history |
+| **Serato / Rekordbox / Traktor** | CSV / Crate / History Ingestion | Full metadata import: BPM, key, cue points, and ratings |
+| **Local File System** | Zero-Latency Background Scanner | MP3, FLAC, WAV, AAC, M4A, OGG, and AIFF audio support |
 
 ---
 
 ## ⌨️ Global DJ Keyboard Controls
 
-| Key | Target | Function |
+| Key | Deck / Target | Function |
 | :---: | :---: | :--- |
 | **`W`** | **Deck A** | Play / Pause |
 | **`Q`** | **Deck A** | Cue / Return to Cue |
@@ -83,20 +87,45 @@ Head over to the **[Latest GitHub Releases](https://github.com/iammrwrath/CloudM
 | **`U`** | **Deck B** | Cue / Return to Cue |
 | **`O`** | **Deck B** | Beatgrid Sync |
 | **`7` – `0`** | **Deck B** | Trigger Hot Cues 1–4 |
-| **`Z`** | **Crossfader** | Snap to Deck A (-1.0) |
+| **`Z`** | **Crossfader** | Snap Crossfader to Deck A (-1.0) |
 | **`X`** | **Crossfader** | Center Crossfader (0.0) |
-| **`C`** | **Crossfader** | Snap to Deck B (+1.0) |
-| **`L`** | **Library** | Toggle Full-Width Library Drawer |
+| **`C`** | **Crossfader** | Snap Crossfader to Deck B (+1.0) |
+| **`L`** | **Library** | Toggle Full-Width Music Library Drawer |
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🚀 Installation & Releases
 
-- **Runtime**: [Electron 44](https://www.electronjs.org/) + Node.js (with Context Isolation and custom audio IPC bridges)
-- **Frontend**: [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS 4](https://tailwindcss.com/)
-- **Bundler**: [Vite 8](https://vitejs.dev/)
-- **Audio DSP**: Web Audio API with multi-node BiquadFilter networks, real-time AnalyserNodes, dynamic compressor lookaheads, and IndexedDB caching
-- **Packaging & Updates**: [electron-builder](https://www.electron.build/) + [electron-updater](https://www.electron.build/auto-update)
+Download the latest release from the **[GitHub Releases Page](https://github.com/iammrwrath/CloudMix-Pro/releases/latest)**:
+
+- **`CloudMix-Pro-Setup-1.8.0.exe`**: Full Windows installer with auto-update support, desktop shortcut, and hardware acceleration presets.
+- **`CloudMix-Pro-Portable-1.8.0.exe`**: Zero-install standalone executable for USB drives and mobile gig setups.
+
+---
+
+## 🛠️ Development & Building from Source
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v20+ recommended)
+- [npm](https://www.npmjs.com/)
+
+### Clone and Install
+```bash
+git clone https://github.com/iammrwrath/CloudMix-Pro.git
+cd CloudMix-Pro
+npm install
+```
+
+### Run in Development Mode
+```bash
+npm run dev
+```
+
+### Build Production Binary
+```bash
+npm run build
+npm run package:cortex
+```
 
 ---
 
