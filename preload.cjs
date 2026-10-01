@@ -54,4 +54,9 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     ipcRenderer.on('updater-status', subscription);
     return () => ipcRenderer.removeListener('updater-status', subscription);
   },
+  onDisplayMetricsChanged: (callback) => {
+    const subscription = (event, value) => callback(value);
+    ipcRenderer.on('display-metrics-changed', subscription);
+    return () => ipcRenderer.removeListener('display-metrics-changed', subscription);
+  },
 });

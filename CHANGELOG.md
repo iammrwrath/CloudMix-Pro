@@ -3,6 +3,25 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.0] - 2026-10-01
+
+### Added & Improved
+- **Zero-Latency Settings Modal (Non-Blocking Save)**:
+  - Eliminated the 1-second freeze when clicking "Save" in Settings.
+  - Scan operations on the local library/Google Drive path now compare against initial state (`initialPathRef`) and execute completely decoupled in a background promise without blocking the UI thread.
+- **Dynamic Multi-Screen & Resolution Auto-Scaling**:
+  - Bound window DPI and monitor resolution listeners in Electron (`screen.on('display-metrics-changed')`, window `'moved'`, `'resize'`) directly to renderer via `desktopAPI.onDisplayMetricsChanged`.
+  - Added real-time CSS/devicePixelRatio change monitoring (`window.matchMedia('(resolution: ...)')`).
+  - Seamlessly recalculates and applies optimal zoom factors whether moving across 1080p, 1440p, 4K displays, or high-DPI laptop screens with display scaling.
+- **Real-Time Neural Stems for YouTube Music Decks**:
+  - Bridged YouTube streaming decks to 4-stem isolations (Vocals, Bass, Drums, Harmonics) without requiring manual downloads or local pre-processing.
+  - Supports Acapella isolation, Instrumental isolation, Drums-only punch, and individual stem gain attenuation directly on live YouTube streams.
+- **Accurate Musical Genre Classification**:
+  - Implemented heuristic genre engine detecting authentic musical categories (Dancehall, Afrobeats, Hip-Hop, House, Techno, R&B, Drum & Bass, Dubstep, Trance, Latin/Reggaeton, Pop, and Rock) replacing generic "Music" and "Various" tags.
+  - Automatically enriches YouTube search, playlist imports, and local directory indexing.
+
+---
+
 ## [v1.7.4] - 2026-09-30
 
 ### Fixed & Overhauled

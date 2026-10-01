@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings, Loader2 } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
@@ -54,6 +54,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [clientId, setClientId] = useState('');
   const [folderId, setFolderId] = useState('');
   const [localDrivePath, setLocalDrivePath] = useState('G:\\My Drive\\Music');
+  const initialPathRef = useRef('G:\\My Drive\\Music');
   const [uiZoom, setUiZoom] = useState(propUiZoom || 1.0);
   const [saved, setSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -157,6 +158,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       // Load local path
       const savedPath = await storageCache.getSetting<string>('local_music_path', 'G:\\My Drive\\Music');
       setLocalDrivePath(savedPath);
+      initialPathRef.current = savedPath;
 
       // Load UI Zoom if not provided via props
       if (propUiZoom === undefined) {
@@ -217,24 +219,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
     setSaved(true);
 
-    // 6. Trigger library rescan from the new path
-    if (localDrivePath.trim()) {
-      setScanning(true);
-      setScanResult(null);
-      try {
-        const count = await musicLibraryService.refreshFromLocalPath(localDrivePath.trim());
-        setScanResult(`Loaded ${count} tracks from ${localDrivePath}`);
-      } catch (e) {
-        setScanResult(`Error: Could not scan folder (${e})`);
-      } finally {
-        setScanning(false);
-      }
+    // 6. Only trigger library rescan in background if the path was actually changed by the user
+    const pathChanged = localDrivePath.trim() !== initialPathRef.current.trim();
+    if (pathChanged && localDrivePath.trim()) {
+      initialPathRef.current = localDrivePath.trim();
+      // Run in background without holding the modal or UI thread hostage
+      musicLibraryService.refreshFromLocalPath(localDrivePath.trim()).catch((e) => {
+        console.warn('[SettingsModal] Background library scan warning:', e);
+      });
     }
 
     setTimeout(() => {
       setSaved(false);
-      if (!scanning) onClose();
-    }, 1200);
+      onClose();
+    }, 400);
   };
 
   const handleTestAudio = async (type: 'master' | 'headphone') => {

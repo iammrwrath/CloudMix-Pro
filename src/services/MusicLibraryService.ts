@@ -31,8 +31,50 @@ export class MusicLibraryService {
     return () => this.listeners.delete(listener);
   }
 
-  private notify() {
-    this.listeners.forEach((l) => l([...this.tracks]));
+  private notify(): void {
+    const copy = [...this.tracks];
+    for (const listener of this.listeners) {
+      try {
+        listener(copy);
+      } catch (err) {
+        console.error('Error notifying MusicLibraryService listener:', err);
+      }
+    }
+  }
+
+  /**
+   * Intelligently classifies or extracts genuine music genres
+   * based on track metadata, artist, title keywords, album, or BPM heuristics.
+   */
+  public detectGenre(title?: string, artist?: string, album?: string, pathOrUrl?: string, bpm?: number): string {
+    const text = `${title || ''} ${artist || ''} ${album || ''} ${pathOrUrl || ''}`.toLowerCase();
+
+    // Specific genre patterns
+    if (/\b(dancehall|reggae|ragga|soca|dub|soundclash)\b/.test(text)) return 'Dancehall';
+    if (/\b(afro|afrobeats|amapiano|afropop)\b/.test(text)) return 'Afrobeats';
+    if (/\b(hip hop|hip-hop|rap|trap|boom bap|freestyle|drill)\b/.test(text)) return 'Hip-Hop / Rap';
+    if (/\b(r&b|rnb|soul|neo-soul|funk)\b/.test(text)) return 'R&B / Soul';
+    if (/\b(tech house|deep house|house|electro house|funky house|disco)\b/.test(text)) return 'House';
+    if (/\b(techno|acid|minimal|industrial|peak time)\b/.test(text)) return 'Techno';
+    if (/\b(drum & bass|drum and bass|dnb|jungle|liquid)\b/.test(text)) return 'Drum & Bass';
+    if (/\b(dubstep|riddim|bass house|future bass)\b/.test(text)) return 'Bass / Dubstep';
+    if (/\b(trance|psytrance|goa|uplifting)\b/.test(text)) return 'Trance';
+    if (/\b(reggaeton|dembow|latin|salsa|bachata|moombahton)\b/.test(text)) return 'Latin / Reggaeton';
+    if (/\b(pop|synthpop|dance pop|electropop)\b/.test(text)) return 'Pop / Dance';
+    if (/\b(rock|metal|indie|punk|alternative)\b/.test(text)) return 'Rock / Alternative';
+
+    // BPM-informed heuristics if keywords are absent
+    if (bpm) {
+      if (bpm >= 170 && bpm <= 178) return 'Drum & Bass';
+      if (bpm >= 138 && bpm <= 145) return 'Dubstep / Trap';
+      if (bpm >= 128 && bpm <= 136) return 'Techno / Electro';
+      if (bpm >= 120 && bpm <= 127) return 'House / EDM';
+      if (bpm >= 105 && bpm <= 118) return 'Afrobeats / Pop';
+      if (bpm >= 85 && bpm <= 104) return 'Hip-Hop / Dancehall';
+      if (bpm >= 65 && bpm <= 84) return 'R&B / Slow Trap';
+    }
+
+    return 'Electronic / Club';
   }
 
   public async initLibrary(): Promise<PulseTrack[]> {
@@ -129,12 +171,16 @@ export class MusicLibraryService {
   }
 
   public convertPulseToDjTrack(track: PulseTrack): TrackMetadata {
+    const genre = track.genre && track.genre !== 'Various' && track.genre !== 'Music'
+      ? track.genre
+      : this.detectGenre(track.title, track.artist, track.album, track.fileUrl, track.bpm);
+
     return {
       id: track.id,
       title: track.title,
       artist: track.artist,
       album: track.album || '',
-      genre: track.genre || 'Various',
+      genre,
       year: track.year || new Date().getFullYear(),
       duration: track.duration || 180,
       bpm: track.bpm || 124,
@@ -180,10 +226,13 @@ export class MusicLibraryService {
         // Encode the path for use as file:/// URL
         const fileUrl = 'file:///' + f.fullPath.replace(/\\/g, '/').replace(/^\//, '');
 
+        const genre = this.detectGenre(title, artist, undefined, f.fullPath, 124.0);
+
         return {
           id,
           title,
           artist,
+          genre,
           duration: 210,
           bpm: 124.0,
           key: '8A',
@@ -293,11 +342,14 @@ export class MusicLibraryService {
         }
       } catch {}
 
+      const genre = this.detectGenre(title, artist, album, fileUrl, bpm);
+
       results.push({
         id,
         title,
         artist,
         album,
+        genre,
         duration: durationSec,
         bpm,
         key: keyRaw,

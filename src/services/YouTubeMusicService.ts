@@ -1,5 +1,6 @@
 import { TrackMetadata } from '../types/dj';
 import { storageCache } from './StorageCacheService';
+import { musicLibraryService } from './MusicLibraryService';
 
 export interface YouTubeSearchResult {
   videoId: string;
@@ -30,6 +31,7 @@ class YouTubeMusicService {
       id: 'yt_cyber_future',
       title: 'Midnight Resonance (Club VIP Mix)',
       artist: 'Kroma & Cyberpulse',
+      genre: 'Electro / Club',
       duration: 198.0,
       bpm: 126.0,
       key: '8A',
@@ -46,6 +48,7 @@ class YouTubeMusicService {
       id: 'yt_vocal_anthem',
       title: 'Solar Echoes (Acapella & Dub Cut)',
       artist: 'Aura Collective ft. Elena',
+      genre: 'Vocal / House',
       duration: 215.0,
       bpm: 124.0,
       key: '11B',
@@ -62,6 +65,7 @@ class YouTubeMusicService {
       id: 'yt_bass_drop',
       title: 'Subsonic Drift (Deep Bassline Roller)',
       artist: 'Hyperion Bass',
+      genre: 'Bass / Dubstep',
       duration: 240.0,
       bpm: 128.0,
       key: '9A',
@@ -439,10 +443,12 @@ class YouTubeMusicService {
               title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
             return {
               id: `yt_${videoId}`,
               title,
               artist,
+              genre,
               duration: 210,
               bpm: 125.0,
               key: '8A',
@@ -548,10 +554,12 @@ class YouTubeMusicService {
               title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
             return {
               id: `yt_${videoId}`,
               title,
               artist,
+              genre,
               duration: 210,
               bpm: 125.0,
               key: '8A',
@@ -616,10 +624,12 @@ class YouTubeMusicService {
               artist = parts[0].trim();
               trackTitle = parts.slice(1).join(' - ').trim();
             }
+            const genre = musicLibraryService.detectGenre(trackTitle, artist, undefined, undefined, 125.0);
             return {
               id: `yt_${videoId}`,
               title: trackTitle,
               artist,
+              genre,
               duration: 210,
               bpm: 125.0,
               key: '8A',
@@ -678,10 +688,12 @@ class YouTubeMusicService {
               title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
             return {
               id: `yt_${videoId}`,
               title,
               artist,
+              genre,
               duration: 210,
               bpm: 125.0,
               key: '8A',
@@ -721,10 +733,12 @@ class YouTubeMusicService {
               const title = item.snippet?.title || 'Unknown Title';
               const artist = item.snippet?.channelTitle || 'YouTube Artist';
               const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
+              const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
               return {
                 id: `yt_${videoId}`,
                 title,
                 artist,
+                genre,
                 duration: 210,
                 bpm: 125.0,
                 key: '8A',
@@ -758,6 +772,7 @@ class YouTubeMusicService {
             id: `yt_${r.videoId}`,
             title: r.title,
             artist: r.artist,
+            genre: musicLibraryService.detectGenre(r.title, r.artist, undefined, undefined, 125.0),
             duration: r.duration || 210,
             bpm: 125.0,
             key: '8A',

@@ -125,7 +125,11 @@ const TrackRow = React.memo<TrackRowProps>(({
 
       {/* Genre */}
       <td className="py-2.5 px-2.5 text-slate-400 text-xs truncate">
-        {track.genre || 'Music'}
+        <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-800/80 border border-slate-700/60 text-slate-300">
+          {track.genre && track.genre !== 'Music' && track.genre !== 'Various'
+            ? track.genre
+            : musicLibraryService.detectGenre(track.title, track.artist, track.album, track.fileUrl, track.bpm)}
+        </span>
       </td>
 
       {/* Duration */}

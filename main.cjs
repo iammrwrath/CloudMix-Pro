@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -225,6 +225,16 @@ function createWindow() {
     log(`Renderer process gone: reason=${details.reason}, exitCode=${details.exitCode}`);
   });
 
+  // Broadcast display/window changes to renderer for seamless dynamic auto-scaling across monitors
+  const notifyMetricsChanged = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('display-metrics-changed');
+    }
+  };
+
+  mainWindow.on('moved', notifyMetricsChanged);
+  mainWindow.on('resize', notifyMetricsChanged);
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -309,6 +319,23 @@ if (!gotTheLock) {
     } catch (e) {
       log('[STREAM SERVER INIT ERROR] ' + e.message);
     }
+
+    // Monitor multi-monitor resolution and display scale changes
+    screen.on('display-metrics-changed', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('display-metrics-changed');
+      }
+    });
+    screen.on('display-added', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('display-metrics-changed');
+      }
+    });
+    screen.on('display-removed', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('display-metrics-changed');
+      }
+    });
 
     if (isStandaloneCortex) {
       createStandaloneCortexWindow();

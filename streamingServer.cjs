@@ -9,6 +9,23 @@ const os = require('os');
 const videoIdCache = new Map();
 const YOUTUBE_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
 
+function detectGenre(title, artist) {
+  const text = `${title || ''} ${artist || ''}`.toLowerCase();
+  if (/\b(dancehall|reggae|ragga|soca|dub|soundclash)\b/.test(text)) return 'Dancehall';
+  if (/\b(afro|afrobeats|amapiano|afropop)\b/.test(text)) return 'Afrobeats';
+  if (/\b(hip hop|hip-hop|rap|trap|boom bap|freestyle|drill)\b/.test(text)) return 'Hip-Hop / Rap';
+  if (/\b(r&b|rnb|soul|neo-soul|funk)\b/.test(text)) return 'R&B / Soul';
+  if (/\b(tech house|deep house|house|electro house|funky house|disco)\b/.test(text)) return 'House';
+  if (/\b(techno|acid|minimal|industrial|peak time)\b/.test(text)) return 'Techno';
+  if (/\b(drum & bass|drum and bass|dnb|jungle|liquid)\b/.test(text)) return 'Drum & Bass';
+  if (/\b(dubstep|riddim|bass house|future bass)\b/.test(text)) return 'Bass / Dubstep';
+  if (/\b(trance|psytrance|goa|uplifting)\b/.test(text)) return 'Trance';
+  if (/\b(reggaeton|dembow|latin|salsa|bachata|moombahton)\b/.test(text)) return 'Latin / Reggaeton';
+  if (/\b(pop|synthpop|dance pop|electropop)\b/.test(text)) return 'Pop / Dance';
+  if (/\b(rock|metal|indie|punk|alternative)\b/.test(text)) return 'Rock / Alternative';
+  return 'Electronic / Club';
+}
+
 function resolveYouTubeVideoId(artist, title) {
   if (!artist && !title) return Promise.resolve(null);
   const cleanTitle = (title || '')
@@ -98,6 +115,7 @@ function searchYouTubeVideos(query) {
                 videoId,
                 title,
                 artist,
+                genre: detectGenre(title, artist),
                 duration: 210,
                 thumbnailUrl
               };
@@ -126,11 +144,14 @@ function fallbackScrapeSearch(query) {
           const results = [];
           const matches = [...data.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})","thumbnail":{"thumbnails":\[{"url":"([^"]+)".*?"title":{"runs":\[{"text":"([^"]+)"}\]}.*?"ownerText":{"runs":\[{"text":"([^"]+)"}\]}/g)];
           for (const m of matches.slice(0, 15)) {
+            const title = m[3];
+            const artist = m[4] || 'YouTube Artist';
             results.push({
               videoId: m[1],
               thumbnailUrl: m[2],
-              title: m[3],
-              artist: m[4] || 'YouTube Artist',
+              title,
+              artist,
+              genre: detectGenre(title, artist),
               duration: 210,
             });
           }
@@ -167,11 +188,13 @@ function fetchYouTubePlaylist(playlistId) {
               title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            const genre = detectGenre(title, artist);
             return {
               id: `yt_${videoId}`,
               videoId,
               title,
               artist,
+              genre,
               duration: 210,
               bpm: 125.0,
               key: '8A',

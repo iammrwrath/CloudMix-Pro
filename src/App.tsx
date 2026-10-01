@@ -276,7 +276,7 @@ export const App: React.FC = () => {
       }
     });
 
-    // Re-calculate and adapt layout on window resize or resolution changes
+    // Re-calculate and adapt layout on window resize, resolution changes, or moving between monitors
     const handleResize = () => {
       storageCache.getSetting<number | string | null>('ui_zoom', 'auto').then((savedZoom) => {
         if (savedZoom === 'auto' || !savedZoom) {
@@ -289,6 +289,28 @@ export const App: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
 
+    // Listen to native Electron display/monitor change events
+    let unsubDisplayMetrics: (() => void) | undefined;
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.onDisplayMetricsChanged) {
+      unsubDisplayMetrics = (window as any).desktopAPI.onDisplayMetricsChanged(() => {
+        handleResize();
+      });
+    }
+
+    // Monitor DPR changes across different monitor displays
+    let mediaQueryList: MediaQueryList | null = null;
+    const handleDprChange = () => {
+      handleResize();
+    };
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      mediaQueryList = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      try {
+        mediaQueryList.addEventListener('change', handleDprChange);
+      } catch {
+        try { mediaQueryList.addListener(handleDprChange); } catch {}
+      }
+    }
+
     // Initialize audio output devices
     Promise.all([
       storageCache.getSetting<string>('audio_master_device_id', 'default'),
@@ -300,7 +322,17 @@ export const App: React.FC = () => {
       if (latency) audioEngine.setLatencyHint(latency);
     }).catch(() => {});
 
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (unsubDisplayMetrics) unsubDisplayMetrics();
+      if (mediaQueryList) {
+        try {
+          mediaQueryList.removeEventListener('change', handleDprChange);
+        } catch {
+          try { mediaQueryList.removeListener(handleDprChange); } catch {}
+        }
+      }
+    };
   }, []);
 
   const handleUiZoomChange = (zoom: number) => {
@@ -990,6 +1022,9 @@ export const App: React.FC = () => {
 
   const handleStemGainChange = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => {
     audioEngine.setStemGain(deckId, stem, val);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.setStemGain(deckId, stem, val);
+    }
     if (deckId === 'A') {
       setDeckA((p) => ({ ...p, stems: { ...p.stems, [stem]: val } }));
     } else {
@@ -999,6 +1034,9 @@ export const App: React.FC = () => {
 
   const handleStemMuteToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
     const isMuted = audioEngine.toggleStemMute(deckId, stem);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.toggleStemMute(deckId, stem);
+    }
     const muteKey = `${stem}Muted` as const;
     if (deckId === 'A') {
       setDeckA((p) => ({ ...p, stems: { ...p.stems, [muteKey]: isMuted } }));
@@ -1009,6 +1047,9 @@ export const App: React.FC = () => {
 
   const handleStemSoloToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
     const isSolo = audioEngine.toggleStemSolo(deckId, stem);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.toggleStemSolo(deckId, stem);
+    }
     const soloKey = `${stem}Solo` as const;
     if (deckId === 'A') {
       setDeckA((p) => ({
