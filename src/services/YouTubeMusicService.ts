@@ -18,8 +18,8 @@ export interface YouTubePlaylist {
 }
 
 const YOUTUBE_DATA_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
-// Pre-configured official Google Cloud OAuth Client ID for CloudMix Pro
-const DEFAULT_GOOGLE_CLIENT_ID = "840788647712-l9t38b1s7e9e34j91u6oefh51jcmv68s.apps.googleusercontent.com";
+// Pre-configured official Google Cloud OAuth Client ID for CloudMix Pro (Baked in permanently)
+const DEFAULT_GOOGLE_CLIENT_ID = "471913746603-ao2ov3tkf3ctlpl6hdfq52a4t6il0sa5.apps.googleusercontent.com";
 
 class YouTubeMusicService {
   private _accessToken: string | null = null;
