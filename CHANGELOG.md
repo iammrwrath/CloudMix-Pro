@@ -3,6 +3,20 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.1] - 2026-10-01
+
+### Fixed
+- **UI Scaling Oscillation & Glitch Fix**:
+  - Resolved re-entrant resize feedback loop in Electron: `getAutoZoom()` now calculates viewport dimensions using invariant reference scaling (`window.outerWidth` or `window.innerWidth * lastAppliedZoom`), preventing auto-zoom from oscillating rapidly between different zoom states.
+  - Added a 120ms resize debounce and a `±3%` change threshold so micro-adjustments do not trigger unnecessary zoom updates.
+  - Removed noisy `mainWindow.on('resize')` and `moved` IPC broadcasts from `main.cjs` to eliminate message flooding to the renderer.
+  - Clamped `getAutoZoom()` upper bound to `1.0` (100%) so standard and large screens stay at crisp 100% baseline scale while auto-fitting down cleanly on smaller displays.
+- **Pitch Fader & Middle Deck Layout Overflow Clamping**:
+  - In `PitchFader.tsx`, applied `h-full max-h-full min-h-0 overflow-hidden` and dynamic slider track sizing so tempo controls, key lock, BPM readouts, and pitch nudges never clip or overflow outside the deck boundary.
+  - In `JogWheel.tsx` and `Deck.tsx`, updated turntable platter and 4-stem strip containers to `h-full max-h-full min-h-0 min-w-0` to eliminate horizontal crowding and vertical clipping.
+
+---
+
 ## [v1.8.0] - 2026-10-01
 
 ### Added & Improved
