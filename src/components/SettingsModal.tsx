@@ -850,41 +850,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                     </div>
                     {!ytConnected ? (
                       <div className="space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                          <div>
-                            <span className="text-xs font-bold text-white block">1-Click Google / YouTube Account Sync</span>
-                            <span className="text-[11px] text-slate-400 block mt-0.5">
-                              Seamlessly sign into your Google account (like gmail.com) to load your playlists & liked tracks.
+                        <div className="flex flex-col gap-2.5 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <span className="text-xs font-bold text-white block">Sign In with Google Account</span>
+                              <span className="text-[11px] text-slate-400 block mt-0.5 leading-relaxed">
+                                Connect your personal Google account to access your YouTube Music library and personal playlists.
+                              </span>
+                            </div>
+                            <button
+                              onClick={handleYtConnect}
+                              disabled={ytLoading}
+                              className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs font-mono flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg hover:shadow-red-500/25 active:scale-95 disabled:opacity-50 shrink-0"
+                            >
+                              {ytLoading ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Connecting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Music2 className="w-4 h-4" />
+                                  <span>Sign In with Google</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="bg-slate-950/60 p-2.5 rounded-lg border border-white/5 text-[10.5px] text-slate-400 space-y-1">
+                            <span className="text-cyan-400 font-bold block">💡 Note on Google OAuth Sign-In:</span>
+                            <span>
+                              Google requires desktop applications to authenticate using a registered <strong>OAuth 2.0 Client ID</strong> configured for Desktop or Web with redirect <code className="text-slate-300 bg-slate-900 px-1 py-0.5 rounded">http://127.0.0.1:42813/callback</code>.
+                            </span>
+                            <span className="block text-slate-300">
+                              Don't want to configure Google Cloud? You can search any song and import any YouTube playlist or Liked Music directly via <strong>Crate Library → YouTube Music → + Import</strong> with zero setup!
                             </span>
                           </div>
-                          <button
-                            onClick={handleYtConnect}
-                            disabled={ytLoading}
-                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs font-mono flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-lg hover:shadow-red-500/25 active:scale-95 disabled:opacity-50 shrink-0"
-                          >
-                            {ytLoading ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Connecting...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Music2 className="w-4 h-4" />
-                                <span>Sign In with Google</span>
-                              </>
-                            )}
-                          </button>
                         </div>
 
                         {/* Optional Advanced Developer Quota Toggle */}
-                        <details className="text-[10px] text-slate-500 font-mono group">
-                          <summary className="cursor-pointer hover:text-slate-400 select-none transition-colors">
-                            ▸ Advanced: Use Custom Google Cloud Client ID (Optional)
+                        <details className="text-[10.5px] text-slate-400 font-mono group bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
+                          <summary className="cursor-pointer hover:text-white select-none transition-colors font-bold text-xs text-slate-300">
+                            ⚙️ Google Cloud OAuth Client ID (Configure your Google Project)
                           </summary>
-                          <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1">
-                            <label className="text-[10px] font-mono text-slate-400 block mb-1">
-                              Custom Google Cloud OAuth Client ID (Overrides built-in CloudMix Pro quota)
-                            </label>
+                          <div className="mt-2.5 pt-2.5 border-t border-slate-800/80 space-y-2">
+                            <p className="text-[11px] text-slate-300 leading-normal">
+                              To sign into your own Google account, create a free OAuth 2.0 Client ID in your <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Google Cloud Console</a>:
+                            </p>
+                            <ol className="list-decimal list-inside text-[10.5px] text-slate-400 space-y-1 pl-1">
+                              <li>Enable the <strong>YouTube Data API v3</strong> in your Google Cloud Project.</li>
+                              <li>Create Credentials → <strong>OAuth 2.0 Client ID</strong> (Application type: <strong>Desktop app</strong> or <strong>Web application</strong>).</li>
+                              <li>Add Authorized Redirect URI: <strong className="text-emerald-400">http://127.0.0.1:42813/callback</strong></li>
+                              <li>Paste your Client ID below:</li>
+                            </ol>
                             <YtClientIdInput />
                           </div>
                         </details>

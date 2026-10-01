@@ -237,49 +237,56 @@ export const App: React.FC = () => {
   const getAutoZoom = () => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
     const h = typeof window !== 'undefined' ? window.innerHeight : 900;
-    // Factor in device pixel ratio: on HiDPI screens (e.g. 1920x1200 @ 150% DPI scale)
-    // the logical viewport is already smaller (e.g. 1280x800) but content still feels cramped.
-    // Applying a tighter zoom on these screens ensures everything fits without clipping.
     const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-    if (w <= 1040 || h <= 640) return 0.72;
-    if (w <= 1280 || h <= 800) return dpr >= 1.5 ? 0.78 : 0.85;
-    if (w <= 1440 || h <= 900) return dpr >= 1.5 ? 0.85 : 0.9;
-    return 1.0;
+
+    // Target baseline workstation canvas: 1440 x 860
+    // Compute the scale factor required to fit both width and height comfortably
+    const scaleW = w / 1440;
+    const scaleH = h / 860;
+    let factor = Math.min(scaleW, scaleH);
+
+    // If DPI scale is elevated (e.g. Windows 125%, 150%, 175%), scale down slightly more
+    if (dpr > 1.25) {
+      factor *= 0.94;
+    }
+
+    // Clamp between 0.65 (very small netbooks/displays) and 1.35 (large 4K monitors)
+    const clamped = Math.max(0.65, Math.min(1.35, Math.round(factor * 100) / 100));
+    return clamped;
   };
 
-  // Load persisted UI Zoom and Audio Device routing preferences on startup
+  // Load UI Zoom on startup and track window resize dynamically
   useEffect(() => {
-    storageCache.getSetting<number | null>('ui_zoom', null).then((savedZoom) => {
-      const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
-      const h = typeof window !== 'undefined' ? window.innerHeight : 900;
-      if (savedZoom && typeof savedZoom === 'number' && savedZoom >= 0.7 && savedZoom <= 1.6) {
-        // If on a small/HiDPI laptop screen and saved zoom is too large, adapt to optimal dense view
-        if ((w <= 1280 || h <= 800) && savedZoom > 0.85) {
-          const auto = getAutoZoom();
-          setUiZoom(auto);
-          applyZoom(auto);
-          return;
-        }
-        setUiZoom(savedZoom);
-        applyZoom(savedZoom);
-      } else {
+    storageCache.getSetting<number | string | null>('ui_zoom', 'auto').then((savedZoom) => {
+      // Default is 'auto' so it seamlessly scales to any screen resolution
+      if (savedZoom === 'auto' || !savedZoom) {
         const auto = getAutoZoom();
         setUiZoom(auto);
         applyZoom(auto);
+      } else {
+        const val = Number(savedZoom);
+        if (!isNaN(val) && val >= 0.6 && val <= 1.6) {
+          setUiZoom(val);
+          applyZoom(val);
+        } else {
+          const auto = getAutoZoom();
+          setUiZoom(auto);
+          applyZoom(auto);
+        }
       }
     });
 
-    // Re-apply auto zoom on window resize (handles OS snap, resolution changes, etc.)
+    // Re-calculate and adapt layout on window resize or resolution changes
     const handleResize = () => {
-      storageCache.getSetting<number | null>('ui_zoom', null).then((savedZoom) => {
-        // Only auto-correct if user hasn't manually set a zoom above the auto threshold
-        if (!savedZoom) {
+      storageCache.getSetting<number | string | null>('ui_zoom', 'auto').then((savedZoom) => {
+        if (savedZoom === 'auto' || !savedZoom) {
           const auto = getAutoZoom();
           setUiZoom(auto);
           applyZoom(auto);
         }
       });
     };
+
     window.addEventListener('resize', handleResize);
 
     // Initialize audio output devices
@@ -297,7 +304,15 @@ export const App: React.FC = () => {
   }, []);
 
   const handleUiZoomChange = (zoom: number) => {
-    const clamped = Math.max(0.7, Math.min(1.5, Math.round(zoom * 10) / 10));
+    if (zoom <= 0) {
+      // Revert to automatic resolution-based fit
+      const auto = getAutoZoom();
+      setUiZoom(auto);
+      applyZoom(auto);
+      storageCache.setSetting('ui_zoom', 'auto');
+      return;
+    }
+    const clamped = Math.max(0.65, Math.min(1.4, Math.round(zoom * 100) / 100));
     setUiZoom(clamped);
     applyZoom(clamped);
     storageCache.setSetting('ui_zoom', clamped);

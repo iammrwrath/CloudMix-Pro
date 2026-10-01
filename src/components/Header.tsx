@@ -187,23 +187,23 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Global UI Zoom / Scale Controller (Always Visible & Accessible) */}
         {onUiZoomChange && (
-          <div className="flex items-center space-x-0.5 bg-slate-900/90 px-1 py-0.5 rounded-lg border border-slate-800 shadow-sm shrink-0" title="Global UI Zoom / Display Scale (Ctrl + / Ctrl -)">
+          <div className="flex items-center space-x-0.5 bg-slate-900/90 px-1 py-0.5 rounded-lg border border-slate-800 shadow-sm shrink-0" title="Global UI Zoom / Display Scale (Click % to reset to Auto)">
             <button
-              onClick={() => onUiZoomChange(Math.max(0.7, Math.round((uiZoom - 0.05) * 100) / 100))}
+              onClick={() => onUiZoomChange(Math.max(0.65, Math.round((uiZoom - 0.05) * 100) / 100))}
               title="Zoom Out (Ctrl -)"
               className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <ZoomOut className="w-3 h-3" />
             </button>
             <button
-              onClick={() => onUiZoomChange(1.0)}
-              title="Reset Zoom to 100% (Ctrl 0)"
+              onClick={() => onUiZoomChange(-1)} // Sentinel for auto-fit
+              title="Click to reset to Auto-Fit Scale (Adapts to screen resolution)"
               className="px-1 py-0.5 text-[10px] font-mono font-black text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors"
             >
               {Math.round(uiZoom * 100)}%
             </button>
             <button
-              onClick={() => onUiZoomChange(Math.min(1.5, Math.round((uiZoom + 0.05) * 100) / 100))}
+              onClick={() => onUiZoomChange(Math.min(1.4, Math.round((uiZoom + 0.05) * 100) / 100))}
               title="Zoom In (Ctrl +)"
               className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
             >
