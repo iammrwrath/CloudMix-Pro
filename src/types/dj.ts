@@ -151,6 +151,9 @@ export interface AutomixState {
   timeToTransitionSec?: number;
 }
 
+export type SamplerTriggerMode = 'one_shot' | 'hold' | 'toggle' | 'loop';
+export type SamplerBankPreset = 'reggae_soundclash' | 'hiphop_trap' | 'custom';
+
 export interface SamplerSlot {
   id: number;
   name: string;
@@ -158,6 +161,10 @@ export interface SamplerSlot {
   volume: number;
   isPlaying: boolean;
   isCustom?: boolean;
+  triggerMode?: SamplerTriggerMode;
+  pitchSemitones?: number;
+  duration?: number;
+  sampleUrl?: string;
 }
 
 export interface RecordingState {

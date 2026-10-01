@@ -408,6 +408,19 @@ export const App: React.FC = () => {
       isPlayingB: deckB.isPlaying,
       nextTrack,
     });
+
+    // Synchronize Master Deck BPM with SamplerEngine for 1/4 Beat Quantization
+    const activeDeck = deckA.isPlaying && !deckB.isPlaying
+      ? deckA
+      : deckB.isPlaying && !deckA.isPlaying
+      ? deckB
+      : deckA.isMaster
+      ? deckA
+      : deckB;
+    const activeBpm = (activeDeck.track?.bpm || 126.0) * (activeDeck.playbackRate || 1.0);
+    if (activeBpm > 0) {
+      samplerEngine.setMasterBpm(activeBpm);
+    }
   }, [deckA, deckB, mixer.crossfader]);
 
   const handleToggleCortex = () => {

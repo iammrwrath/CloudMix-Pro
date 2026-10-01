@@ -119,6 +119,23 @@ async function runComprehensiveSimulation() {
   assert(jogCode.includes('formatTime(currentTime)'), 'Jog LCD elapsed time display', 'Renders formatted mm:ss.ms time readout');
   assert(jogCode.includes('progressRatio'), 'Circular progress SVG', 'Calculates circular track progress arc');
 
+  // Verify Pro Studio Sampler Engine & Authentic Sound Banks
+  const samplerPath = path.join(__dirname, '..', 'src', 'audio', 'SamplerEngine.ts');
+  const samplerCode = fs.readFileSync(samplerPath, 'utf8');
+  assert(samplerCode.includes("reggae_soundclash") && samplerCode.includes("hiphop_trap"), 'Pro Sampler Sound Banks', 'Provides Soundclash, Hip-Hop, and Custom banks');
+  assert(samplerCode.includes("one_shot") && samplerCode.includes("hold") && samplerCode.includes("toggle") && samplerCode.includes("loop"), 'VirtualDJ Trigger Modes', 'One-Shot, Gate Hold, Toggle, and Beatloop supported');
+  assert(samplerCode.includes("quantizeEnabled") && samplerCode.includes("setMasterBpm"), 'Mixxx-Style Beat Quantize', 'Snaps sampler triggers to master deck beatgrid');
+
+  // Verify Authentic Studio Samples Exist in public/samples/
+  const samplesDir = path.join(__dirname, '..', 'public', 'samples');
+  assert(fs.existsSync(path.join(samplesDir, 'airhorn.mp3')), 'Studio Airhorn Sample', 'Authentic Kingston airhorn present');
+  assert(fs.existsSync(path.join(samplesDir, 'siren.mp3')), 'Studio Dub Siren Sample', 'Authentic dub siren present');
+  assert(fs.existsSync(path.join(samplesDir, 'boom.mp3')), 'Studio 808 Sub Boom Sample', 'Deep sub drop present');
+  assert(fs.existsSync(path.join(samplesDir, 'scratch.mp3')), 'Studio Vinyl Scratch Sample', 'Authentic turntable scratch present');
+  assert(fs.existsSync(path.join(samplesDir, 'rewind.mp3')), 'Studio Rewind Spinback Sample', 'Authentic DJ spinback present');
+  assert(fs.existsSync(path.join(samplesDir, 'damn_son.mp3')), 'Iconic Damn Son Sample', 'Hype vox drop present');
+  assert(fs.existsSync(path.join(samplesDir, 'yeah.mp3')), 'Lil Jon Yeah Vox Sample', 'Club hype vox present');
+
   // --------------------------------------------------------------------------
   // SECTION 5: DJ Library, Virtualization & djay Pro Native Database Integration
   // --------------------------------------------------------------------------

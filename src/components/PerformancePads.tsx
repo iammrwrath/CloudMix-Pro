@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { DeckId, HotCue, StemState } from '../types/dj';
 
+import { SamplerSlot } from '../types/dj';
+import { samplerEngine } from '../audio/SamplerEngine';
+
 interface PerformancePadsProps {
   deckId: DeckId;
   hotCues: HotCue[];
@@ -22,7 +25,7 @@ interface PerformancePadsProps {
   accentColor?: string;
 }
 
-type PadMode = 'HOT CUE' | 'AUTO LOOP' | 'BEAT JUMP' | 'STEMS';
+type PadMode = 'HOT CUE' | 'AUTO LOOP' | 'BEAT JUMP' | 'STEMS' | 'SAMPLER';
 
 const CUE_COLORS = [
   '#ef4444', // Red
@@ -57,6 +60,14 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
 }) => {
   const [padMode, setPadMode] = useState<PadMode>('HOT CUE');
   const [deleteMode, setDeleteMode] = useState(false);
+  const [samplerSlots, setSamplerSlots] = useState<SamplerSlot[]>([]);
+
+  React.useEffect(() => {
+    const unsub = samplerEngine.subscribe((slots) => {
+      setSamplerSlots(slots);
+    });
+    return () => unsub();
+  }, []);
 
   const loopLengths = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8];
   const loopLabels = ['1/16', '1/8', '1/4', '1/2', '1', '2', '4', '8'];
@@ -89,7 +100,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
       {/* Mode Selector Tabs */}
       <div className="flex items-center justify-between mb-0.5 px-0.5">
         <div className="flex space-x-0.5 sm:space-x-1">
-          {(['HOT CUE', 'AUTO LOOP', 'BEAT JUMP', 'STEMS'] as PadMode[]).map((mode) => (
+          {(['HOT CUE', 'AUTO LOOP', 'BEAT JUMP', 'STEMS', 'SAMPLER'] as PadMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => { setPadMode(mode); setDeleteMode(false); }}
@@ -332,6 +343,68 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <span className="text-[8px] opacity-90">{stems?.drumsSolo ? 'ACTIVE' : 'SOLO'}</span>
             </button>
           </>
+        )}
+
+        {padMode === 'SAMPLER' && (
+          Array.from({ length: 8 }).map((_, i) => {
+            const slot = samplerSlots[i] || {
+              id: i,
+              name: `PAD ${i + 1}`,
+              color: '#3b82f6',
+              volume: 0.9,
+              isPlaying: false,
+              triggerMode: 'one_shot',
+            };
+
+            return (
+              <button
+                key={i}
+                onMouseDown={() => samplerEngine.triggerSlot(slot.id, 'down')}
+                onMouseUp={() => samplerEngine.triggerSlot(slot.id, 'up')}
+                onMouseLeave={() => {
+                  if (slot.triggerMode === 'hold' && slot.isPlaying) {
+                    samplerEngine.triggerSlot(slot.id, 'up');
+                  }
+                }}
+                className={`relative h-6 sm:h-7 md:h-8 xl:h-10 rounded-lg flex flex-col items-center justify-between p-1 font-mono font-black transition-all cursor-pointer select-none active:scale-[0.95] ${
+                  slot.isPlaying
+                    ? 'ring-2 ring-white scale-[0.98]'
+                    : 'hover:brightness-110'
+                }`}
+                style={{
+                  background: slot.isPlaying
+                    ? `linear-gradient(135deg, ${slot.color}, #ffffff)`
+                    : `linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95))`,
+                  border: `1px solid ${slot.color}66`,
+                  boxShadow: slot.isPlaying
+                    ? `0 0 14px ${slot.color}`
+                    : `0 2px 6px rgba(0,0,0,0.4)`,
+                }}
+              >
+                <div className="w-full flex items-center justify-between">
+                  <span
+                    className="text-[7.5px] px-1 py-0.2 rounded bg-black/60 font-black text-white"
+                    style={{ color: slot.color }}
+                  >
+                    #{i + 1}
+                  </span>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      backgroundColor: slot.isPlaying ? '#ffffff' : slot.color,
+                      boxShadow: slot.isPlaying ? `0 0 6px #ffffff` : 'none',
+                    }}
+                  />
+                </div>
+                <div className="text-[9px] sm:text-[10px] md:text-[10.5px] font-black tracking-tight text-white line-clamp-1">
+                  {slot.name}
+                </div>
+                <div className="text-[7px] text-slate-400 font-bold uppercase">
+                  {slot.triggerMode || 'SHOT'}
+                </div>
+              </button>
+            );
+          })
         )}
       </div>
     </div>
