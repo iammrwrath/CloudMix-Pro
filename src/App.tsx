@@ -215,8 +215,11 @@ export const App: React.FC = () => {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isAutomixActive, setIsAutomixActive] = useState(false);
   const [uiZoom, setUiZoom] = useState<number>(1.0);
+  const lastAppliedZoomRef = useRef<number>(1.0);
+  const resizeDebounceTimerRef = useRef<any>(null);
 
   const applyZoom = (factor: number) => {
+    lastAppliedZoomRef.current = factor;
     // If running inside Electron, use native webContents setZoomFactor
     if (typeof window !== 'undefined' && (window as any).desktopAPI?.setZoomFactor) {
       try {
@@ -235,8 +238,15 @@ export const App: React.FC = () => {
   };
 
   const getAutoZoom = () => {
-    const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
-    const h = typeof window !== 'undefined' ? window.innerHeight : 900;
+    // In Chromium/Electron, window.innerWidth/innerHeight are scaled by webContents.zoomFactor.
+    // Multiplying inner dimensions by the active zoom factor recovers the stable, unzoomed viewport dimensions.
+    const currentFactor = lastAppliedZoomRef.current || 1.0;
+    const w = typeof window !== 'undefined'
+      ? (window.outerWidth || (window.innerWidth * currentFactor))
+      : 1440;
+    const h = typeof window !== 'undefined'
+      ? (window.outerHeight || (window.innerHeight * currentFactor))
+      : 900;
     const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
 
     // Target baseline workstation canvas: 1440 x 860
@@ -250,8 +260,10 @@ export const App: React.FC = () => {
       factor *= 0.94;
     }
 
-    // Clamp between 0.65 (very small netbooks/displays) and 1.35 (large 4K monitors)
-    const clamped = Math.max(0.65, Math.min(1.35, Math.round(factor * 100) / 100));
+    // Auto-fit scales DOWN on compact laptops (e.g. 1366x768 or high DPI scale) so everything fits.
+    // For standard / high-res displays (1080p, 1440p, 4K), 1.0 (100%) is optimal.
+    // Clamp strictly between 0.70 and 1.0 (never auto-scale above 100% to avoid clipped controls).
+    const clamped = Math.max(0.70, Math.min(1.0, Math.round(factor * 100) / 100));
     return clamped;
   };
 
@@ -259,13 +271,17 @@ export const App: React.FC = () => {
   useEffect(() => {
     storageCache.getSetting<number | string | null>('ui_zoom', 'auto').then((savedZoom) => {
       // Default is 'auto' so it seamlessly scales to any screen resolution
-      if (savedZoom === 'auto' || !savedZoom) {
+      // If a previous buggy update saved > 1.3, auto-reset to clean auto fit
+      if (savedZoom === 'auto' || !savedZoom || Number(savedZoom) > 1.3) {
         const auto = getAutoZoom();
         setUiZoom(auto);
         applyZoom(auto);
+        if (savedZoom && Number(savedZoom) > 1.3) {
+          storageCache.setSetting('ui_zoom', 'auto');
+        }
       } else {
         const val = Number(savedZoom);
-        if (!isNaN(val) && val >= 0.6 && val <= 1.6) {
+        if (!isNaN(val) && val >= 0.65 && val <= 1.4) {
           setUiZoom(val);
           applyZoom(val);
         } else {
@@ -278,13 +294,21 @@ export const App: React.FC = () => {
 
     // Re-calculate and adapt layout on window resize, resolution changes, or moving between monitors
     const handleResize = () => {
-      storageCache.getSetting<number | string | null>('ui_zoom', 'auto').then((savedZoom) => {
-        if (savedZoom === 'auto' || !savedZoom) {
-          const auto = getAutoZoom();
-          setUiZoom(auto);
-          applyZoom(auto);
-        }
-      });
+      if (resizeDebounceTimerRef.current) {
+        clearTimeout(resizeDebounceTimerRef.current);
+      }
+      resizeDebounceTimerRef.current = setTimeout(() => {
+        storageCache.getSetting<number | string | null>('ui_zoom', 'auto').then((savedZoom) => {
+          if (savedZoom === 'auto' || !savedZoom) {
+            const auto = getAutoZoom();
+            // Deadband threshold: only re-apply if change is noticeable (>= 3%)
+            if (Math.abs(auto - lastAppliedZoomRef.current) >= 0.03) {
+              setUiZoom(auto);
+              applyZoom(auto);
+            }
+          }
+        });
+      }, 120);
     };
 
     window.addEventListener('resize', handleResize);
@@ -295,20 +319,6 @@ export const App: React.FC = () => {
       unsubDisplayMetrics = (window as any).desktopAPI.onDisplayMetricsChanged(() => {
         handleResize();
       });
-    }
-
-    // Monitor DPR changes across different monitor displays
-    let mediaQueryList: MediaQueryList | null = null;
-    const handleDprChange = () => {
-      handleResize();
-    };
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      mediaQueryList = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-      try {
-        mediaQueryList.addEventListener('change', handleDprChange);
-      } catch {
-        try { mediaQueryList.addListener(handleDprChange); } catch {}
-      }
     }
 
     // Initialize audio output devices
@@ -324,14 +334,8 @@ export const App: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (resizeDebounceTimerRef.current) clearTimeout(resizeDebounceTimerRef.current);
       if (unsubDisplayMetrics) unsubDisplayMetrics();
-      if (mediaQueryList) {
-        try {
-          mediaQueryList.removeEventListener('change', handleDprChange);
-        } catch {
-          try { mediaQueryList.removeListener(handleDprChange); } catch {}
-        }
-      }
     };
   }, []);
 

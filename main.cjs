@@ -225,16 +225,6 @@ function createWindow() {
     log(`Renderer process gone: reason=${details.reason}, exitCode=${details.exitCode}`);
   });
 
-  // Broadcast display/window changes to renderer for seamless dynamic auto-scaling across monitors
-  const notifyMetricsChanged = () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('display-metrics-changed');
-    }
-  };
-
-  mainWindow.on('moved', notifyMetricsChanged);
-  mainWindow.on('resize', notifyMetricsChanged);
-
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
