@@ -148,7 +148,7 @@ async function runComprehensiveSimulation() {
   assert(ytServiceCode.includes('channels?part=id,snippet,contentDetails&mine=true'), 'YouTube channel resolution fallback', 'Resolves channel ID and Liked Music before querying playlists');
   assert(ytServiceCode.includes('channelId=${channelId}'), 'Channel-scoped playlist query', 'Queries channel-scoped playlists to guarantee user playlist delivery');
   assert(ytServiceCode.includes("likedPlaylistId && !oauthPlaylists.some(p => p.id === likedPlaylistId || p.id === 'LL')"), 'Liked Music playlist resolution', 'Includes user Liked Music collection');
-  assert(ytServiceCode.includes("storageCache.setSetting('yt_email', null)"), 'Stale auth token & email flush', 'Cleanses both token and email on 401 expiration');
+  assert(ytServiceCode.includes("signOut(): void") && ytServiceCode.includes("storageCache.setSetting('yt_email', null)"), 'User-controlled session sign-out & credential persistence', 'Maintains persistent login across patches and clears on explicit logout');
 
   const libraryPath = path.join(__dirname, '..', 'src', 'components', 'Library.tsx');
   const libraryCode = fs.readFileSync(libraryPath, 'utf8');

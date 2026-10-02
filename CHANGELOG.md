@@ -3,6 +3,17 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.6] - 2026-10-01
+
+### Fixed & Improved
+- **Persistent YouTube Music OAuth & Credential Preservation Across Patches**:
+  - Implemented multi-tier storage synchronization in `StorageCacheService.ts`: settings and OAuth credentials are now backed by a persistent native disk store (`cloudmix_persistent_settings.json` in Electron's `userData`), ensuring user sign-in status and OAuth tokens survive every software patch, installer run, and cache clear.
+  - Added native IPC channels `save-user-setting` and `get-user-setting` in `main.cjs` and exposed them securely through `preload.cjs`.
+  - Removed premature token and user email wiping on transient Google API 401s in `YouTubeMusicService.ts`. User credentials and playlists are now strictly retained across patch deployments until the user explicitly clicks "Disconnect" / "Sign Out".
+  - Updated the Settings Modal footer to dynamically query and display the active runtime application version (`getAppVersion()`), replacing obsolete static version text.
+
+---
+
 ## [v1.8.5] - 2026-10-01
 
 ### Fixed & Improved

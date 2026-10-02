@@ -63,6 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string>('v1.8.6');
 
   // Audio Device Routing State
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -181,6 +182,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       } else {
         setYtConnected(false);
         setYtEmail(null);
+      }
+
+      // Load dynamically current app version
+      if (typeof window !== 'undefined' && (window as any).desktopAPI?.getAppVersion) {
+        try {
+          const ver = await (window as any).desktopAPI.getAppVersion();
+          if (ver) setAppVersion(`v${ver}`);
+        } catch {}
       }
     };
     loadSettings();
@@ -1164,7 +1173,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
             {/* Bottom Footer Save Buttons (Sticky at bottom) */}
             <div className="flex items-center justify-between px-6 py-3.5 border-t border-dj-border bg-[#0b0e14]/90 shrink-0">
-              <span className="text-[11px] font-mono text-slate-500">CloudMix Pro v1.6.6 • Production Grade</span>
+              <span className="text-[11px] font-mono text-slate-500">CloudMix Pro {appVersion} • Production Grade</span>
               <div className="flex space-x-2">
                 <button
                   onClick={onClose}

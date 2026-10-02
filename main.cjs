@@ -407,6 +407,61 @@ ipcMain.handle('select-folder', async () => {
   return null;
 });
 
+// ── Native Persistent Disk Settings (survives all patches & installer runs) ──
+const getSettingsFilePath = () => {
+  try {
+    const userDir = app.getPath('userData');
+    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+    return path.join(userDir, 'cloudmix_persistent_settings.json');
+  } catch (e) {
+    return path.join(os.homedir(), '.cloudmix_pro_settings.json');
+  }
+};
+
+function readDiskSettings() {
+  try {
+    const fPath = getSettingsFilePath();
+    if (fs.existsSync(fPath)) {
+      return JSON.parse(fs.readFileSync(fPath, 'utf8') || '{}');
+    }
+  } catch {}
+  return {};
+}
+
+function writeDiskSettings(settings) {
+  try {
+    const fPath = getSettingsFilePath();
+    fs.writeFileSync(fPath, JSON.stringify(settings, null, 2), 'utf8');
+  } catch (e) {
+    log('[STORAGE] Failed to write persistent settings: ' + e.message);
+  }
+}
+
+ipcMain.handle('save-user-setting', async (event, key, value) => {
+  try {
+    const current = readDiskSettings();
+    current[key] = value;
+    writeDiskSettings(current);
+    return true;
+  } catch (err) {
+    log(`[STORAGE] Error saving setting "${key}": ` + err.message);
+    return false;
+  }
+});
+
+ipcMain.handle('get-user-setting', async (event, key, defaultValue) => {
+  try {
+    const current = readDiskSettings();
+    if (Object.prototype.hasOwnProperty.call(current, key) && current[key] !== undefined) {
+      return current[key];
+    }
+    return defaultValue;
+  } catch (err) {
+    log(`[STORAGE] Error getting setting "${key}": ` + err.message);
+    return defaultValue;
+  }
+});
+
 // ── YouTube Music OAuth Loopback Server (RFC 8252 Native App Standard) ──────
 // Starts a temporary local HTTP server on 127.0.0.1:42813, opens system browser via
 // shell.openExternal(authUrl), intercepts the redirect, returns the token, and closes server.

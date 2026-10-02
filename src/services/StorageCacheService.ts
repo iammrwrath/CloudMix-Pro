@@ -91,14 +91,63 @@ export class StorageCacheService {
 
   // Settings
   public async getSetting<T>(key: string, defaultValue: T): Promise<T> {
-    const db = await this.dbPromise;
-    const res = await db.get('settings', key);
-    return res ? (res.value as T) : defaultValue;
+    // 1. Try native desktop disk storage first (persists across all patches, version updates, and cache clears)
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.getUserSetting) {
+      try {
+        const diskVal = await (window as any).desktopAPI.getUserSetting(key, undefined);
+        if (diskVal !== undefined && diskVal !== null) {
+          return diskVal as T;
+        }
+      } catch {}
+    }
+
+    // 2. Try IndexedDB
+    try {
+      const db = await this.dbPromise;
+      const res = await db.get('settings', key);
+      if (res && res.value !== undefined && res.value !== null) {
+        // Dual-save back to disk storage for future updates
+        if (typeof window !== 'undefined' && (window as any).desktopAPI?.saveUserSetting) {
+          (window as any).desktopAPI.saveUserSetting(key, res.value).catch(() => {});
+        }
+        return res.value as T;
+      }
+    } catch {}
+
+    // 3. Try window.localStorage as resilient secondary fallback
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = window.localStorage.getItem(`cloudmix_setting_${key}`);
+        if (raw !== null && raw !== undefined) {
+          const parsed = JSON.parse(raw);
+          return parsed as T;
+        }
+      } catch {}
+    }
+
+    return defaultValue;
   }
 
   public async setSetting<T>(key: string, value: T): Promise<void> {
-    const db = await this.dbPromise;
-    await db.put('settings', { key, value });
+    // 1. Save to native desktop disk storage (permanent survival across patches)
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.saveUserSetting) {
+      try {
+        await (window as any).desktopAPI.saveUserSetting(key, value);
+      } catch {}
+    }
+
+    // 2. Save to IndexedDB
+    try {
+      const db = await this.dbPromise;
+      await db.put('settings', { key, value });
+    } catch {}
+
+    // 3. Save to window.localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(`cloudmix_setting_${key}`, JSON.stringify(value));
+      } catch {}
+    }
   }
 
   // Automix Queue & Set History

@@ -1,10 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopAPI', {
-  // Local File Access
+  // Local File Access & Native Persistent Storage
   readLocalAudio: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  saveUserSetting: (key, value) => ipcRenderer.invoke('save-user-setting', key, value),
+  getUserSetting: (key, defaultValue) => ipcRenderer.invoke('get-user-setting', key, defaultValue),
 
   // YouTube Music OAuth — opens a modal BrowserWindow, intercepts redirect, returns token
   openOAuthWindow: (authUrl) => ipcRenderer.invoke('open-oauth-window', authUrl),

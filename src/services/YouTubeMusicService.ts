@@ -302,10 +302,8 @@ class YouTubeMusicService {
             { headers: { Authorization: `Bearer ${this._accessToken}` } }
           );
           if (chanRes.status === 401) {
-            console.warn('[YouTube Music] OAuth token expired (401). Clearing stale token and user email.');
-            this._accessToken = null;
-            await storageCache.setSetting('yt_oauth_token', null);
-            await storageCache.setSetting('yt_email', null);
+            console.warn('[YouTube Music] OAuth token needs refresh (401). Retaining user profile and credentials across patch.');
+            // Do NOT wipe credentials or log the user out across patches. Retain cached user data.
             return [...savedPlaylists, ...curatedOnly];
           }
           if (chanRes.ok) {
@@ -607,10 +605,7 @@ class YouTubeMusicService {
           { headers: { Authorization: `Bearer ${this._accessToken}` } }
         );
         if (res.status === 401) {
-          console.warn('[YouTube Music] OAuth token expired on playlist tracks fetch. Clearing stale token.');
-          this._accessToken = null;
-          await storageCache.setSetting('yt_oauth_token', null);
-          await storageCache.setSetting('yt_email', null);
+          console.warn('[YouTube Music] OAuth token needs refresh on playlist tracks fetch. Retaining user profile.');
         } else if (res.ok) {
           const data = await res.json();
           const tracks = (data.items || []).map((item: any) => {
