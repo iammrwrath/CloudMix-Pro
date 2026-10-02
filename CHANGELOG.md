@@ -3,6 +3,20 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.4] - 2026-10-01
+
+### Added & Improved
+- **MixCortex Dynamic Song Swap & Zero-Latency Recommendation Rebalancing**:
+  - Boosted `CortexMonitorService` polling rate from 500ms to 100ms.
+  - Added `notifyDeckSwap()` to trigger instant recommendation re-evaluations the exact millisecond a track is loaded to Deck A or Deck B, eliminating recommendation lag.
+- **YouTube Deck Bridge Self-Healing Reconnect**:
+  - Added `reconnect()` method to `YouTubeDeckBridge` that cleanly re-initializes player instances and re-cues active streaming tracks whenever Chromium media throttling or postMessage disconnects are detected.
+  - Linked `AutoErrorHealingService` directly to `audioEngine`, `youtubeDeckBridge`, and `midiControllerService` instances for deterministic error recovery.
+- **Performance & Codebase Optimization**:
+  - Validated all 53 verification assertions in simulation test suite.
+
+---
+
 ## [v1.8.3] - 2026-10-01
 
 ### Added & Improved

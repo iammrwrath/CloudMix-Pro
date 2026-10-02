@@ -68,6 +68,12 @@ export class CortexMonitorService {
     }
   }
 
+  public notifyDeckSwap() {
+    if (this.nowPlaying.source === 'cloudmix') {
+      this.pollCloudMix();
+    }
+  }
+
   public setManualTrack(track: CortexTrack) {
     this.manualTrack = track;
     this.nowPlaying.track = track;
@@ -89,7 +95,7 @@ export class CortexMonitorService {
     if (this.pollInterval) clearInterval(this.pollInterval);
     this.pollInterval = window.setInterval(() => {
       this.pollNowPlaying();
-    }, 500);
+    }, 100);
   }
 
   private async pollNowPlaying() {

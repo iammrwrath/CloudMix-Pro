@@ -10,6 +10,11 @@
  * 4. Checks for and applies immediate AI self-healing updates or patches.
  */
 
+import { audioEngine } from '../audio/AudioEngine';
+import { youtubeDeckBridge } from './YouTubeDeckBridge';
+import { midiControllerService } from './MidiControllerService';
+import { updateService } from './UpdateService';
+
 export interface ErrorContext {
   component?: string;
   action?: string;
@@ -120,8 +125,10 @@ class AutoErrorHealingService {
     if (msg.includes('audiocontext') || msg.includes('audiobuffer') || msg.includes('suspended')) {
       console.log('[AutoErrorHealing] Self-Healing: Attempting AudioEngine context recovery...');
       try {
-        if (typeof window !== 'undefined' && (window as any).audioEngine?.resumeContext) {
-          (window as any).audioEngine.resumeContext();
+        if (typeof (audioEngine as any).resumeContext === 'function') {
+          (audioEngine as any).resumeContext();
+        } else if (typeof (audioEngine as any).init === 'function') {
+          (audioEngine as any).init();
         }
       } catch {}
     }
@@ -130,9 +137,7 @@ class AutoErrorHealingService {
     if (msg.includes('postmessage') || msg.includes('yt.player') || msg.includes('player_bridge')) {
       console.log('[AutoErrorHealing] Self-Healing: Re-synchronizing YouTube Deck Bridge...');
       try {
-        if (typeof window !== 'undefined' && (window as any).youtubeDeckBridge?.reconnect) {
-          (window as any).youtubeDeckBridge.reconnect();
-        }
+        youtubeDeckBridge.reconnect();
       } catch {}
     }
 
@@ -140,17 +145,13 @@ class AutoErrorHealingService {
     if (msg.includes('midi') || msg.includes('midimessage')) {
       console.log('[AutoErrorHealing] Self-Healing: Refreshing MIDI Controller Service...');
       try {
-        if (typeof window !== 'undefined' && (window as any).midiControllerService?.init) {
-          (window as any).midiControllerService.init();
-        }
+        midiControllerService.init();
       } catch {}
     }
 
     // Proactively poll for AI patch updates after filing autonomous error
     try {
-      if (typeof window !== 'undefined' && (window as any).updateService?.checkForUpdates) {
-        (window as any).updateService.checkForUpdates();
-      }
+      updateService.checkForUpdates().catch(() => {});
     } catch {}
   }
 

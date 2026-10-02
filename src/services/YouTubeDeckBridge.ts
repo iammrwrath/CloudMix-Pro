@@ -777,6 +777,27 @@ class YouTubeDeckBridge {
       } catch {}
     }
   }
+
+  /**
+   * Self-Healing Reconnect: Re-initializes player instances and re-cues active videos
+   */
+  public reconnect() {
+    console.log('[YouTubeDeckBridge] Self-Healing: Re-initializing YouTube IFrame Players...');
+    try {
+      this.players.clear();
+      this.createPlayers();
+      ['A', 'B'].forEach((deck) => {
+        const deckId = deck as DeckId;
+        const currentVid = this.activeVideoIds.get(deckId);
+        if (currentVid) {
+          const info = this.deckTrackInfo.get(deckId);
+          this.loadVideo(deckId, currentVid, info?.title, info?.artist).catch(() => {});
+        }
+      });
+    } catch (e) {
+      console.warn('[YouTubeDeckBridge] Reconnect failed:', e);
+    }
+  }
 }
 
 export const youtubeDeckBridge = new YouTubeDeckBridge();

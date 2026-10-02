@@ -628,6 +628,7 @@ export const App: React.FC = () => {
             }));
             broadcastService.update({ trackB: track, isPlayingB: false });
           }
+          cortexMonitorService.notifyDeckSwap();
           return;
         }
       }
@@ -688,6 +689,7 @@ export const App: React.FC = () => {
         }));
         broadcastService.update({ trackB: track, isPlayingB: false });
       }
+      cortexMonitorService.notifyDeckSwap();
     } catch (err) {
       console.warn('Network audio load failed, deploying emergency offline synth groove:', err);
       try {
