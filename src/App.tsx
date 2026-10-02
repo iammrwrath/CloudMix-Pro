@@ -740,17 +740,30 @@ export const App: React.FC = () => {
 
   // Play / Pause Toggle
   const handlePlayToggle = (deckId: DeckId) => {
+    const currentDeck = deckId === 'A' ? deckA : deckB;
+    if (!currentDeck.track) {
+      console.warn(`[Transport] Cannot toggle playback on Deck ${deckId} — no track loaded.`);
+      return;
+    }
+
+    const willPlay = !currentDeck.isPlaying;
     let isPlaying: boolean;
-    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
-      if (youtubeDeckBridge.isTrackPlaying(deckId)) {
-        youtubeDeckBridge.pause(deckId);
-        isPlaying = false;
-      } else {
+
+    if (willPlay) {
+      if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+        audioEngine.pauseDeck(deckId);
         youtubeDeckBridge.play(deckId);
+        isPlaying = true;
+      } else {
+        youtubeDeckBridge.pause(deckId);
+        audioEngine.playDeck(deckId);
         isPlaying = true;
       }
     } else {
-      isPlaying = audioEngine.togglePlayPause(deckId);
+      // Unconditionally pause BOTH engines to guarantee playback stops immediately
+      youtubeDeckBridge.pause(deckId);
+      audioEngine.pauseDeck(deckId);
+      isPlaying = false;
     }
 
     if (deckId === 'A') {
@@ -783,21 +796,27 @@ export const App: React.FC = () => {
   // Cue Button Click
   const handleCueClick = (deckId: DeckId) => {
     const deck = deckId === 'A' ? deckA : deckB;
+    if (!deck.track) return;
+
     if (deck.isPlaying) {
+      // Pause both audio engines and return to 0/cue
+      youtubeDeckBridge.pause(deckId);
+      audioEngine.pauseDeck(deckId);
       if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
-        youtubeDeckBridge.pause(deckId);
         youtubeDeckBridge.seek(deckId, 0);
       }
-      audioEngine.pauseDeck(deckId);
       audioEngine.seekDeck(deckId, 0);
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: false, currentTime: 0 }));
       else setDeckB((prev) => ({ ...prev, isPlaying: false, currentTime: 0 }));
     } else {
       if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+        audioEngine.pauseDeck(deckId);
         youtubeDeckBridge.seek(deckId, 0);
         youtubeDeckBridge.play(deckId);
+      } else {
+        youtubeDeckBridge.pause(deckId);
+        audioEngine.playDeck(deckId, 0);
       }
-      audioEngine.playDeck(deckId, 0);
       if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: true }));
       else setDeckB((prev) => ({ ...prev, isPlaying: true }));
     }
@@ -1177,10 +1196,17 @@ export const App: React.FC = () => {
       },
       (action, deckId) => {
         if (action === 'play') {
-          audioEngine.playDeck(deckId);
+          if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+            audioEngine.pauseDeck(deckId);
+            youtubeDeckBridge.play(deckId);
+          } else {
+            youtubeDeckBridge.pause(deckId);
+            audioEngine.playDeck(deckId);
+          }
           if (deckId === 'A') setDeckA((p) => ({ ...p, isPlaying: true }));
           if (deckId === 'B') setDeckB((p) => ({ ...p, isPlaying: true }));
         } else {
+          youtubeDeckBridge.pause(deckId);
           audioEngine.pauseDeck(deckId);
           if (deckId === 'A') setDeckA((p) => ({ ...p, isPlaying: false }));
           if (deckId === 'B') setDeckB((p) => ({ ...p, isPlaying: false }));

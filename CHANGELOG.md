@@ -3,6 +3,20 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.7] - 2026-10-01
+
+### Fixed & Improved
+- **Deck B & Deck A Transport Play/Pause Synchronization**:
+  - Re-architected `handlePlayToggle` in `src/App.tsx`: clicking Pause now unconditionally triggers both `youtubeDeckBridge.pause(deckId)` and `audioEngine.pauseDeck(deckId)` immediately.
+  - Base the transport toggle decision directly on the deck's active playback state (`!currentDeck.isPlaying`) instead of querying asynchronous bridge state, eliminating the bug where buffering or cued tracks prevented the pause button from responding.
+  - Added strict track presence validation: clicking Play without a loaded track is safely ignored, preventing ghost playing states and LCD desyncs.
+  - Updated `handleCueClick` and Automix AI action callbacks to synchronously pause and coordinate both the YouTube Deck Bridge and AudioEngine WebAudio graph.
+- **YouTube Deck Bridge Auto-Failover In-Flight Guard**:
+  - Added `failoverInFlight` locking in `YouTubeDeckBridge.ts` to prevent re-entrant search requests when restricted video error events (101/150/152) fire rapidly in sequence.
+  - Ensured failover trackers (`failoverAttempts`, `failoverInFlight`, `failedVideoIds`) are cleanly reset on `loadVideo()` and `clearDeck()`.
+
+---
+
 ## [v1.8.6] - 2026-10-01
 
 ### Fixed & Improved
