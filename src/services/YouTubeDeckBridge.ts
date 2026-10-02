@@ -37,7 +37,8 @@ class YouTubeDeckBridge {
   private listeners: Set<(deckId: DeckId, time: number, duration: number) => void> = new Set();
   private currentQuality: StreamingQuality = 'high';
   private deckTrackInfo: Map<DeckId, { videoId: string; title: string; artist: string }> = new Map();
-  private recoveredVideos: Map<DeckId, string> = new Map();
+  private failedVideoIds: Map<DeckId, Set<string>> = new Map([['A', new Set()], ['B', new Set()]]);
+  private failoverAttempts: Map<DeckId, number> = new Map([['A', 0], ['B', 0]]);
   private deckStems: Map<DeckId, StemState> = new Map([
     [
       'A',
@@ -288,11 +289,20 @@ class YouTubeDeckBridge {
               // Automatic failover recovery for restricted / un-embeddable videos (101, 150, 152)
               if (code === 101 || code === 150 || code === 152) {
                 const currentVid = this.activeVideoIds.get(deckId);
-                const hasRecovered = this.recoveredVideos.get(deckId) === currentVid;
-                if (currentVid && !hasRecovered) {
-                  this.recoveredVideos.set(deckId, currentVid);
-                  console.log(`[YouTubeDeckBridge] Attempting auto-failover for restricted video (${currentVid}) on Deck ${deckId}...`);
-                  this.recoverRestrictedTrack(deckId, currentVid);
+                const deckFailed = this.failedVideoIds.get(deckId) ?? new Set();
+                const attempts = this.failoverAttempts.get(deckId) ?? 0;
+                
+                if (currentVid) {
+                  deckFailed.add(currentVid);
+                  this.failedVideoIds.set(deckId, deckFailed);
+                }
+
+                if (attempts < 3) {
+                  this.failoverAttempts.set(deckId, attempts + 1);
+                  console.log(`[YouTubeDeckBridge] Attempting auto-failover #${attempts + 1}/3 for restricted video (${currentVid}) on Deck ${deckId}...`);
+                  this.recoverRestrictedTrack(deckId, currentVid || '');
+                } else {
+                  console.warn(`[YouTubeDeckBridge] Auto-failover reached max attempts (3) on Deck ${deckId} for video ${currentVid}. Halting auto-failover.`);
                 }
               }
             },
@@ -360,20 +370,31 @@ class YouTubeDeckBridge {
 
   private async recoverRestrictedTrack(deckId: DeckId, currentVid: string) {
     const info = this.deckTrackInfo.get(deckId);
-    const searchQuery = info && (info.title || info.artist)
-      ? `${info.artist} ${info.title} audio`.trim()
-      : 'music audio';
+    const failedSet = this.failedVideoIds.get(deckId) ?? new Set<string>();
+    if (currentVid) failedSet.add(currentVid);
+
+    // Prioritize clean audio, lyrics, or topic streams to circumvent official VEVO/music video embed restrictions
+    const queries = [
+      info && (info.title || info.artist) ? `${info.artist} ${info.title} audio`.trim() : 'music audio',
+      info && (info.title || info.artist) ? `${info.artist} ${info.title} lyrics`.trim() : 'music lyrics',
+      info && (info.title || info.artist) ? `${info.title} ${info.artist}`.trim() : 'music track',
+    ];
 
     try {
-      console.log(`[YouTubeDeckBridge] Searching alternative stream for Deck ${deckId}: "${searchQuery}"`);
+      const attempts = this.failoverAttempts.get(deckId) ?? 1;
+      const searchQuery = queries[Math.min(attempts - 1, queries.length - 1)];
+
+      console.log(`[YouTubeDeckBridge] Searching alternative stream #${attempts} for Deck ${deckId}: "${searchQuery}"`);
       const searchRes = await fetch(`http://127.0.0.1:8088/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
       if (searchRes.ok) {
         const data = await searchRes.json();
-        const alts = (data.results || []).filter((r: any) => r.videoId && r.videoId !== currentVid);
+        // Filter out ALL videos that have already failed on this deck
+        const alts = (data.results || []).filter((r: any) => r.videoId && !failedSet.has(r.videoId));
         if (alts.length > 0) {
           const altVideoId = alts[0].videoId;
           console.log(`[YouTubeDeckBridge] Auto-failover found alternative videoId=${altVideoId} ("${alts[0].title}"). Cueing on Deck ${deckId}...`);
           this.activeVideoIds.set(deckId, altVideoId);
+          this.pendingCues.set(deckId, altVideoId);
           const player = this.players.get(deckId);
           if (player && typeof player.cueVideoById === 'function') {
             setTimeout(() => {
@@ -387,6 +408,8 @@ class YouTubeDeckBridge {
               }
             }, 250);
           }
+        } else {
+          console.warn(`[YouTubeDeckBridge] No non-failed alternative videos found for Deck ${deckId}.`);
         }
       }
     } catch (e) {
@@ -400,6 +423,10 @@ class YouTubeDeckBridge {
     this.pendingCues.set(deckId, videoId);
     this.deckTrackInfo.set(deckId, { videoId, title: trackTitle || '', artist: trackArtist || '' });
     this.isDeckPlaying.set(deckId, false);
+
+    // Reset auto-failover trackers for this deck on fresh track load
+    this.failedVideoIds.set(deckId, new Set<string>());
+    this.failoverAttempts.set(deckId, 0);
 
     // Wait for the YouTube Iframe API to initialize
     await this.apiReadyPromise;

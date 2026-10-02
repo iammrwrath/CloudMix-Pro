@@ -40,6 +40,7 @@ log('Electron main process starting up...');
 // Optimize for real-time audio and high refresh rate displays
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('enable-gpu-rasterization');

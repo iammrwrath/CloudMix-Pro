@@ -3,6 +3,20 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.5] - 2026-10-01
+
+### Fixed & Improved
+- **YouTube Deck Bridge Embedding Restriction (Error 150/101) & Infinite Loop Guard**:
+  - Eliminated the infinite auto-failover recursion loop in `YouTubeDeckBridge.ts` by tracking all failed video IDs in a per-deck `failedVideoIds` set.
+  - Implemented an intelligent 3-attempt ceiling (`failoverAttempts`) with dynamic search query variations (clean audio, lyrics, topic releases) that systematically bypass official VEVO/music video domain restrictions.
+  - Reset failover state cleanly upon every new track load (`loadVideo()`).
+- **Electron Backgrounding & Chromium Media Playback Stability**:
+  - Added `disable-backgrounding-occluded-windows` to Electron main process command line switches matching AuraMusic-Desktop specifications, preventing background audio throttling during high-energy DJ performances.
+- **Verification & Test Suite**:
+  - Passed all end-to-end simulated interaction assertions.
+
+---
+
 ## [v1.8.4] - 2026-10-01
 
 ### Added & Improved
