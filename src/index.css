@@ -116,3 +116,27 @@ input[type="range"].pitch-thumb::-moz-range-thumb {
   background: #334155;
 }
 
+/* Deck & Jog Wheel Responsive Geometry */
+.deck-container {
+  container-type: size;
+}
+
+.jog-wheel-container {
+  container-type: normal;
+}
+
+.jog-wheel {
+  /* Fluid clamp: min 110px, scales with container and viewport height, max 260px */
+  width: clamp(110px, min(36cqh, 24vw, 250px), 260px);
+  height: clamp(110px, min(36cqh, 24vw, 250px), 260px);
+  aspect-ratio: 1 / 1;
+}
+
+@container (max-height: 480px) {
+  .jog-wheel {
+    width: clamp(100px, 32cqh, 170px);
+    height: clamp(100px, 32cqh, 170px);
+  }
+}
+
+

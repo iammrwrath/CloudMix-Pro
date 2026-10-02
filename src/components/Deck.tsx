@@ -148,7 +148,7 @@ export const Deck = React.memo<DeckProps>(({
           }
         } catch {}
       }}
-      className={`relative flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border shadow-2xl flex-1 min-w-0 overflow-hidden justify-between transition-all duration-150 ${
+      className={`deck-container relative flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border shadow-2xl flex-1 min-w-0 min-h-0 overflow-hidden justify-between transition-all duration-150 ${
         isDragOver
           ? 'border-cyan-400 ring-2 ring-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.6)]'
           : 'border-dj-border'
@@ -484,12 +484,12 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 6. Primary Transport Controls: Play, Cue, Sync, Sandbox Mode */}
-      <div className="flex items-center justify-between pt-0.5 sm:pt-1 border-t border-dj-border/60 shrink-0">
+      <div className="flex items-center justify-between pt-0.5 sm:pt-1 border-t border-dj-border/60 shrink-0 min-h-0">
         {/* VirtualDJ Sandbox Mode Toggle */}
         <button
           onClick={onToggleSandbox}
           title="VirtualDJ Sandbox Mode: Private Headphone Audition. Mutes master output for this deck while you prep your mix."
-          className={`h-7 sm:h-8 md:h-9 xl:h-10 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl font-mono font-extrabold text-[9px] sm:text-[10.5px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none shrink-0 ${
+          className={`h-[clamp(1.75rem,3.4cqh,2.5rem)] min-h-0 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl font-mono font-extrabold text-[9px] sm:text-[10.5px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 active:scale-[0.95] select-none shrink-0 ${
             deckState.sandboxMode
               ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_16px_rgba(245,158,11,0.85)] animate-pulse'
               : 'bg-slate-900/90 border-amber-500/30 text-amber-400 hover:bg-slate-800 hover:border-amber-400'
@@ -503,7 +503,7 @@ export const Deck = React.memo<DeckProps>(({
         <button
           onClick={onSyncClick}
           title="Instant Beatgrid Sync"
-          className={`flex-1 h-7 sm:h-8 md:h-9 xl:h-10 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none shrink-0 ${
+          className={`flex-1 h-[clamp(1.75rem,3.4cqh,2.5rem)] min-h-0 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] mr-1 border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none shrink-0 ${
             deckState.isSync
               ? 'bg-cyan-500 text-black border-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.8)]'
               : 'bg-slate-900/90 border-cyan-500/30 text-cyan-400 hover:bg-slate-800 hover:border-cyan-400'
@@ -520,7 +520,7 @@ export const Deck = React.memo<DeckProps>(({
         <button
           onClick={onCueClick}
           title="Temporary Cue Playhead"
-          className="flex-1 h-7 sm:h-8 md:h-9 xl:h-10 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1 sm:space-x-1.5 cursor-pointer select-none shrink-0"
+          className="flex-1 h-[clamp(1.75rem,3.4cqh,2.5rem)] min-h-0 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] mr-1 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1 sm:space-x-1.5 cursor-pointer select-none shrink-0"
           style={{
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
@@ -533,7 +533,7 @@ export const Deck = React.memo<DeckProps>(({
         <button
           onClick={onPlayToggle}
           title="Play / Pause"
-          className={`flex-1 h-7 sm:h-8 md:h-9 xl:h-10 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none shrink-0 ${
+          className={`flex-1 h-[clamp(1.75rem,3.4cqh,2.5rem)] min-h-0 rounded-lg sm:rounded-xl font-mono font-extrabold text-[10.5px] sm:text-xs md:text-[13px] border transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 active:scale-[0.95] select-none shrink-0 ${
             deckState.isPlaying
               ? 'bg-emerald-500 text-black border-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.85)]'
               : 'bg-slate-900/90 border-emerald-500/30 text-emerald-400 hover:bg-slate-800 hover:border-emerald-400'

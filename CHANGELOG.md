@@ -3,6 +3,17 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.1] - 2026-10-02
+
+### Fixed & Improved
+- **Sub-850px Viewport & High-DPI Display Scaling Overhaul**:
+  - Implemented container queries (`@container (max-height: 480px)`) and fluid CSS `clamp()` dimensions on `.jog-wheel` and turntable tonearm wand assemblies to guarantee platters never bleed over performance pad buttons.
+  - Added strict flex/grid deflation constraints (`min-height: 0; min-width: 0;`) across all deck and mixer parent wrappers.
+  - Dynamically scaled scrolling waveforms, performance pad buttons across all 5 modes, and channel faders so they collapse smoothly without clipping on 1080p laptop screens at 125%/150% scaling.
+  - Overhauled `getAutoZoom()` in `App.tsx` with dynamic resolution scaling based on `window.innerHeight * zoomFactor` and device pixel ratio.
+
+---
+
 ## [v1.9.0] - 2026-10-02
 
 ### Added & Improved

@@ -141,7 +141,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const liveRpm = (33.33 * playbackRate).toFixed(1);
 
   return (
-    <div className="relative flex items-center justify-center p-0.5 select-none group w-full h-full max-w-[280px] max-h-[280px] min-w-[90px] min-h-[90px] aspect-square mx-auto">
+    <div className="jog-wheel relative flex items-center justify-center p-0.5 select-none group aspect-square mx-auto min-h-0 min-w-0 shrink-0">
       {/* Ambient Platter Glow */}
       <div
         className="absolute inset-2 rounded-full opacity-20 blur-xl pointer-events-none transition-opacity duration-300 group-hover:opacity-40"
@@ -215,7 +215,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             }}
           >
             {/* Curved Aluminum Tonearm Wand */}
-            <div className="w-1 h-12 sm:h-16 md:h-22 bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[1px_2px_6px_rgba(0,0,0,0.7)]" />
+            <div className="w-1 h-[clamp(2.5rem,14cqh,4.5rem)] bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[1px_2px_6px_rgba(0,0,0,0.7)]" />
 
             {/* Headshell & DJ Stylus Cartridge */}
             <div className="absolute -bottom-3 -left-0.5 w-2.5 h-3.5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">

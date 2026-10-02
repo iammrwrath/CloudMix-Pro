@@ -239,32 +239,41 @@ export const App: React.FC = () => {
   };
 
   const getAutoZoom = () => {
-    // In Chromium/Electron, window.innerWidth/innerHeight are scaled by webContents.zoomFactor.
+    // In Chromium/Electron, window.innerWidth/innerHeight are scaled by webContents.zoomFactor when active.
     // Multiplying inner dimensions by the active zoom factor recovers the stable, unzoomed viewport dimensions.
     const currentFactor = lastAppliedZoomRef.current || 1.0;
-    const w = typeof window !== 'undefined'
-      ? (window.outerWidth || (window.innerWidth * currentFactor))
+    const effectiveW = typeof window !== 'undefined'
+      ? (window.innerWidth ? window.innerWidth * currentFactor : (window.outerWidth || 1440))
       : 1440;
-    const h = typeof window !== 'undefined'
-      ? (window.outerHeight || (window.innerHeight * currentFactor))
+    const effectiveH = typeof window !== 'undefined'
+      ? (window.innerHeight ? window.innerHeight * currentFactor : (window.outerHeight || 900))
       : 900;
     const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
 
-    // Target baseline workstation canvas: 1440 x 860
-    // Compute the scale factor required to fit both width and height comfortably
-    const scaleW = w / 1440;
-    const scaleH = h / 860;
+    // Baseline target workstation dimensions: 1440 x 860
+    // Height is the critical constraint on sub-850px laptop screens (e.g. 1080p at 125%/150% scaling)
+    const scaleW = effectiveW / 1440;
+    const scaleH = effectiveH / 860;
     let factor = Math.min(scaleW, scaleH);
 
-    // If DPI scale is elevated (e.g. Windows 125%, 150%, 175%), scale down slightly more
-    if (dpr > 1.25) {
-      factor *= 0.94;
+    // Dynamic resolution scaling for sub-850px effective viewport heights:
+    // When effective height is under 850px, compute continuous proportional scaling so
+    // decks and platters never bleed over bottom controls.
+    if (effectiveH < 850) {
+      const heightFittingFactor = effectiveH / 855;
+      factor = Math.min(factor, heightFittingFactor);
     }
 
-    // Auto-fit scales DOWN on compact laptops (e.g. 1366x768 or high DPI scale) so everything fits.
-    // For standard / high-res displays (1080p, 1440p, 4K), 1.0 (100%) is optimal.
-    // Clamp strictly between 0.70 and 1.0 (never auto-scale above 100% to avoid clipped controls).
-    const clamped = Math.max(0.70, Math.min(1.0, Math.round(factor * 100) / 100));
+    // Additional margin if OS display scaling is elevated (125%, 150%, 175%)
+    if (dpr >= 1.5) {
+      factor *= 0.92;
+    } else if (dpr > 1.2) {
+      factor *= 0.95;
+    }
+
+    // Auto-fit scales DOWN on compact laptops so everything fits without clipping or overflow.
+    // Clamped between 0.65 (ultra-compact) and 1.00 (standard unscaled baseline).
+    const clamped = Math.max(0.65, Math.min(1.0, Math.round(factor * 100) / 100));
     return clamped;
   };
 
@@ -1482,7 +1491,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          <div className="flex flex-1 space-x-2 overflow-hidden">
+          <div className="flex flex-1 space-x-2 overflow-hidden min-h-0 min-w-0">
             {/* Deck A */}
             <Deck
               deckId="A"
