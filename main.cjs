@@ -1265,7 +1265,7 @@ ipcMain.handle('start-update-download', async () => {
     const releaseData = await new Promise((resolve, reject) => {
       const options = {
         hostname: 'api.github.com',
-        path: '/repos/iammrwrath/CloudMix-Pro/releases/latest',
+        path: '/repos/iammrwrath/CloudMix-Pro/releases?per_page=10',
         method: 'GET',
         headers: {
           'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
@@ -1277,7 +1277,11 @@ ipcMain.handle('start-update-download', async () => {
         res.on('data', (chunk) => (body += chunk));
         res.on('end', () => {
           try {
-            resolve(JSON.parse(body));
+            const list = JSON.parse(body);
+            const target = Array.isArray(list)
+              ? list.find((r) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || list[0]
+              : list;
+            resolve(target);
           } catch (e) {
             reject(e);
           }
@@ -1286,10 +1290,12 @@ ipcMain.handle('start-update-download', async () => {
     });
 
     const asset =
+      releaseData?.assets?.find((a) => a.name.toLowerCase().includes('cloudmix') && a.name.toLowerCase().endsWith('setup.exe')) ||
+      releaseData?.assets?.find((a) => a.name.toLowerCase().includes('cloudmix') && a.name.toLowerCase().endsWith('.exe')) ||
       releaseData?.assets?.find((a) => a.name.toLowerCase().endsWith('setup.exe')) ||
       releaseData?.assets?.find((a) => a.name.toLowerCase().endsWith('.exe') && !a.name.toLowerCase().includes('portable'));
     if (!asset || !asset.browser_download_url) {
-      throw new Error('No installer setup asset found in latest GitHub release');
+      throw new Error('No installer setup asset found in latest CloudMix Pro GitHub release');
     }
 
     const downloadUrl = asset.browser_download_url;
@@ -1402,7 +1408,7 @@ ipcMain.handle('check-github-releases', async () => {
     return new Promise((resolve) => {
       const options = {
         hostname: 'api.github.com',
-        path: '/repos/iammrwrath/CloudMix-Pro/releases/latest',
+        path: '/repos/iammrwrath/CloudMix-Pro/releases?per_page=10',
         method: 'GET',
         headers: {
           'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
@@ -1415,7 +1421,10 @@ ipcMain.handle('check-github-releases', async () => {
         res.on('end', () => {
           if (res.statusCode === 200) {
             try {
-              const release = JSON.parse(data);
+              const list = JSON.parse(data);
+              const release = Array.isArray(list)
+                ? list.find((r) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || list[0]
+                : list;
               resolve({ success: true, release });
             } catch {
               resolve({ success: false, error: 'JSON parse error' });

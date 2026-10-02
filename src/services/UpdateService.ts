@@ -135,10 +135,13 @@ class UpdateService {
         }
       } else {
         // Web fallback
-        const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases/latest');
+        const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases?per_page=10');
         if (resp.ok) {
-          const data = await resp.json();
-          const latestTag = data.tag_name?.replace(/^v/i, '');
+          const releases = await resp.json();
+          const data = Array.isArray(releases)
+            ? releases.find((r: any) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || releases[0]
+            : releases;
+          const latestTag = data?.tag_name?.replace(/^v/i, '');
           const currentVer = (this.currentStatus.version || '1.4.2').replace(/^v/i, '');
           if (latestTag && isNewerVersion(latestTag, currentVer)) {
             this.currentStatus = {

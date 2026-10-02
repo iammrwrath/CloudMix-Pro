@@ -3,6 +3,16 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.9] - 2026-10-01
+
+### Fixed
+- **Multi-App GitHub Release Tag & Asset Disambiguation**:
+  - Filtered GitHub releases in `PatchUpdateModal.tsx`, `UpdateService.ts`, and `main.cjs` to query `/releases?per_page=10` and strictly isolate CloudMix Pro releases (`/^v\d+\.\d+\.\d+/`), ignoring sibling repository tags like `mixcortex-v*`.
+  - Fixed version parser to extract semver directly from `releaseTag` or semantic version pattern, eliminating false negative "up to date" comparisons when sidecar releases are published.
+  - Hardened auto-updater direct download fallback in `main.cjs` to target `CloudMix-Pro` setup executables.
+
+---
+
 ## [v1.8.8] - 2026-10-01
 
 ### Added & Improved

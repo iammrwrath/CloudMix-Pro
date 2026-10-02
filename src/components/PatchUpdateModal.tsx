@@ -20,6 +20,7 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   const [status, setStatus] = useState<UpdateStatus>(updateService.getStatus());
   const [releaseNotes, setReleaseNotes] = useState<string>('');
   const [releaseName, setReleaseName] = useState<string>('');
+  const [releaseTag, setReleaseTag] = useState<string>('');
   const [publishedAt, setPublishedAt] = useState<string>('');
   const [assetSize, setAssetSize] = useState<string>('');
   const [downloadUrl, setDownloadUrl] = useState<string>('');
@@ -39,27 +40,34 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   const fetchGitHubReleaseInfo = async () => {
     setLoadingNotes(true);
     try {
-      const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases/latest');
+      const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases?per_page=10');
       if (resp.ok) {
-        const data = await resp.json();
-        setReleaseName(data.name || data.tag_name || 'Latest Release');
-        setReleaseNotes(data.body || 'No release notes provided for this release.');
-        if (data.published_at) {
-          setPublishedAt(new Date(data.published_at).toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-          }));
-        }
-        const exeAsset = data.assets?.find((a: any) => a.name.includes('Setup') && a.name.endsWith('.exe')) ||
-                         data.assets?.find((a: any) => a.name.endsWith('.exe'));
-        if (exeAsset) {
-          if (exeAsset.size) {
-            const mb = (exeAsset.size / (1024 * 1024)).toFixed(1);
-            setAssetSize(`${mb} MB`);
+        const releases = await resp.json();
+        const data = Array.isArray(releases)
+          ? releases.find((r: any) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || releases[0]
+          : releases;
+        if (data) {
+          setReleaseTag(data.tag_name || '');
+          setReleaseName(data.name || data.tag_name || 'Latest Release');
+          setReleaseNotes(data.body || 'No release notes provided for this release.');
+          if (data.published_at) {
+            setPublishedAt(new Date(data.published_at).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            }));
           }
-          if (exeAsset.browser_download_url) {
-            setDownloadUrl(exeAsset.browser_download_url);
+          const exeAsset = data.assets?.find((a: any) => a.name.toLowerCase().includes('cloudmix') && a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe')) ||
+                           data.assets?.find((a: any) => a.name.toLowerCase().includes('cloudmix') && a.name.endsWith('.exe')) ||
+                           data.assets?.find((a: any) => a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe'));
+          if (exeAsset) {
+            if (exeAsset.size) {
+              const mb = (exeAsset.size / (1024 * 1024)).toFixed(1);
+              setAssetSize(`${mb} MB`);
+            }
+            if (exeAsset.browser_download_url) {
+              setDownloadUrl(exeAsset.browser_download_url);
+            }
           }
         }
       }
@@ -98,7 +106,8 @@ function isNewer(latest: string, current: string): boolean {
   };
 
   const installedVersion = (status.version || '1.4.5').replace(/^v/i, '');
-  const latestVersion = (releaseName.match(/v?[0-9.]+/)?.[0] || '1.4.5').replace(/^v/i, '');
+  const rawTag = releaseTag || releaseName;
+  const latestVersion = (rawTag.match(/v?([0-9]+\.[0-9]+\.[0-9]+)/)?.[1] || rawTag.match(/v?[0-9.]+/)?.[0] || '1.4.5').replace(/^v/i, '');
   const hasNewerVersion = isNewer(latestVersion, installedVersion);
 
   const isDownloading = status.status === 'downloading';
