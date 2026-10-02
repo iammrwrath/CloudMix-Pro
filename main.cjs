@@ -150,7 +150,8 @@ function createWindow() {
     backgroundColor: '#0a0d14',
     title: 'CloudMix Pro — Next-Gen Cloud DJ',
     autoHideMenuBar: true,
-    frame: true,
+    frame: false,
+    titleBarStyle: 'hidden',
     icon: getAppIconPath(),
     show: true,
     webPreferences: {
@@ -1136,6 +1137,24 @@ ipcMain.handle('maximize-window', (event) => {
     return { success: true, isMaximized: win.isMaximized() };
   }
   return { success: false };
+});
+
+ipcMain.handle('toggle-fullscreen', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    const nextState = !win.isFullScreen();
+    win.setFullScreen(nextState);
+    return { success: true, isFullScreen: nextState };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('is-fullscreen', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    return win.isFullScreen();
+  }
+  return false;
 });
 
 ipcMain.handle('close-window', (event) => {

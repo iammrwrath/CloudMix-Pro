@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   setAlwaysOnTop: (flag) => ipcRenderer.invoke('set-always-on-top', flag),
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
+  toggleFullScreen: () => ipcRenderer.invoke('toggle-fullscreen'),
+  isFullScreen: () => ipcRenderer.invoke('is-fullscreen'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
   setZoomFactor: (factor) => ipcRenderer.invoke('set-zoom-factor', factor),
 

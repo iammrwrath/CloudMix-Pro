@@ -21,6 +21,11 @@ import {
   Brain,
   ZoomIn,
   ZoomOut,
+  Maximize2,
+  Minimize2,
+  Minus,
+  Square,
+  X,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
@@ -83,6 +88,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [quantize, setQuantize] = useState(true);
   const [connectedMidiDevices, setConnectedMidiDevices] = useState<MidiDevice[]>([]);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(updateService.getStatus());
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     // Scan MIDI devices
@@ -90,12 +97,53 @@ export const Header: React.FC<HeaderProps> = ({
       setConnectedMidiDevices(midiControllerService.getConnectedDevices());
     });
 
+    // Check full screen status if desktopAPI available
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.isFullScreen) {
+      (window as any).desktopAPI.isFullScreen().then((res: boolean) => {
+        setIsFullScreen(Boolean(res));
+      }).catch(() => {});
+    }
+
     // Subscribe to update status
     const unsub = updateService.subscribe((status) => {
       setUpdateStatus(status);
     });
     return () => unsub();
   }, []);
+
+  const handleMinimize = () => {
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.minimizeWindow) {
+      (window as any).desktopAPI.minimizeWindow();
+    }
+  };
+
+  const handleMaximize = async () => {
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.maximizeWindow) {
+      const res = await (window as any).desktopAPI.maximizeWindow();
+      if (res && typeof res.isMaximized === 'boolean') {
+        setIsMaximized(res.isMaximized);
+      } else {
+        setIsMaximized((prev) => !prev);
+      }
+    }
+  };
+
+  const handleToggleFullScreen = async () => {
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.toggleFullScreen) {
+      const res = await (window as any).desktopAPI.toggleFullScreen();
+      if (res && typeof res.isFullScreen === 'boolean') {
+        setIsFullScreen(res.isFullScreen);
+      } else {
+        setIsFullScreen((prev) => !prev);
+      }
+    }
+  };
+
+  const handleClose = () => {
+    if (typeof window !== 'undefined' && (window as any).desktopAPI?.closeWindow) {
+      (window as any).desktopAPI.closeWindow();
+    }
+  };
 
   const handleTapTempo = () => {
     const now = performance.now();
@@ -127,9 +175,12 @@ export const Header: React.FC<HeaderProps> = ({
       : 'MIDI Ready (WebMIDI)';
 
   return (
-    <header className="flex items-center justify-between h-11 px-2 md:px-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.6)] select-none z-20 shrink-0 w-full overflow-hidden">
+    <header
+      style={{ WebkitAppRegion: 'drag' } as any}
+      className="flex items-center justify-between h-11 px-2 md:px-3 bg-slate-950/95 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.6)] select-none z-20 shrink-0 w-full overflow-hidden"
+    >
       {/* 1. Brand & Title */}
-      <div className="flex items-center space-x-2 shrink-0">
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-2 shrink-0">
         <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 via-blue-600 to-purple-600 p-0.5 flex items-center justify-center shadow-[0_0_12px_rgba(0,240,255,0.4)]">
           <div className="w-full h-full rounded-[6px] bg-slate-950 flex items-center justify-center">
             <Disc3 className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '4s' }} />
@@ -214,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 2. Master BPM & Quantize Hub */}
-      <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900/90 px-1.5 sm:px-2 py-0.5 rounded-xl border border-white/10 shadow-inner shrink-0">
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900/90 px-1.5 sm:px-2 py-0.5 rounded-xl border border-white/10 shadow-inner shrink-0">
         <div className="flex flex-col items-center">
           <span className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">
             CLOCK
@@ -258,7 +309,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 3. System Status Badges, Recording & Feature Toggles */}
-      <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
         {/* Master Mix Recording Button */}
         <button
           onClick={onToggleRecording}
@@ -431,6 +482,51 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Settings className="w-3.5 h-3.5" />
         </button>
+
+        {/* Integrated Dark Frameless Window Controls (Desktop App) */}
+        {typeof window !== 'undefined' && Boolean((window as any).desktopAPI) && (
+          <div className="flex items-center space-x-1 pl-1.5 ml-0.5 border-l border-white/10 shrink-0 select-none">
+            {/* Fullscreen Toggle (F11) */}
+            <button
+              onClick={handleToggleFullScreen}
+              title={isFullScreen ? 'Exit Full Screen (F11)' : 'Enter Full Screen (F11)'}
+              className={`p-1 rounded-lg border transition-all cursor-pointer ${
+                isFullScreen
+                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                  : 'bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border-slate-800'
+              }`}
+            >
+              {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* Minimize Window */}
+            <button
+              onClick={handleMinimize}
+              title="Minimize to Taskbar"
+              className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Maximize / Restore Window */}
+            <button
+              onClick={handleMaximize}
+              title={isMaximized ? 'Restore Down' : 'Maximize Window'}
+              className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+            >
+              <Square className="w-3 h-3" />
+            </button>
+
+            {/* Close Application */}
+            <button
+              onClick={handleClose}
+              title="Close CloudMix Pro"
+              className="p-1 rounded-lg bg-slate-900/90 hover:bg-rose-600/90 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-500 transition-colors cursor-pointer group"
+            >
+              <X className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -524,7 +524,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
   return (
     <div className="flex flex-col w-full bg-dj-surface rounded-lg overflow-hidden border border-dj-border shadow-inner">
       {/* 1. Dynamic Scrolling Waveform (Tri-Band RGB) */}
-      <div className="relative h-14 sm:h-18 md:h-22 xl:h-28 w-full cursor-ew-resize">
+      <div className="relative h-11 sm:h-14 md:h-18 xl:h-22 w-full cursor-ew-resize">
         <canvas
           ref={scrollingCanvasRef}
           width={800}

@@ -3,6 +3,22 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.0] - 2026-10-02
+
+### Added & Improved
+- **Dark Frameless Custom Title Bar & Native Drag Region**:
+  - Eliminated the OS white top bar by configuring a sleek frameless window (`frame: false`, `titleBarStyle: 'hidden'`) in `main.cjs`.
+  - Added `-webkit-app-region: drag` to the top workstation header and mini-deck header, allowing smooth window dragging across monitors while keeping buttons non-draggable (`no-drag`).
+  - Integrated custom dark window controls (Minimize, Maximize / Restore, Fullscreen, Close) right into the `<Header>` and `<MiniDeckHeader>` bars.
+  - Added native IPC handlers and preload exposure for `toggleFullScreen()` and `isFullScreen()`.
+- **Modular Fluid UI & Dynamic Viewport Height Scaling**:
+  - Bound `F11` hotkey to instantly toggle seamless borderless stage fullscreen.
+  - Fluidified Jog Wheel dimensions to smoothly adapt between `min-h-[90px]` and `max-h-[280px]` without clipping or overflowing performance pads.
+  - Optimized Tri-Band RGB scrolling waveform height classes to prevent pushing transport buttons off-screen when resized to compact resolutions.
+  - Re-balanced bottom drawer split ratio to `h-[34vh] min-h-[140px] max-h-[350px]` ensuring the crate library and decks both fit cleanly.
+
+---
+
 ## [v1.8.9] - 2026-10-01
 
 ### Fixed

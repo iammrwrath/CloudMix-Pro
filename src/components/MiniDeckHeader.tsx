@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { DeckState, WaveformData, MixerState, TrackMetadata } from '../types/dj';
-import { Play, Pause, Disc, Repeat, Minimize2, Music } from 'lucide-react';
+import { Play, Pause, Disc, Repeat, Minimize2, Music, Maximize2 as MaximizeIcon, Minus, Square, X } from 'lucide-react';
 
 interface MiniDeckHeaderProps {
   deckA: DeckState;
@@ -363,12 +363,17 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
   };
 
   return (
-    <div className="w-full bg-slate-950/95 border-b border-dj-border px-3 py-2 flex items-center space-x-3 shadow-2xl relative z-30">
+    <div
+      style={{ WebkitAppRegion: 'drag' } as any}
+      className="w-full bg-slate-950/95 border-b border-dj-border px-3 py-2 flex items-center space-x-3 shadow-2xl relative z-30 select-none"
+    >
       {/* Deck A Mini Strip */}
-      {renderDeckStrip('A')}
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex-1 flex items-center min-w-0">
+        {renderDeckStrip('A')}
+      </div>
 
       {/* Center Mixer: Mini Crossfader & Return Button */}
-      <div className="w-48 xl:w-56 flex flex-col items-center justify-center px-2 py-1 bg-slate-900/80 rounded-xl border border-white/10 shrink-0 space-y-1">
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="w-48 xl:w-56 flex flex-col items-center justify-center px-2 py-1 bg-slate-900/80 rounded-xl border border-white/10 shrink-0 space-y-1">
         <div className="flex items-center justify-between w-full text-[9px] font-mono text-slate-400 px-1">
           <button
             onClick={() => onCrossfaderChange(-1.0)}
@@ -418,7 +423,36 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
       </div>
 
       {/* Deck B Mini Strip */}
-      {renderDeckStrip('B')}
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex-1 flex items-center min-w-0">
+        {renderDeckStrip('B')}
+      </div>
+
+      {/* Desktop Window Controls in MiniDeckHeader */}
+      {typeof window !== 'undefined' && Boolean((window as any).desktopAPI) && (
+        <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1 pl-1 border-l border-white/10 shrink-0">
+          <button
+            onClick={() => (window as any).desktopAPI?.minimizeWindow?.()}
+            title="Minimize"
+            className="p-1 rounded bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 cursor-pointer"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => (window as any).desktopAPI?.maximizeWindow?.()}
+            title="Maximize"
+            className="p-1 rounded bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 cursor-pointer"
+          >
+            <Square className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => (window as any).desktopAPI?.closeWindow?.()}
+            title="Close"
+            className="p-1 rounded bg-slate-900/90 hover:bg-rose-600 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-500 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

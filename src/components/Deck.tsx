@@ -252,7 +252,7 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 2. Waveform Display (Tri-band Scrolling + Overview) */}
-      <div className="mb-1">
+      <div className="mb-0.5 sm:mb-1 shrink-0">
         <WaveformDisplay
           deckId={deckId}
           track={track}

@@ -1391,6 +1391,14 @@ export const App: React.FC = () => {
         handleUiZoomChange(1.0);
       }
 
+      // Fullscreen Toggle: F11
+      else if (e.key === 'F11') {
+        e.preventDefault();
+        if (typeof window !== 'undefined' && (window as any).desktopAPI?.toggleFullScreen) {
+          (window as any).desktopAPI.toggleFullScreen();
+        }
+      }
+
       // Library / Drawer Toggle: L (Toggles between djay Pro expanded library and split view)
       else if (key === 'l' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -1585,8 +1593,8 @@ export const App: React.FC = () => {
           drawerMode === 'expanded'
             ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[38vh] min-h-[160px] max-h-[380px] shrink-0'
-            : 'h-[42px] shrink-0 overflow-hidden'
+            ? 'h-[34vh] min-h-[140px] max-h-[350px] shrink-0'
+            : 'h-[40px] shrink-0 overflow-hidden'
         }`}
       >
         {/* Drawer Tab Navigation Strip */}
