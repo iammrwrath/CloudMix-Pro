@@ -3,6 +3,18 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.2] - 2026-10-01
+
+### Changed & Improved
+- **Deck, Vinyl Jog Wheel & Panel Proportional Space Rebalancing**:
+  - Constrained vinyl jog wheel platter dimensions in `JogWheel.tsx` to `max-w-[210px] sm:max-w-[240px] md:max-w-[260px] xl:max-w-[280px]` and `max-h-[210px] sm:max-h-[240px] md:max-h-[260px] xl:max-h-[280px]` with `aspect-square`, preventing the vinyl circle from ballooning across the deck.
+  - Rebalanced the 4-Stem Neural Mix quick panel in `Deck.tsx` to `w-20 sm:w-24 xl:w-28` with comfortable padding, ensuring Mute/Solo buttons and Acapella/Instrumental triggers have dedicated space.
+  - Expanded the Pitch Fader section in `PitchFader.tsx` to `w-22 sm:w-26 xl:w-30` for tactile, authoritative tempo fader control alongside the vinyl platter.
+  - Widened the Central Mixer in `Mixer.tsx` to `w-[260px] sm:w-[290px] xl:w-[330px] min-w-[240px] max-w-[350px]`, giving channel EQ knobs, gains, VU meters, and the Magvel crossfader a substantial presence matching club-standard Pioneer DJM and Algoriddim djay Pro mixers.
+  - Ensured all panels (Waveforms, Performance Pads, Transport, Stems, Platters, Mixer) utilize their space edge-to-edge without crowding or empty dead zones.
+
+---
+
 ## [v1.8.1] - 2026-10-01
 
 ### Fixed

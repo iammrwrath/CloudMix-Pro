@@ -45,7 +45,7 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-between bg-dj-surface/90 rounded-xl p-1 sm:p-1.5 border border-dj-border shadow-[0_4px_16px_rgba(0,0,0,0.6)] w-20 sm:w-24 xl:w-28 h-full max-h-full min-h-0 shrink-0 overflow-hidden">
+    <div className="flex flex-col items-center justify-between bg-dj-surface/90 rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-[0_4px_16px_rgba(0,0,0,0.6)] w-22 sm:w-26 xl:w-30 h-full max-h-full min-h-0 shrink-0 overflow-hidden">
       {/* Top Controls: Key Lock & Range */}
       {/* Pitch Fader Header: Key Lock & Range */}
       <div className="flex items-center justify-between w-full mb-0.5 px-0.5 shrink-0">

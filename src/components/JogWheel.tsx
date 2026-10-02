@@ -141,7 +141,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const liveRpm = (33.33 * playbackRate).toFixed(1);
 
   return (
-    <div className="relative flex items-center justify-center p-0.5 select-none group w-full h-full max-w-full max-h-full aspect-square mx-auto min-h-0 min-w-0">
+    <div className="relative flex items-center justify-center p-0.5 select-none group w-full h-full max-w-[210px] sm:max-w-[240px] md:max-w-[260px] xl:max-w-[280px] max-h-[210px] sm:max-h-[240px] md:max-h-[260px] xl:max-h-[280px] aspect-square mx-auto min-h-0 min-w-0">
       {/* Ambient Platter Glow */}
       <div
         className="absolute inset-2 rounded-full opacity-20 blur-xl pointer-events-none transition-opacity duration-300 group-hover:opacity-40"
