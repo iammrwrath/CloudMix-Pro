@@ -878,6 +878,9 @@ export const App: React.FC = () => {
 
   const handleScratchStart = (deckId: DeckId) => {
     audioEngine.startScratch(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.setVolume(deckId, 0);
+    }
   };
 
   const handleScratch = (deckId: DeckId, deltaSec: number) => {
@@ -889,6 +892,84 @@ export const App: React.FC = () => {
 
   const handleScratchEnd = (deckId: DeckId) => {
     audioEngine.endScratch(deckId);
+    const resumePos = audioEngine.getCurrentTime(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.seek(deckId, resumePos);
+      const targetVol = deckId === 'A' ? deckA.volume : deckB.volume;
+      youtubeDeckBridge.setVolume(deckId, targetVol * mixer.masterVolume);
+    }
+  };
+
+  // 1-Tap Acapella Isolation (Strict 100% Vocals, 0% Instruments)
+  const handleIsolateAcapella = (deckId: DeckId) => {
+    const isAcapella = audioEngine.isolateAcapella(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.isolateAcapella(deckId);
+    }
+    const setter = deckId === 'A' ? setDeckA : setDeckB;
+    setter((p) => ({
+      ...p,
+      stems: {
+        ...p.stems,
+        vocalsSolo: isAcapella,
+        vocalsMuted: false,
+        harmonicsSolo: false,
+        bassSolo: false,
+        drumsSolo: false,
+        drumsMuted: isAcapella,
+        bassMuted: isAcapella,
+        harmonicsMuted: isAcapella,
+      },
+    }));
+  };
+
+  // 1-Tap Instrumental Isolation (Strict 100% Instruments, 0% Vocals)
+  const handleIsolateInstrumental = (deckId: DeckId) => {
+    const isInst = audioEngine.isolateInstrumental(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.isolateInstrumental(deckId);
+    }
+    const setter = deckId === 'A' ? setDeckA : setDeckB;
+    setter((p) => ({
+      ...p,
+      stems: {
+        ...p.stems,
+        vocalsSolo: false,
+        vocalsMuted: isInst,
+        harmonicsSolo: false,
+        bassSolo: false,
+        drumsSolo: false,
+        drumsMuted: false,
+        bassMuted: false,
+        harmonicsMuted: false,
+      },
+    }));
+  };
+
+  // Reset Stems to Full Mix
+  const handleResetStems = (deckId: DeckId) => {
+    audioEngine.resetStems(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.resetStems(deckId);
+    }
+    const setter = deckId === 'A' ? setDeckA : setDeckB;
+    setter((p) => ({
+      ...p,
+      stems: {
+        vocals: 1.0,
+        harmonics: 1.0,
+        bass: 1.0,
+        drums: 1.0,
+        vocalsMuted: false,
+        harmonicsMuted: false,
+        bassMuted: false,
+        drumsMuted: false,
+        vocalsSolo: false,
+        harmonicsSolo: false,
+        bassSolo: false,
+        drumsSolo: false,
+      },
+    }));
   };
 
   // Hot Cues
@@ -1420,6 +1501,9 @@ export const App: React.FC = () => {
               onStemGainChange={(stem, val) => handleStemGainChange('A', stem, val)}
               onStemMuteToggle={(stem) => handleStemMuteToggle('A', stem)}
               onStemSoloToggle={(stem) => handleStemSoloToggle('A', stem)}
+              onIsolateAcapella={() => handleIsolateAcapella('A')}
+              onIsolateInstrumental={() => handleIsolateInstrumental('A')}
+              onResetStems={() => handleResetStems('A')}
               onKeyShift={(st) => handleKeyShift('A', st)}
               onKeySync={() => handleKeySync('A')}
               onToggleSlip={() => handleToggleSlip('A')}
@@ -1482,6 +1566,9 @@ export const App: React.FC = () => {
               onStemGainChange={(stem, val) => handleStemGainChange('B', stem, val)}
               onStemMuteToggle={(stem) => handleStemMuteToggle('B', stem)}
               onStemSoloToggle={(stem) => handleStemSoloToggle('B', stem)}
+              onIsolateAcapella={() => handleIsolateAcapella('B')}
+              onIsolateInstrumental={() => handleIsolateInstrumental('B')}
+              onResetStems={() => handleResetStems('B')}
               onKeyShift={(st) => handleKeyShift('B', st)}
               onKeySync={() => handleKeySync('B')}
               onToggleSlip={() => handleToggleSlip('B')}

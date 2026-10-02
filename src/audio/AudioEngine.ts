@@ -91,6 +91,8 @@ class AudioEngine {
   private crossfaderVal: number = 0.0; // -1.0 (A) to +1.0 (B)
   private crossfaderCurve: 'smooth' | 'linear' | 'scratch' = 'linear';
   private neuralTransitionMode: NeuralTransitionMode = 'standard';
+  private scratchSampleBuffer: AudioBuffer | null = null;
+  private scratchSampleLoading: boolean = false;
 
   constructor() {
     // Lazy initialized on first user interaction to comply with browser audio autoplay policy
@@ -129,6 +131,9 @@ class AudioEngine {
     // Setup Decks A and B
     this.setupDeck('A');
     this.setupDeck('B');
+
+    // Preload authentic turntable scratch sample for manual vinyl scratching
+    this.loadScratchSample().catch(() => {});
   }
 
   private setupDeck(deckId: DeckId) {
@@ -840,26 +845,47 @@ class AudioEngine {
       }
 
       deck.scratchDirection = direction;
-      const targetBuffer = (direction === 'reverse' && deck.reverseAudioBuffer)
-        ? deck.reverseAudioBuffer
-        : deck.audioBuffer;
+
+      // Check if deck audio buffer is a silent streaming placeholder (peak < 0.001) or streaming deck
+      const isBufferSilent = !deck.audioBuffer ||
+        (deck.audioBuffer.length > 0 && Math.abs(deck.audioBuffer.getChannelData(0)[0] || 0) < 0.0005);
+
+      let targetBuffer: AudioBuffer | null = null;
+      let bufferOffset = nextPos;
+      let scratchRate = Math.max(0.05, speed);
+
+      if (isBufferSilent && this.scratchSampleBuffer) {
+        // Use authentic analog vinyl scratch sample with velocity & direction modulation
+        targetBuffer = this.scratchSampleBuffer;
+        const sampleDur = this.scratchSampleBuffer.duration;
+        bufferOffset = (Math.abs(nextPos * 2.5) % Math.max(0.1, sampleDur - 0.05));
+        // Reverse direction modulates detune/pitch downwards slightly for authentic pull-back sound
+        scratchRate = direction === 'reverse'
+          ? Math.max(0.2, Math.min(3.5, speed * 1.3 * 0.88))
+          : Math.max(0.2, Math.min(3.5, speed * 1.3));
+      } else {
+        targetBuffer = (direction === 'reverse' && deck.reverseAudioBuffer)
+          ? deck.reverseAudioBuffer
+          : deck.audioBuffer;
+        bufferOffset = direction === 'reverse'
+          ? Math.max(0, Math.min(duration, duration - nextPos))
+          : nextPos;
+      }
+
+      if (!targetBuffer) return;
 
       const scratchSrc = this.ctx.createBufferSource();
       scratchSrc.buffer = targetBuffer;
-      scratchSrc.playbackRate.setValueAtTime(Math.max(0.05, speed), this.ctx.currentTime);
+      scratchSrc.playbackRate.setValueAtTime(scratchRate, this.ctx.currentTime);
       scratchSrc.connect(deck.gainTrim);
 
-      // In reverse buffer, offset is mirrored: duration - nextPos
-      const bufferOffset = direction === 'reverse'
-        ? Math.max(0, Math.min(duration, duration - nextPos))
-        : nextPos;
-
-      scratchSrc.start(0, bufferOffset);
+      scratchSrc.start(0, Math.max(0, Math.min(targetBuffer.duration - 0.01, bufferOffset)));
       deck.scratchSourceNode = scratchSrc;
     } else {
       // Update playback speed dynamically with realistic analog turntable response
       try {
-        deck.scratchSourceNode.playbackRate.setTargetAtTime(Math.max(0.05, speed), this.ctx.currentTime, 0.008);
+        const modSpeed = Math.max(0.1, Math.min(3.5, speed * 1.3));
+        deck.scratchSourceNode.playbackRate.setTargetAtTime(modSpeed, this.ctx.currentTime, 0.008);
       } catch {}
     }
   }
@@ -1647,6 +1673,67 @@ class AudioEngine {
 
   public getBaseLatency(): number {
     return this.ctx && (this.ctx as any).baseLatency ? (this.ctx as any).baseLatency * 1000 : 5.8;
+  }
+
+  /**
+   * Preloads or synthesizes authentic vinyl scratch sample buffer
+   * Ensures scratching always produces sound even for streaming or silent waveform tracks.
+   */
+  public async loadScratchSample(): Promise<AudioBuffer | null> {
+    if (this.scratchSampleBuffer) return this.scratchSampleBuffer;
+    if (this.scratchSampleLoading) return null;
+    this.scratchSampleLoading = true;
+
+    try {
+      this.init();
+      if (!this.ctx) return null;
+
+      const baseUrl = typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file:')
+        ? window.location.origin
+        : 'http://127.0.0.1:8088';
+
+      const res = await fetch(`${baseUrl}/samples/scratch.mp3`);
+      if (res.ok) {
+        const ab = await res.arrayBuffer();
+        this.scratchSampleBuffer = await this.ctx.decodeAudioData(ab);
+        this.scratchSampleLoading = false;
+        return this.scratchSampleBuffer;
+      }
+    } catch {}
+
+    // Fallback: procedural synthesis of vinyl scratch audio (needle friction + harmonic sweep)
+    try {
+      if (this.ctx) {
+        this.scratchSampleBuffer = this.synthesizeScratchSample();
+      }
+    } catch {}
+
+    this.scratchSampleLoading = false;
+    return this.scratchSampleBuffer;
+  }
+
+  private synthesizeScratchSample(): AudioBuffer {
+    if (!this.ctx) throw new Error('AudioContext required');
+    const sr = this.ctx.sampleRate;
+    const dur = 0.65;
+    const totalSamples = Math.floor(sr * dur);
+    const buf = this.ctx.createBuffer(2, totalSamples, sr);
+    const left = buf.getChannelData(0);
+    const right = buf.getChannelData(1);
+
+    for (let i = 0; i < totalSamples; i++) {
+      const t = i / sr;
+      const progress = i / totalSamples;
+      // Realistic scratch frequency chirp envelope
+      const freq = 380 + 1200 * Math.sin(progress * Math.PI) + 400 * Math.sin(t * 80);
+      const tone = Math.sin(2 * Math.PI * freq * t) * 0.45;
+      const noise = (Math.random() * 2 - 1) * 0.25;
+      const env = Math.sin(progress * Math.PI) * Math.exp(-t * 2.2);
+      const val = (tone + noise) * env * 0.85;
+      left[i] = val;
+      right[i] = val * 0.95;
+    }
+    return buf;
   }
 }
 

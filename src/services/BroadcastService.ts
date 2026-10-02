@@ -9,6 +9,39 @@ export interface OverlayConfig {
   showVideo: boolean;
 }
 
+export interface WidgetTransform {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  scale: number;
+  visible: boolean;
+}
+
+export interface CanvasConfig {
+  width: number;  // Default 1920 (1080p stream standard)
+  height: number; // Default 1080
+  theme: 'default' | 'cyberpunk' | 'neon' | 'minimal' | 'retro';
+  widgets: {
+    currentTrack: WidgetTransform;
+    nextTrack: WidgetTransform;
+    lyrics: WidgetTransform;
+    video: WidgetTransform;
+  };
+}
+
+export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
+  width: 1920,
+  height: 1080,
+  theme: 'default',
+  widgets: {
+    currentTrack: { x: 40, y: 40, scale: 1.0, visible: true },
+    nextTrack: { x: 40, y: 190, scale: 1.0, visible: true },
+    lyrics: { x: 40, y: 260, scale: 1.0, visible: true },
+    video: { x: 40, y: 340, width: 480, height: 270, scale: 1.0, visible: true },
+  },
+};
+
 export interface NowPlayingState {
   activeDeck: 'A' | 'B' | null;
   trackA: TrackMetadata | null;
@@ -20,6 +53,7 @@ export interface NowPlayingState {
   isPlayingB: boolean;
   currentLyrics: LyricsLine | null;
   overlayConfig?: OverlayConfig;
+  canvasConfig?: CanvasConfig;
   youtubeVideoId?: string | null;
 }
 
@@ -41,6 +75,7 @@ export class BroadcastService {
       showLyrics: true,
       showVideo: true,
     },
+    canvasConfig: DEFAULT_CANVAS_CONFIG,
     youtubeVideoId: null,
   };
 
@@ -130,12 +165,13 @@ export class BroadcastService {
     const isPlaying = activeDeck === 'B' ? this.currentState.isPlayingB : this.currentState.isPlayingA;
     const nextTrack = this.currentState.nextTrack;
     const overlayConfig = this.currentState.overlayConfig;
+    const canvasConfig = this.currentState.canvasConfig || DEFAULT_CANVAS_CONFIG;
     const lyrics = this.currentState.currentLyrics;
     const activeVid = this.currentState.youtubeVideoId;
 
     if (activeTrack) {
       // Debounce IPC calls so we don't bombard Electron with repetitive payload
-      const sig = `${activeTrack.id}-${activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${activeVid}-${JSON.stringify(overlayConfig)}`;
+      const sig = `${activeTrack.id}-${activeDeck}-${isPlaying}-${elapsedSec}-${nextTrack?.id}-${lyrics?.text}-${activeVid}-${JSON.stringify(overlayConfig)}-${JSON.stringify(canvasConfig)}`;
       if (sig === this.lastBroadcastSig) return;
       this.lastBroadcastSig = sig;
 
@@ -177,6 +213,7 @@ export class BroadcastService {
             translation: lyrics.translation || '',
           } : null,
           overlayConfig,
+          canvasConfig,
           youtubeVideoId: activeVid,
         });
       }

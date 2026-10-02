@@ -260,6 +260,17 @@ let currentBroadcastState = {
     showLyrics: true,
     showVideo: true,
   },
+  canvasConfig: {
+    width: 1920,
+    height: 1080,
+    theme: 'default',
+    widgets: {
+      currentTrack: { x: 40, y: 40, scale: 1.0, visible: true },
+      nextTrack: { x: 40, y: 190, scale: 1.0, visible: true },
+      lyrics: { x: 40, y: 260, scale: 1.0, visible: true },
+      video: { x: 40, y: 340, width: 480, height: 270, scale: 1.0, visible: true },
+    },
+  },
   youtubeVideoId: null,
   stems: {
     vocalsSolo: false,
@@ -392,19 +403,20 @@ function getObsOverlayHtml() {
       overflow: hidden;
       font-family: 'Outfit', -apple-system, sans-serif;
       color: var(--text);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100vw;
-      height: 100vh;
+      padding: 0;
+      margin: 0;
+      width: 1920px;
+      height: 1080px;
+      position: relative;
     }
 
     .obs-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 660px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
 
     .widget-container {
@@ -417,8 +429,11 @@ function getObsOverlayHtml() {
       border-radius: 20px;
       padding: 14px 20px;
       box-shadow: 0 12px 36px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
-      width: 100%;
-      position: relative;
+      width: 520px;
+      position: absolute;
+      left: 40px;
+      top: 40px;
+      transform-origin: top left;
       overflow: hidden;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
@@ -621,6 +636,11 @@ function getObsOverlayHtml() {
       padding: 8px 14px;
       gap: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      position: absolute;
+      left: 40px;
+      top: 190px;
+      width: 480px;
+      transform-origin: top left;
       animation: fadeIn 0.4s ease;
     }
 
@@ -680,6 +700,11 @@ function getObsOverlayHtml() {
       border-radius: 14px;
       padding: 10px 16px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      position: absolute;
+      left: 40px;
+      top: 260px;
+      width: 480px;
+      transform-origin: top left;
       animation: fadeIn 0.4s ease;
     }
 
@@ -701,9 +726,12 @@ function getObsOverlayHtml() {
 
     /* YouTube Music Video / Visualizer Feed */
     .video-container {
-      position: relative;
-      width: 100%;
-      height: 200px;
+      position: absolute;
+      left: 40px;
+      top: 340px;
+      width: 480px;
+      height: 270px;
+      transform-origin: top left;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -922,6 +950,38 @@ function getObsOverlayHtml() {
         }
       } else {
         videoWidget.style.display = 'none';
+      }
+
+      // 5. Canvas Resolution & Widget Transform Customization
+      if (data.canvasConfig) {
+        const cc = data.canvasConfig;
+        if (cc.width && cc.height) {
+          document.body.style.width = cc.width + 'px';
+          document.body.style.height = cc.height + 'px';
+        }
+        if (cc.theme && theme === 'default') {
+          document.body.setAttribute('data-theme', cc.theme);
+        }
+
+        const applyWidgetTransform = (el, transform) => {
+          if (!el || !transform) return;
+          if (transform.visible === false) {
+            el.style.display = 'none';
+            return;
+          }
+          if (transform.x !== undefined) el.style.left = transform.x + 'px';
+          if (transform.y !== undefined) el.style.top = transform.y + 'px';
+          if (transform.width !== undefined) el.style.width = transform.width + 'px';
+          if (transform.height !== undefined) el.style.height = transform.height + 'px';
+          if (transform.scale !== undefined) el.style.transform = 'scale(' + transform.scale + ')';
+        };
+
+        if (cc.widgets) {
+          if (allowCurrent) applyWidgetTransform(currentTrackWidget, cc.widgets.currentTrack);
+          if (allowNext) applyWidgetTransform(nextTrackWidget, cc.widgets.nextTrack);
+          if (allowLyrics) applyWidgetTransform(lyricsWidget, cc.widgets.lyrics);
+          if (allowVideo) applyWidgetTransform(videoWidget, cc.widgets.video);
+        }
       }
     }
 

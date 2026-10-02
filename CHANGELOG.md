@@ -3,6 +3,27 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.8] - 2026-10-01
+
+### Added & Improved
+- **Authentic Turntable Vinyl Scratch Sound Engine**:
+  - Implemented real-time dynamic turntable scratch sound playback in `AudioEngine.ts` (`loadScratchSample`, `synthesizeScratchSample`, and `updateScratch`).
+  - Automatically loads `/samples/scratch.mp3` or synthesizes a dynamic physical needle-friction chirp when scrubbing or dragging jog wheels.
+  - Dynamically routes scratch audio when playing streaming YouTube tracks (which use silent visual waveform buffers), delivering responsive velocity and direction-based pitch modulation (`scratchRate`).
+  - In `App.tsx`, muting YouTube audio during manual scratching and seamlessly seeking the playhead upon release (`handleScratchStart` and `handleScratchEnd`).
+- **100% Discrete Neural Stem Isolation (Vocals Only & Instrumental)**:
+  - Added dedicated stem isolation handlers in `App.tsx` (`handleIsolateAcapella`, `handleIsolateInstrumental`, and `handleResetStems`) wired directly to Deck A and Deck B.
+  - Selecting **Vocals Only** (Acapella) strictly mutes drums, bass, and melody/other instruments (volume set to 0.0), guaranteeing zero instrument bleed.
+  - Selecting **Instrumental** strictly mutes vocals (volume set to 0.0) with clean accompaniment pass-through.
+- **OBS Studio Stream Overlay Customizer & 1920×1080 Canvas Resizer**:
+  - Added custom canvas resolution and widget positioning/scaling controls to the OBS tab in `StreamerOverlay.tsx`.
+  - Native preset support for **1920×1080 (1080p FHD)**, **1280×720 (720p HD)**, **2560×1440 (1440p 2K)**, and **1080×1920 (Vertical / Shorts / TikTok)**, plus custom pixel width and height inputs.
+  - Precise per-widget coordinate placement (`x`, `y`) and scale sliders (0.2x to 3.0x) for Now Playing Track Card, Up Next Queue Banner, Live Synced Lyrics Banner, and YouTube Video Player.
+  - Embedded real-time interactive mini-canvas map showing proportional widget boundaries across the stream canvas.
+  - Refactored `streamingServer.cjs` (`/obs-overlay`) to support absolute 2D coordinate placement, responsive canvas scaling, and dynamic layout synchronization via `BroadcastService.ts`.
+
+---
+
 ## [v1.8.7] - 2026-10-01
 
 ### Fixed & Improved

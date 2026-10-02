@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
-import { broadcastService, NowPlayingState, OverlayConfig } from '../services/BroadcastService';
+import { broadcastService, NowPlayingState, OverlayConfig, CanvasConfig, DEFAULT_CANVAS_CONFIG } from '../services/BroadcastService';
 import { streamerbotService, StreamerbotConfig, StreamerbotStatus } from '../services/StreamerbotService';
 import { storageCache } from '../services/StorageCacheService';
 import { lyricsService } from '../services/LyricsService';
@@ -53,6 +53,8 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
     showVideo: true,
   });
 
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(DEFAULT_CANVAS_CONFIG);
+
   const [lyricsLines, setLyricsLines] = useState<LyricsLine[]>([]);
 
   // Streamer.bot WebSocket State
@@ -71,6 +73,13 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
       if (saved) {
         setOverlayConfig(saved);
         broadcastService.update({ overlayConfig: saved });
+      }
+    });
+
+    storageCache.getSetting<CanvasConfig>('obs_canvas_config', DEFAULT_CANVAS_CONFIG).then((savedCc) => {
+      if (savedCc) {
+        setCanvasConfig(savedCc);
+        broadcastService.update({ canvasConfig: savedCc });
       }
     });
 
@@ -119,6 +128,42 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
       broadcastService.update({ overlayConfig: next });
       return next;
     });
+  };
+
+  const handleUpdateCanvasResolution = (width: number, height: number) => {
+    setCanvasConfig((prev) => {
+      const next: CanvasConfig = { ...prev, width, height };
+      storageCache.setSetting('obs_canvas_config', next);
+      broadcastService.update({ canvasConfig: next });
+      return next;
+    });
+  };
+
+  const handleUpdateWidgetTransform = (
+    widgetName: keyof CanvasConfig['widgets'],
+    partial: Partial<CanvasConfig['widgets']['currentTrack']>
+  ) => {
+    setCanvasConfig((prev) => {
+      const next: CanvasConfig = {
+        ...prev,
+        widgets: {
+          ...prev.widgets,
+          [widgetName]: {
+            ...prev.widgets[widgetName],
+            ...partial,
+          },
+        },
+      };
+      storageCache.setSetting('obs_canvas_config', next);
+      broadcastService.update({ canvasConfig: next });
+      return next;
+    });
+  };
+
+  const handleResetCanvasLayout = () => {
+    setCanvasConfig(DEFAULT_CANVAS_CONFIG);
+    storageCache.setSetting('obs_canvas_config', DEFAULT_CANVAS_CONFIG);
+    broadcastService.update({ canvasConfig: DEFAULT_CANVAS_CONFIG });
   };
 
   const obsUrl = 'http://127.0.0.1:8088/overlay';
@@ -404,6 +449,188 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                       </span>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Canvas Resolution & Widget Layout Customizer */}
+              <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                  <div>
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                      OBS Canvas Resolution & Widget Placement Customizer
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Configure your stream canvas resolution (defaults to 1920×1080) and precisely place & resize any widget.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleResetCanvasLayout}
+                    className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors font-mono cursor-pointer"
+                  >
+                    Reset Layout (1080p Default)
+                  </button>
+                </div>
+
+                {/* Preset Resolutions */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">
+                    Canvas Resolution Preset:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: '1920 × 1080 (1080p FHD)', w: 1920, h: 1080 },
+                      { label: '1280 × 720 (720p HD)', w: 1280, h: 720 },
+                      { label: '2560 × 1440 (1440p 2K)', w: 2560, h: 1440 },
+                      { label: '1080 × 1920 (Vertical / Shorts)', w: 1080, h: 1920 },
+                    ].map((res) => {
+                      const isActive = canvasConfig.width === res.w && canvasConfig.height === res.h;
+                      return (
+                        <button
+                          key={res.label}
+                          onClick={() => handleUpdateCanvasResolution(res.w, res.h)}
+                          className={`px-3 py-2 rounded-lg text-xs font-mono font-semibold transition-all border text-center cursor-pointer ${
+                            isActive
+                              ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300 shadow-sm shadow-cyan-500/30'
+                              : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {res.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="text-[11px] text-slate-400 font-mono">Custom Dimension:</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={canvasConfig.width}
+                        onChange={(e) => handleUpdateCanvasResolution(Number(e.target.value) || 1920, canvasConfig.height)}
+                        className="w-20 px-2 py-1 text-xs font-mono bg-slate-950 border border-slate-700 rounded text-cyan-300 focus:outline-none focus:border-cyan-400 text-center"
+                        step={10}
+                        min={320}
+                        max={3840}
+                      />
+                      <span className="text-slate-500 text-xs font-mono">×</span>
+                      <input
+                        type="number"
+                        value={canvasConfig.height}
+                        onChange={(e) => handleUpdateCanvasResolution(canvasConfig.width, Number(e.target.value) || 1080)}
+                        className="w-20 px-2 py-1 text-xs font-mono bg-slate-950 border border-slate-700 rounded text-cyan-300 focus:outline-none focus:border-cyan-400 text-center"
+                        step={10}
+                        min={240}
+                        max={2160}
+                      />
+                      <span className="text-[10px] text-slate-500 font-mono">px</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Interactive Scaled Mini Canvas Preview */}
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">
+                      Stream Canvas Layout Map ({canvasConfig.width} × {canvasConfig.height})
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Real-time interactive boundary
+                    </span>
+                  </div>
+                  <div
+                    className="relative w-full rounded-xl bg-slate-950 border border-cyan-900/50 shadow-inner overflow-hidden mx-auto"
+                    style={{
+                      aspectRatio: `${canvasConfig.width} / ${canvasConfig.height}`,
+                      maxHeight: '260px',
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b22_1px,transparent_1px),linear-gradient(to_bottom,#1e293b22_1px,transparent_1px)] bg-[size:12px_12px] pointer-events-none" />
+                    
+                    {/* Widget Representations mapped proportionally */}
+                    {[
+                      { key: 'currentTrack' as const, label: 'Track Card', color: 'bg-cyan-500/20 border-cyan-400 text-cyan-300' },
+                      { key: 'nextTrack' as const, label: 'Up Next', color: 'bg-purple-500/20 border-purple-400 text-purple-300' },
+                      { key: 'lyrics' as const, label: 'Lyrics', color: 'bg-pink-500/20 border-pink-400 text-pink-300' },
+                      { key: 'video' as const, label: 'Video Feed', color: 'bg-emerald-500/20 border-emerald-400 text-emerald-300' },
+                    ].map(({ key, label, color }) => {
+                      const w = canvasConfig.widgets[key];
+                      if (!w || !w.visible) return null;
+                      const leftPercent = ((w.x || 0) / canvasConfig.width) * 100;
+                      const topPercent = ((w.y || 0) / canvasConfig.height) * 100;
+                      const widthPercent = ((w.width || 420) / canvasConfig.width) * 100 * (w.scale || 1);
+                      const heightPercent = ((w.height || 100) / canvasConfig.height) * 100 * (w.scale || 1);
+
+                      return (
+                        <div
+                          key={key}
+                          className={`absolute border rounded flex items-center justify-center font-mono text-[9px] font-bold select-none p-1 transition-all ${color}`}
+                          style={{
+                            left: `${Math.max(0, Math.min(leftPercent, 90))}%`,
+                            top: `${Math.max(0, Math.min(topPercent, 90))}%`,
+                            width: `${Math.max(widthPercent, 12)}%`,
+                            height: `${Math.max(heightPercent, 8)}%`,
+                          }}
+                        >
+                          <span className="truncate">{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Per-Widget Position and Scale Controls */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                  {[
+                    { key: 'currentTrack' as const, name: 'Now Playing Track Card' },
+                    { key: 'nextTrack' as const, name: 'Up Next / Queue Banner' },
+                    { key: 'lyrics' as const, name: 'Live Synced Lyrics Banner' },
+                    { key: 'video' as const, name: 'YouTube Video Player' },
+                  ].map(({ key, name }) => {
+                    const w = canvasConfig.widgets[key];
+                    if (!w) return null;
+                    return (
+                      <div key={key} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-200">{name}</span>
+                          <span className="text-[10px] font-mono text-cyan-400">Scale: {(w.scale || 1.0).toFixed(2)}x</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-mono block">X (px)</label>
+                            <input
+                              type="number"
+                              value={w.x}
+                              onChange={(e) => handleUpdateWidgetTransform(key, { x: Number(e.target.value) || 0 })}
+                              className="w-full px-1.5 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200"
+                              step={10}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-mono block">Y (px)</label>
+                            <input
+                              type="number"
+                              value={w.y}
+                              onChange={(e) => handleUpdateWidgetTransform(key, { y: Number(e.target.value) || 0 })}
+                              className="w-full px-1.5 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200"
+                              step={10}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-mono block">Scale</label>
+                            <input
+                              type="number"
+                              value={w.scale || 1.0}
+                              onChange={(e) => handleUpdateWidgetTransform(key, { scale: Math.max(0.2, Math.min(3.0, Number(e.target.value) || 1.0)) })}
+                              className="w-full px-1.5 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-cyan-300"
+                              step={0.05}
+                              min={0.2}
+                              max={3.0}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
