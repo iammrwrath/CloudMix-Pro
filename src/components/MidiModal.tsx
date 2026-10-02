@@ -12,7 +12,7 @@ const MANUFACTURERS = ['ALL', 'RELOOP', 'PIONEER DJ', 'TRAKTOR', 'NUMARK', 'HERC
 export const MidiModal: React.FC<MidiModalProps> = ({ onClose }) => {
   const [devices, setDevices] = useState<MidiDevice[]>([]);
   const [profiles, setProfiles] = useState<MidiProfile[]>([]);
-  const [activeProfile, setActiveProfile] = useState<MidiProfile>(midiControllerService.getActiveProfile());
+  const [activeProfile, setActiveProfile] = useState<MidiProfile | null>(midiControllerService.getActiveProfile());
   const [selectedManufacturer, setSelectedManufacturer] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLearning, setIsLearning] = useState(false);
@@ -230,7 +230,7 @@ export const MidiModal: React.FC<MidiModalProps> = ({ onClose }) => {
             {/* Profiles Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
               {filteredProfiles.map((p) => {
-                const isSelected = activeProfile.id === p.id;
+                const isSelected = activeProfile?.id === p.id;
 
                 return (
                   <button
@@ -356,10 +356,16 @@ export const MidiModal: React.FC<MidiModalProps> = ({ onClose }) => {
         <div className="p-3 border-t border-dj-border bg-dj-surface/90 flex items-center justify-between">
           <div className="flex items-center space-x-2 text-xs text-slate-400">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>
-              Active Profile:{' '}
-              <strong className="text-white font-mono">{activeProfile.name}</strong> ({activeProfile.mappings.length} mappings)
-            </span>
+            {activeProfile ? (
+              <span>
+                Active Profile:{' '}
+                <strong className="text-white font-mono">{activeProfile.name}</strong> ({activeProfile.mappings.length} mappings)
+              </span>
+            ) : (
+              <span className="text-slate-400 italic">
+                No Controller Connected <span className="text-slate-500">— Standalone mode (No active profile)</span>
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}

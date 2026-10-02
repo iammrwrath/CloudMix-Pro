@@ -3,6 +3,22 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.3] - 2026-10-01
+
+### Added & Improved
+- **Hardware-Driven MIDI Profile Auto-Activation**:
+  - Removed artificial default fallback to Reloop Buddy or any specific profile.
+  - If no DJ controller is connected via USB, no profile is active (`activeProfileId: null`) and CloudMix Pro operates purely in standalone mode.
+  - When a controller is plugged in, WebMIDI hardware auto-detection identifies the exact device name and automatically activates the matching profile and mappings instantly.
+  - The MIDI Mapping Hub modal footer and profile cards now clearly reflect when no controller is active vs. when hardware is connected.
+- **Autonomous Error Detection & Self-Healing Pipeline**:
+  - Integrated `AutoErrorHealingService`: captures unhandled window exceptions, promise rejections, audio buffer hiccups, YouTube bridge postMessage disconnects, and MIDI sysex glitches in real-time.
+  - Automatically diagnoses errors and executes instant self-healing workarounds (e.g. WebAudio context recovery, YouTube bridge re-connection, MIDI buffer re-initialization).
+  - Automatically bundles error message, stack trace, app version, and state context, and posts an autonomous GitHub issue to `iammrwrath/CloudMix-Pro` via the desktop IPC pipeline.
+  - Proactively triggers `updateService.checkForUpdates()` upon detecting errors to immediately check for and apply incoming AI patch updates.
+
+---
+
 ## [v1.8.2] - 2026-10-01
 
 ### Changed & Improved

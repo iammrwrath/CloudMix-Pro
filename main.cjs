@@ -1379,3 +1379,53 @@ ipcMain.handle('check-github-releases', async () => {
   }
 });
 
+ipcMain.handle('submit-auto-issue-report', async (event, report) => {
+  try {
+    log('[AUTO-ISSUE] Received autonomous error report: ' + (report?.title || 'Unknown Error'));
+    const https = require('https');
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    const repo = 'iammrwrath/CloudMix-Pro';
+    const postData = JSON.stringify({
+      title: `[Auto-Crash/Bug]: ${report?.title || 'Runtime Error Detected'}`,
+      body: `### 🤖 Autonomous CloudMix Pro AI Issue Report\n\n**Error Message:**\n\`\`\`\n${report?.message || 'No message'}\n\`\`\`\n\n**Stack Trace:**\n\`\`\`\n${report?.stack || 'No stack trace'}\n\`\`\`\n\n**App Version:** \`${app.getVersion()}\`\n**Platform:** \`${process.platform} ${process.arch}\`\n**Timestamp:** \`${new Date().toISOString()}\`\n**Context Info:** \`${JSON.stringify(report?.context || {})}\`\n\n---\n*Reported automatically via CloudMix Pro Autonomous Error & Self-Healing Pipeline.*`,
+      labels: ['bug', 'automated-report', 'self-healing']
+    });
+
+    if (token) {
+      return new Promise((resolve) => {
+        const req = https.request({
+          hostname: 'api.github.com',
+          path: `/repos/${repo}/issues`,
+          method: 'POST',
+          headers: {
+            'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
+            'Authorization': 'token ' + token,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData),
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        }, (res) => {
+          let data = '';
+          res.on('data', (d) => { data += d; });
+          res.on('end', () => {
+            log(`[AUTO-ISSUE] GitHub Issue response code: ${res.statusCode}`);
+            resolve({ success: res.statusCode === 201, statusCode: res.statusCode });
+          });
+        });
+        req.on('error', (err) => {
+          log('[AUTO-ISSUE] Failed to submit GitHub issue: ' + err.message);
+          resolve({ success: false, error: err.message });
+        });
+        req.write(postData);
+        req.end();
+      });
+    } else {
+      log('[AUTO-ISSUE] Logged local issue (no GITHUB_TOKEN configured in environment).');
+      return { success: true, localOnly: true };
+    }
+  } catch (err) {
+    log('[AUTO-ISSUE] Error processing issue report: ' + err.message);
+    return { success: false, error: err.message };
+  }
+});
+

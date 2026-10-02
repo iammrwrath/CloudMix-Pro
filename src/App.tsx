@@ -23,6 +23,7 @@ import { mixRecorder } from './audio/MixRecorder';
 import { samplerEngine } from './audio/SamplerEngine';
 import { automixService } from './services/AutomixService';
 import { storageCache } from './services/StorageCacheService';
+import { autoErrorHealingService } from './services/AutoErrorHealingService';
 import { Header } from './components/Header';
 import { Deck } from './components/Deck';
 import { Mixer } from './components/Mixer';

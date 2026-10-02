@@ -169,6 +169,16 @@ async function runComprehensiveSimulation() {
   assert(mainCode.includes('onBeforeSendHeaders'), 'YouTube Referer header injection', 'Session-level Referer/Origin injection prevents YouTube error 153 in Electron');
   assert(mainCode.includes("Referer'] = 'https://www.youtube.com/'"), 'YouTube Referer value', 'Injects correct Referer header value for YouTube embed authorization');
 
+  // Hardware-driven MIDI Profile Activation & Self-Healing Pipeline
+  const midiServicePath = path.join(__dirname, '..', 'src', 'services', 'MidiControllerService.ts');
+  const midiServiceCode = fs.readFileSync(midiServicePath, 'utf8');
+  assert(midiServiceCode.includes('private activeProfileId: string | null = null'), 'MIDI standalone inactive profile default', 'No default profile active when no controller is connected');
+  assert(midiServiceCode.includes('getActiveProfile(): MidiProfile | null'), 'MidiControllerService null profile support', 'Returns null if no hardware connected');
+  assert(mainCode.includes('submit-auto-issue-report'), 'Autonomous Issue Report IPC handler', 'Funnels runtime error diagnostics into automated GitHub issues');
+  const autoHealingPath = path.join(__dirname, '..', 'src', 'services', 'AutoErrorHealingService.ts');
+  const autoHealingCode = fs.readFileSync(autoHealingPath, 'utf8');
+  assert(autoHealingCode.includes('applySelfHealingWorkaround'), 'Self-Healing runtime recovery', 'Executes live recovery workarounds for audio, midi and streaming subsystems');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

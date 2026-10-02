@@ -59,4 +59,5 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     ipcRenderer.on('display-metrics-changed', subscription);
     return () => ipcRenderer.removeListener('display-metrics-changed', subscription);
   },
+  submitAutoIssueReport: (report) => ipcRenderer.invoke('submit-auto-issue-report', report),
 });

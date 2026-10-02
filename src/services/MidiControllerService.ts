@@ -265,7 +265,7 @@ export class MidiControllerService {
   private profileChangeListeners: Set<(profile: MidiProfile) => void> = new Set();
   private isLearning: boolean = false;
   private learningControl: string | null = null;
-  private activeProfileId: string = 'reloop_buddy';
+  private activeProfileId: string | null = null;
 
   constructor() {
     this.initProfileFromStorage();
@@ -273,10 +273,12 @@ export class MidiControllerService {
 
   private async initProfileFromStorage() {
     try {
-      const savedProfileId = await storageCache.getSetting<string>('selected_midi_profile', 'reloop_buddy');
-      this.loadProfile(savedProfileId);
+      const savedProfileId = await storageCache.getSetting<string | null>('selected_midi_profile', null);
+      if (savedProfileId) {
+        this.loadProfile(savedProfileId);
+      }
     } catch {
-      this.loadProfile('reloop_buddy');
+      // If none saved, keep activeProfileId null until hardware connected
     }
   }
 
@@ -305,6 +307,8 @@ export class MidiControllerService {
     this.connectedInputs.clear();
     this.connectedOutputs.clear();
 
+    let matchedAnyDevice = false;
+
     this.midiAccess.inputs.forEach((input: any) => {
       this.connectedInputs.set(input.id, input);
       input.onmidimessage = (msg: any) => this.handleMidiMessage(msg);
@@ -315,15 +319,27 @@ export class MidiControllerService {
         p.deviceMatchNames.some((m) => deviceName.includes(m.toLowerCase()))
       );
 
-      if (matchedProfile && matchedProfile.id !== this.activeProfileId) {
-        console.log(`[MIDI AUTO-DETECT] Controller matched: ${matchedProfile.name} (${input.name})`);
-        this.loadProfile(matchedProfile.id);
+      if (matchedProfile) {
+        matchedAnyDevice = true;
+        if (matchedProfile.id !== this.activeProfileId) {
+          console.log(`[MIDI AUTO-DETECT] Controller matched: ${matchedProfile.name} (${input.name})`);
+          this.loadProfile(matchedProfile.id);
+        }
       }
     });
 
     this.midiAccess.outputs.forEach((output: any) => {
       this.connectedOutputs.set(output.id, output);
     });
+
+    // If no devices connected and no manual profile selected, ensure no profile is forced active
+    if (this.connectedInputs.size === 0 && !matchedAnyDevice) {
+      storageCache.getSetting<string | null>('selected_midi_profile', null).then((saved) => {
+        if (!saved && this.activeProfileId !== null) {
+          this.unloadProfile();
+        }
+      }).catch(() => {});
+    }
   }
 
   public getConnectedDevices(): MidiDevice[] {
@@ -343,12 +359,21 @@ export class MidiControllerService {
     return BUILT_IN_PROFILES;
   }
 
-  public getActiveProfile(): MidiProfile {
-    return BUILT_IN_PROFILES.find((p) => p.id === this.activeProfileId) || BUILT_IN_PROFILES[0];
+  public getActiveProfile(): MidiProfile | null {
+    if (!this.activeProfileId) return null;
+    return BUILT_IN_PROFILES.find((p) => p.id === this.activeProfileId) || null;
+  }
+
+  public unloadProfile() {
+    this.activeProfileId = null;
+    this.mappings.clear();
+    storageCache.setSetting('selected_midi_profile', null).catch(() => {});
+    this.profileChangeListeners.forEach((l) => l(null as any));
   }
 
   public loadProfile(profileId: string) {
-    const target = BUILT_IN_PROFILES.find((p) => p.id === profileId) || BUILT_IN_PROFILES[0];
+    const target = BUILT_IN_PROFILES.find((p) => p.id === profileId);
+    if (!target) return;
     this.activeProfileId = target.id;
     this.mappings.clear();
 
