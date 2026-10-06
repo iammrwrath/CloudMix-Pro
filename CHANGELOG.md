@@ -1,3 +1,7 @@
+## v1.9.8
+- Waveforms: normalize near-silent (streaming placeholder) peaks so they render in all layouts.
+- MIDI: no phantom profile restored without a connected controller.
+
 # Changelog
 
 All notable changes to CloudMix Pro are documented in this file.

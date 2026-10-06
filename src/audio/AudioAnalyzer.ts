@@ -70,6 +70,19 @@ export class AudioAnalyzer {
       highPeaks[p] = Math.min(1.0, maxHigh * 1.8);
     }
 
+    // Near-silent placeholder buffers (streaming decks): normalize so the waveform/beat grid is visible
+    let globalMax = 0;
+    for (let i = 0; i < totalPoints; i++) globalMax = Math.max(globalMax, overviewPeaks[i]);
+    if (globalMax > 0 && globalMax < 0.01) {
+      const gain = 0.85 / globalMax;
+      for (let i = 0; i < totalPoints; i++) {
+        overviewPeaks[i] = Math.min(1, overviewPeaks[i] * gain);
+        lowPeaks[i] = Math.min(1, lowPeaks[i] * gain * 0.9);
+        midPeaks[i] = Math.min(1, midPeaks[i] * gain * 0.6);
+        highPeaks[i] = Math.min(1, highPeaks[i] * gain * 0.4);
+      }
+    }
+
     return {
       overviewPeaks,
       lowPeaks,

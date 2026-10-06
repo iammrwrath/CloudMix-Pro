@@ -272,14 +272,11 @@ export class MidiControllerService {
   }
 
   private async initProfileFromStorage() {
+    // A profile is only active while matching hardware is connected (see scanDevices).
+    // Clear any stale persisted selection so no phantom profile shows as ACTIVE.
     try {
-      const savedProfileId = await storageCache.getSetting<string | null>('selected_midi_profile', null);
-      if (savedProfileId) {
-        this.loadProfile(savedProfileId);
-      }
-    } catch {
-      // If none saved, keep activeProfileId null until hardware connected
-    }
+      await storageCache.setSetting('selected_midi_profile', null);
+    } catch {}
   }
 
   public async init(): Promise<boolean> {
