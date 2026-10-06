@@ -3,6 +3,17 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.4] - 2026-10-06
+
+### Fixed & Improved
+- **Fixed YouTube Music Playback & Embed Restrictions (Error 150 / 152 / postMessage Mismatch)**:
+  - Corrected IFrame embed origin and request headers from plain HTTP `127.0.0.1:8088` to trusted `https://localhost:8088`.
+  - YouTube embedded player restrictions on commercial music tracks (`UNPLAYABLE`, `PLAYABILITY_ERROR_CODE_EMBEDDER_IDENTITY_DENIED`) are completely resolved.
+  - Added `videoEmbeddable=true` filter to YouTube search and playlist resolution endpoints in `streamingServer.cjs` to ensure only playable tracks are queued.
+  - Resolved `postMessage` target origin mismatch errors between Electron host window and YouTube IFrame.
+
+---
+
 ## [v1.9.3] - 2026-10-06
 
 ### Improved

@@ -44,7 +44,7 @@ function resolveYouTubeVideoId(artist, title) {
     ? `${cleanArtist} ${cleanTitle}`
     : cleanTitle;
   const query = `${searchQuery} music video`;
-  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=id&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${YOUTUBE_API_KEY}`;
+  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=id&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&maxResults=1&key=${YOUTUBE_API_KEY}`;
 
   return new Promise((resolve) => {
     https.get(apiUrl, (res) => {
@@ -96,7 +96,7 @@ function searchYouTubeVideos(query) {
   const cleanQ = query.trim();
 
   // 1. Official YouTube Data API v3 Search
-  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(cleanQ + ' music')}&type=video&videoCategoryId=10&maxResults=15&key=${YOUTUBE_API_KEY}`;
+  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(cleanQ + ' music')}&type=video&videoEmbeddable=true&videoCategoryId=10&maxResults=15&key=${YOUTUBE_API_KEY}`;
 
   return new Promise((resolve) => {
     https.get(apiUrl, (res) => {

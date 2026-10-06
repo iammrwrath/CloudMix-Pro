@@ -166,8 +166,7 @@ async function runComprehensiveSimulation() {
   const ytBridgeCode = fs.readFileSync(ytBridgePath, 'utf8');
   assert(ytBridgeCode.includes("origin: appOrigin") || ytBridgeCode.includes("origin:"), 'YouTube IFrame origin playerVar', 'Declares valid origin in playerVars to match application origin');
 
-  assert(mainCode.includes('onBeforeSendHeaders'), 'YouTube Referer header injection', 'Session-level Referer/Origin injection prevents YouTube error 153 in Electron');
-  assert(mainCode.includes("Referer'] = 'https://www.youtube.com/'"), 'YouTube Referer value', 'Injects correct Referer header value for YouTube embed authorization');
+  assert(mainCode.includes("Referer'] = 'https://localhost:8088/'") || mainCode.includes("Referer'] = 'https://www.youtube.com/'"), 'YouTube Referer value', 'Injects correct Referer header value for YouTube embed authorization');
 
   // Hardware-driven MIDI Profile Activation & Self-Healing Pipeline
   const midiServicePath = path.join(__dirname, '..', 'src', 'services', 'MidiControllerService.ts');

@@ -258,12 +258,8 @@ if (!gotTheLock) {
         { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
         (details, callback) => {
           const headers = Object.assign({}, details.requestHeaders);
-          if (!headers['Referer'] && !headers['referer']) {
-            headers['Referer'] = 'https://www.youtube.com/';
-          }
-          if (!headers['Origin'] && !headers['origin']) {
-            headers['Origin'] = 'https://www.youtube.com';
-          }
+          headers['Referer'] = 'https://localhost:8088/';
+          headers['Origin'] = 'https://localhost:8088';
           callback({ cancel: false, requestHeaders: headers });
         }
       );

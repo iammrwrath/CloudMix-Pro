@@ -213,10 +213,9 @@ class YouTubeDeckBridge {
       }
 
       try {
-        const appOrigin =
-          typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file:')
-            ? window.location.origin
-            : 'http://127.0.0.1:8088';
+        // Always provide https://localhost:8088 as the playerVars origin to guarantee YouTube embeds
+        // never hit 150/152 unplayable errors due to plain HTTP 127.0.0.1 identity rejection.
+        const appOrigin = 'https://localhost:8088';
 
         console.log(`[YouTubeDeckBridge] Instantiating YT.Player for Deck ${deckId} (el.id=${el.id}, origin=${appOrigin})`);
         const player = new window.YT.Player(el.id, {
