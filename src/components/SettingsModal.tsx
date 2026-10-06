@@ -7,6 +7,7 @@ import { youtubeMusicService } from '../services/YouTubeMusicService';
 import { audioEngine } from '../audio/AudioEngine';
 import { StreamingQuality, STREAMING_QUALITY_PRESETS } from '../types/dj';
 import { youtubeDeckBridge } from '../services/YouTubeDeckBridge';
+import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -98,6 +99,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [stemModelQuality, setStemModelQuality] = useState<'high' | 'ultra'>('high');
   const [gpuAcceleration, setGpuAcceleration] = useState(true);
   const [cacheCleared, setCacheCleared] = useState(false);
+
+  // MIDI Devices State
+  const [connectedMidiDevices, setConnectedMidiDevices] = useState<MidiDevice[]>([]);
 
   // Sync prop changes if changed externally
   useEffect(() => {
@@ -191,9 +195,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
           if (ver) setAppVersion(`v${ver}`);
         } catch {}
       }
+
+      // Load connected MIDI devices
+      try {
+        setConnectedMidiDevices(midiControllerService.getConnectedDevices());
+      } catch {}
     };
     loadSettings();
   }, []);
+
+  // Update connected MIDI devices when MIDI tab is active
+  useEffect(() => {
+    if (activeTab === 'midi') {
+      setConnectedMidiDevices(midiControllerService.getConnectedDevices());
+      const interval = setInterval(() => {
+        setConnectedMidiDevices(midiControllerService.getConnectedDevices());
+      }, 1500);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   const handleSave = async () => {
     // 0. Persist streaming audio quality & sync with deck bridge
@@ -1151,13 +1171,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       <span className="text-[11px] font-mono text-emerald-400">● WebMIDI API Ready</span>
                     </div>
 
-                    <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white font-mono">Pioneer DDJ-400 / FLX4</span>
-                        <span className="text-[10px] bg-cyan-900/60 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded font-mono font-bold">Auto-Mapped</span>
+                    {connectedMidiDevices.length > 0 ? (
+                      connectedMidiDevices.map((dev) => (
+                        <div key={dev.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-white font-mono">{dev.name}</span>
+                            <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-mono font-bold">Connected</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400">{dev.manufacturer || 'MIDI Controller'} • Platters, pitch faders, channel strips & performance controls active.</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 bg-slate-900/60 border border-slate-800/80 rounded-xl text-center space-y-1">
+                        <p className="text-xs font-mono font-bold text-slate-300">No MIDI Controllers Connected</p>
+                        <p className="text-[11px] text-slate-500">Plug in a USB MIDI controller (Pioneer, Reloop, Numark, Denon, Hercules) to enable hardware control.</p>
                       </div>
-                      <p className="text-[11px] text-slate-400">Platters, pitch faders, channel strips, crossfader, and 8 performance pads pre-configured.</p>
-                    </div>
+                    )}
 
                     <div className="border-t border-slate-800 pt-3 flex items-center justify-between">
                       <div>

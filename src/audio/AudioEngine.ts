@@ -804,7 +804,12 @@ class AudioEngine {
 
   public updateScratch(deckId: DeckId, deltaSec: number) {
     const deck = this.decks.get(deckId);
-    if (!deck || !deck.audioBuffer || !this.ctx) return;
+    if (!deck || !this.ctx) return;
+
+    // Ensure authentic vinyl scratch sample is available
+    if (!this.scratchSampleBuffer && !this.scratchSampleLoading) {
+      this.loadScratchSample().catch(() => {});
+    }
 
     const now = performance.now();
     const dt = Math.max(0.005, (now - (deck.scratchLastTimestamp || now)) / 1000);
@@ -816,7 +821,7 @@ class AudioEngine {
     const speed = Math.abs(clampedRate);
 
     // Keep playhead synchronized
-    const duration = deck.audioBuffer.duration;
+    const duration = deck.audioBuffer?.duration || 210;
     const currentPos = deck.scratchPlaybackPos ?? deck.pauseOffset;
     const nextPos = Math.max(0, Math.min(duration, currentPos + deltaSec));
     deck.scratchPlaybackPos = nextPos;
@@ -876,6 +881,9 @@ class AudioEngine {
 
       const scratchSrc = this.ctx.createBufferSource();
       scratchSrc.buffer = targetBuffer;
+      scratchSrc.loop = true;
+      scratchSrc.loopStart = 0;
+      scratchSrc.loopEnd = Math.max(0.1, targetBuffer.duration);
       scratchSrc.playbackRate.setValueAtTime(scratchRate, this.ctx.currentTime);
       scratchSrc.connect(deck.gainTrim);
 

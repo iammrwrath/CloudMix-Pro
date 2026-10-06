@@ -3,6 +3,23 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.2] - 2026-10-06
+
+### Fixed & Improved
+- **Dynamic MIDI Controller Device Detection & Display**:
+  - Fixed Settings Modal -> "MIDI Devices" tab which previously hardcoded a static Pioneer DDJ-400 card.
+  - Connected MIDI controllers are now queried in real-time via `midiControllerService.getConnectedDevices()`.
+  - When no controller is plugged in, the UI displays "No MIDI Controllers Connected" with clear instructions instead of falsely showing a Pioneer DDJ-400 as active.
+- **Persistent YouTube Music Playlists Across Patches**:
+  - Implemented persistent caching for user OAuth playlists (`yt_cached_oauth_playlists` in `StorageCacheService`).
+  - When token lapses or returns 401 across updates, cached user playlists are automatically retained and rendered seamlessly without requiring disconnecting and reconnecting.
+- **Authentic Vinyl Scratch Sound & Quantized Slip Mode**:
+  - Enhanced jog wheel scratch engine to ensure tactile scratch sounds fire reliably with realistic pitch modulation and looping audio buffer.
+  - Automatically resumes Web Audio context and preloads scratch samples on platter touch.
+  - Implemented Slip Mode support during scratching: when Slip Mode is enabled, the virtual background playhead continues advancing in real time, and upon releasing the jog wheel, the track seamlessly catches up to the live playhead position.
+
+---
+
 ## [v1.9.1] - 2026-10-02
 
 ### Fixed & Improved

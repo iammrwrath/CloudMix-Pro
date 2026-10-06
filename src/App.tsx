@@ -218,6 +218,10 @@ export const App: React.FC = () => {
   const [uiZoom, setUiZoom] = useState<number>(1.0);
   const lastAppliedZoomRef = useRef<number>(1.0);
   const resizeDebounceTimerRef = useRef<any>(null);
+  const slipScratchRef = useRef<{
+    A?: { startTime: number; startPos: number; isPlaying: boolean; rate: number };
+    B?: { startTime: number; startPos: number; isPlaying: boolean; rate: number };
+  }>({});
 
   const applyZoom = (factor: number) => {
     lastAppliedZoomRef.current = factor;
@@ -886,6 +890,22 @@ export const App: React.FC = () => {
   };
 
   const handleScratchStart = (deckId: DeckId) => {
+    // Always guarantee Web Audio context is running so tactile scratch is instantly audible
+    audioEngine.resumeContext().catch(() => {});
+    audioEngine.loadScratchSample().catch(() => {});
+
+    const deckState = deckId === 'A' ? deckA : deckB;
+    if (deckState.slipMode) {
+      slipScratchRef.current[deckId] = {
+        startTime: performance.now(),
+        startPos: deckState.currentTime,
+        isPlaying: deckState.isPlaying,
+        rate: deckState.playbackRate || 1.0,
+      };
+    } else {
+      slipScratchRef.current[deckId] = undefined;
+    }
+
     audioEngine.startScratch(deckId);
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       youtubeDeckBridge.setVolume(deckId, 0);
@@ -901,9 +921,24 @@ export const App: React.FC = () => {
 
   const handleScratchEnd = (deckId: DeckId) => {
     audioEngine.endScratch(deckId);
-    const resumePos = audioEngine.getCurrentTime(deckId);
+
+    const slip = slipScratchRef.current[deckId];
+    slipScratchRef.current[deckId] = undefined;
+
+    let targetPos = audioEngine.getCurrentTime(deckId);
+    if (slip && slip.isPlaying) {
+      // Slip Mode: playhead continues forward in real-time background
+      const elapsedSec = ((performance.now() - slip.startTime) / 1000) * slip.rate;
+      const deckState = deckId === 'A' ? deckA : deckB;
+      const maxDur = deckState.duration || 210;
+      targetPos = Math.min(maxDur, slip.startPos + elapsedSec);
+      audioEngine.seekDeck(deckId, targetPos);
+      if (deckId === 'A') setDeckA((prev) => ({ ...prev, currentTime: targetPos }));
+      else setDeckB((prev) => ({ ...prev, currentTime: targetPos }));
+    }
+
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
-      youtubeDeckBridge.seek(deckId, resumePos);
+      youtubeDeckBridge.seek(deckId, targetPos);
       const targetVol = deckId === 'A' ? deckA.volume : deckB.volume;
       youtubeDeckBridge.setVolume(deckId, targetVol * mixer.masterVolume);
     }

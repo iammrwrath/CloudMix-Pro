@@ -287,8 +287,9 @@ class YouTubeMusicService {
 
     const curatedOnly = this.curatedPlaylists.map((c) => c.playlist);
     const savedPlaylists: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
+    const cachedOauthPlaylists: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_cached_oauth_playlists', [])) || [];
 
-    let oauthPlaylists: YouTubePlaylist[] = [];
+    let oauthPlaylists: YouTubePlaylist[] = [...cachedOauthPlaylists];
     if (this._accessToken) {
       try {
         console.log('[YouTube Music] Fetching user playlists with OAuth token...');
@@ -302,9 +303,15 @@ class YouTubeMusicService {
             { headers: { Authorization: `Bearer ${this._accessToken}` } }
           );
           if (chanRes.status === 401) {
-            console.warn('[YouTube Music] OAuth token needs refresh (401). Retaining user profile and credentials across patch.');
-            // Do NOT wipe credentials or log the user out across patches. Retain cached user data.
-            return [...savedPlaylists, ...curatedOnly];
+            console.warn('[YouTube Music] OAuth token needs refresh (401). Retaining user profile and cached playlists across patch.');
+            // Do NOT wipe playlists across patches; return cached playlists + curated
+            const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
+            const seen = new Set<string>();
+            return fallback.filter((p) => {
+              if (seen.has(p.id)) return false;
+              seen.add(p.id);
+              return true;
+            });
           }
           if (chanRes.ok) {
             const chanData = await chanRes.json();
@@ -325,10 +332,14 @@ class YouTubeMusicService {
         );
 
         if (mineRes.status === 401) {
-          console.warn('[YouTube Music] OAuth token expired (401). Retaining user profile and session for seamless reconnection.');
-          // Keep user signed in visually and retain cached email/playlists across patches
-          // Do not wipe credentials unless user explicitly clicks "Log Out" / signOut()
-          return [...savedPlaylists, ...curatedOnly];
+          console.warn('[YouTube Music] OAuth token expired (401). Retaining cached playlists for seamless reconnection.');
+          const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
+          const seen = new Set<string>();
+          return fallback.filter((p) => {
+            if (seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+          });
         }
 
         const itemsMap = new Map<string, any>();
@@ -375,6 +386,10 @@ class YouTubeMusicService {
             description: 'Favorite tracks and liked songs from your Google account',
             thumbnailUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80',
           });
+        }
+
+        if (oauthPlaylists.length > 0) {
+          await storageCache.setSetting('yt_cached_oauth_playlists', oauthPlaylists);
         }
 
         console.log(`[YouTube Music] Successfully retrieved ${oauthPlaylists.length} user playlists.`);
