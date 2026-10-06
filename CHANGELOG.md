@@ -3,6 +3,16 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.5] - 2026-10-06
+
+### Fixed & Improved
+- **Robust Lyrics Resolution (LRCLIB API 404 / 503 Auto-Recovery)**:
+  - Automatically sanitizes YouTube channel artifacts and topic suffixes (e.g., `Mavado - Topic` -> `Mavado`, `VEVO`, `Official`) before querying the lyrics database.
+  - Implemented automatic fallback retry without duration constraints if the exact duration-matched query returns a 404 (due to track length variances between streaming uploads and album releases).
+  - Maintained smooth fallback to fuzzy text search to guarantee lyrics retrieval without console HTTP 404 network errors.
+
+---
+
 ## [v1.9.4] - 2026-10-06
 
 ### Fixed & Improved
