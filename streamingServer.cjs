@@ -1107,6 +1107,75 @@ function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
       return;
     }
 
+    // 2d. REST Synced Lyrics Proxy API (Port 8088) - gracefully searches lrclib with zero console 404 noise
+    if (pathname === '/api/lyrics') {
+      const artist = parsedUrl.searchParams.get('artist') || '';
+      const track = parsedUrl.searchParams.get('track') || '';
+      const duration = parsedUrl.searchParams.get('duration') || '';
+
+      const fetchLrcLib = async () => {
+        const uAgent = 'CloudMixPro/1.9.7 (https://github.com/iammrwrath/CloudMix-Pro)';
+        const cleanA = artist.replace(/\s*-\s*Topic$/i, '').replace(/\s*Topic$/i, '').trim();
+        const cleanT = track.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+
+        // 1. Exact match with duration
+        let getUrl = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanA)}&track_name=${encodeURIComponent(cleanT)}`;
+        if (duration) getUrl += `&duration=${Math.round(parseFloat(duration))}`;
+        
+        try {
+          const r1 = await fetch(getUrl, { headers: { 'User-Agent': uAgent } });
+          if (r1.ok) {
+            const d1 = await r1.json();
+            if (d1 && d1.syncedLyrics) return d1;
+          }
+        } catch {}
+
+        // 2. Exact match without duration
+        if (duration) {
+          try {
+            const r2 = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanA)}&track_name=${encodeURIComponent(cleanT)}`, {
+              headers: { 'User-Agent': uAgent },
+            });
+            if (r2.ok) {
+              const d2 = await r2.json();
+              if (d2 && d2.syncedLyrics) return d2;
+            }
+          } catch {}
+        }
+
+        // 3. Fallback search query
+        try {
+          const r3 = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanA} ${cleanT}`)}`, {
+            headers: { 'User-Agent': uAgent },
+          });
+          if (r3.ok) {
+            const list = await r3.json();
+            if (Array.isArray(list) && list.length > 0) {
+              const match = list.find((item) => item.syncedLyrics) || list[0];
+              if (match) return match;
+            }
+          }
+        } catch {}
+
+        return null;
+      };
+
+      fetchLrcLib().then((lyricsData) => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ found: !!lyricsData, data: lyricsData }));
+      }).catch(() => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ found: false, data: null }));
+      });
+      return;
+    }
+
     // 3. Streamer.bot Inbound Song Request (e.g. !request <song> from Twitch/YouTube chat)
     if (pathname === '/api/streamerbot/request' && req.method === 'POST') {
       let body = '';

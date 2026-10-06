@@ -3,6 +3,24 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.7] - 2026-10-06
+
+### Fixed & Improved
+- **Lossless Master Recording in Standard WAV Format (.wav)**:
+  - Replaced `.webm` container export in `MixRecorder` with an industry-standard, uncompressed 16-bit stereo PCM WAV encoder.
+  - Generates universal `.wav` recordings directly playable across any DAW, media player, mobile device, or operating system without transcoding or playback compatibility issues.
+- **Production-Grade Vinyl Jog Wheel Scratch DSP Model**:
+  - Upgraded turntable jog scratch sound synthesis in `AudioEngine` to an advanced physical acoustic model.
+  - Implemented multi-layered stylus and vinyl mechanics: tonearm groove friction rumble (filtered pink noise model), resonant stylus drag chirp formant sweeps (280Hz - 2400Hz), needle drop transient impulses, and analog soft-saturation.
+  - Responsive bi-directional scrubbing with turntable inertia and pitch tracking for authentic tactile turntablism.
+- **Zero-Noise Backend Lyrics Proxy & CORS Resiliency**:
+  - Added dedicated `/api/lyrics` proxy on the local broadcast server (`Port 8088`), moving lyrics lookup and fuzzy fallbacks to the backend.
+  - Completely eliminates unhandled browser DevTools 404 network errors for tracks without synchronized lyrics (e.g. niche or instrumental releases).
+- **Aligned YouTube IFrame postMessage Origins**:
+  - Dynamically aligns `playerVars.origin` in `YouTubeDeckBridge` with the host window's origin, eliminating `postMessage` DOMWindow target origin mismatch warnings.
+
+---
+
 ## [v1.9.6] - 2026-10-06
 
 ### Fixed & Improved

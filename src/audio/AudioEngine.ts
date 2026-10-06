@@ -1723,23 +1723,49 @@ class AudioEngine {
   private synthesizeScratchSample(): AudioBuffer {
     if (!this.ctx) throw new Error('AudioContext required');
     const sr = this.ctx.sampleRate;
-    const dur = 0.65;
+    const dur = 1.2;
     const totalSamples = Math.floor(sr * dur);
     const buf = this.ctx.createBuffer(2, totalSamples, sr);
     const left = buf.getChannelData(0);
     const right = buf.getChannelData(1);
 
+    // Multi-layer physical turntable scratch acoustic model:
+    // Layer 1: Tonearm needle friction & vinyl surface groove rumble (filtered pink noise)
+    // Layer 2: Turntable stylus vinyl drag resonance (frequency-swept formant chirp with pitch drop)
+    // Layer 3: Dynamic analog vinyl saturation & tube warmth
+    let pinkB0 = 0, pinkB1 = 0, pinkB2 = 0;
+
     for (let i = 0; i < totalSamples; i++) {
       const t = i / sr;
       const progress = i / totalSamples;
-      // Realistic scratch frequency chirp envelope
-      const freq = 380 + 1200 * Math.sin(progress * Math.PI) + 400 * Math.sin(t * 80);
-      const tone = Math.sin(2 * Math.PI * freq * t) * 0.45;
-      const noise = (Math.random() * 2 - 1) * 0.25;
-      const env = Math.sin(progress * Math.PI) * Math.exp(-t * 2.2);
-      const val = (tone + noise) * env * 0.85;
-      left[i] = val;
-      right[i] = val * 0.95;
+
+      // Realistic DJ scratch gesture velocity curve: fast attack -> sweep -> friction release
+      const velocity = Math.sin(Math.pow(progress, 0.7) * Math.PI);
+
+      // Stylus needle resonant formant sweep (400Hz - 2400Hz) modulated by turntable drag
+      const f1 = 280 + 1950 * Math.sin(progress * Math.PI) + 120 * Math.sin(2 * Math.PI * 45 * t);
+      const f2 = f1 * 1.62; // Harmonic overtone
+      const tone = Math.sin(2 * Math.PI * f1 * t) * 0.42 + Math.sin(2 * Math.PI * f2 * t) * 0.22;
+
+      // Pink noise vinyl groove friction generator (Paul Kellet's algorithm)
+      const white = Math.random() * 2 - 1;
+      pinkB0 = 0.99886 * pinkB0 + white * 0.0555179;
+      pinkB1 = 0.99332 * pinkB1 + white * 0.0750759;
+      pinkB2 = 0.96900 * pinkB2 + white * 0.1538520;
+      const vinylFriction = (pinkB0 + pinkB1 + pinkB2 + white * 0.5362) * 0.25;
+
+      // Stylus touch click / needle drop transient at onset
+      const needleClick = progress < 0.015 ? (Math.random() * 2 - 1) * Math.sin((progress / 0.015) * Math.PI) * 0.35 : 0;
+
+      // Dynamic friction envelope with vinyl inertia
+      const env = Math.pow(velocity, 0.85) * (1 - Math.exp(-t * 28)) * (1 - Math.pow(progress, 4));
+
+      // Mix & subtle analog soft-clipping saturation
+      const raw = ((tone * 0.7 + vinylFriction * 0.3) + needleClick) * env * 1.25;
+      const saturated = Math.tanh(raw);
+
+      left[i] = saturated;
+      right[i] = saturated * 0.96; // Stereo acoustic imaging
     }
     return buf;
   }

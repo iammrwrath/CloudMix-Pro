@@ -48,50 +48,31 @@ class LyricsService {
     }
 
     const promise = (async () => {
-      const userAgent = 'CloudMixPro/1.9.4 (https://github.com/iammrwrath/CloudMix-Pro)';
       const targetArtist = cleanArtist || artist;
 
-      const attemptFetch = async (a: string, t: string, dur?: number): Promise<LyricsLine[] | null> => {
-        try {
-          let url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`;
-          if (dur && dur > 0) {
-            url += `&duration=${Math.round(dur)}`;
-          }
-
-          const res = await fetch(url, {
-            headers: { 'User-Agent': userAgent },
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.syncedLyrics) {
-              const parsed = BroadcastService.parseLRC(data.syncedLyrics);
-              this.cache.set(key, {
-                artist: a,
-                title: t,
-                syncedLines: parsed,
-                plainLyrics: data.plainLyrics || '',
-                fetchedAt: Date.now(),
-              });
-              return parsed;
-            }
-          }
-        } catch {}
-        return null;
-      };
-
+      // 1. Try local server proxy first (Port 8088) - performs search gracefully on backend with no browser console 404
       try {
-        // 1. Try with cleaned artist & title (with duration if available)
-        let lines = await attemptFetch(targetArtist, cleanTitle, durationSec);
-        if (lines && lines.length > 0) return lines;
-
-        // 2. Try with cleaned artist & title WITHOUT duration (since streaming durations often differ by a few seconds)
-        if (durationSec && durationSec > 0) {
-          lines = await attemptFetch(targetArtist, cleanTitle);
-          if (lines && lines.length > 0) return lines;
+        const proxyUrl = `http://127.0.0.1:8088/api/lyrics?artist=${encodeURIComponent(targetArtist)}&track=${encodeURIComponent(cleanTitle)}${durationSec ? `&duration=${Math.round(durationSec)}` : ''}`;
+        const proxyRes = await fetch(proxyUrl);
+        if (proxyRes.ok) {
+          const json = await proxyRes.json();
+          if (json && json.found && json.data) {
+            const synced = json.data.syncedLyrics ? BroadcastService.parseLRC(json.data.syncedLyrics) : [];
+            this.cache.set(key, {
+              artist: targetArtist,
+              title: cleanTitle,
+              syncedLines: synced,
+              plainLyrics: json.data.plainLyrics || '',
+              fetchedAt: Date.now(),
+            });
+            return synced;
+          }
         }
+      } catch {}
 
-        // 3. Fallback search query if exact get returned 404
+      // 2. Direct fallback (in case standalone without broadcast server)
+      const userAgent = 'CloudMixPro/1.9.7 (https://github.com/iammrwrath/CloudMix-Pro)';
+      try {
         const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(`${targetArtist} ${cleanTitle}`)}`;
         const searchRes = await fetch(searchUrl, {
           headers: { 'User-Agent': userAgent },
@@ -100,9 +81,9 @@ class LyricsService {
         if (searchRes.ok) {
           const results = await searchRes.json();
           if (Array.isArray(results) && results.length > 0) {
-            const firstWithSynced = results.find((r: any) => r.syncedLyrics);
-            if (firstWithSynced && firstWithSynced.syncedLyrics) {
-              const parsed = BroadcastService.parseLRC(firstWithSynced.syncedLyrics);
+            const firstWithSynced = results.find((r: any) => r.syncedLyrics) || results[0];
+            if (firstWithSynced) {
+              const parsed = firstWithSynced.syncedLyrics ? BroadcastService.parseLRC(firstWithSynced.syncedLyrics) : [];
               this.cache.set(key, {
                 artist: targetArtist,
                 title: cleanTitle,
@@ -114,9 +95,7 @@ class LyricsService {
             }
           }
         }
-      } catch (err) {
-        console.warn('[LyricsService] Error fetching lyrics:', err);
-      } finally {
+      } catch {} finally {
         this.pendingRequests.delete(key);
       }
 
