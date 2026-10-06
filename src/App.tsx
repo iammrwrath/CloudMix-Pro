@@ -218,10 +218,12 @@ export const App: React.FC = () => {
   const [uiZoom, setUiZoom] = useState<number>(1.0);
   const lastAppliedZoomRef = useRef<number>(1.0);
   const resizeDebounceTimerRef = useRef<any>(null);
-  const slipScratchRef = useRef<{
-    A?: { startTime: number; startPos: number; isPlaying: boolean; rate: number };
-    B?: { startTime: number; startPos: number; isPlaying: boolean; rate: number };
-  }>({});
+  const slipScratchRef = useRef<Record<DeckId, { startTime: number; startPos: number; isPlaying: boolean; rate: number } | undefined>>({
+    A: undefined,
+    B: undefined,
+    C: undefined,
+    D: undefined,
+  });
 
   const applyZoom = (factor: number) => {
     lastAppliedZoomRef.current = factor;
