@@ -3,6 +3,15 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.3] - 2026-10-06
+
+### Improved
+- **100% Silent In-App Patch & Automated Handover Execution**:
+  - Eliminated visible black console command-prompt windows during patch updates.
+  - The patch script and installer handover are now executed completely hidden in the background (`-WindowStyle Hidden`), delivering a smooth, silent update and restart experience.
+
+---
+
 ## [v1.9.2] - 2026-10-06
 
 ### Fixed & Improved

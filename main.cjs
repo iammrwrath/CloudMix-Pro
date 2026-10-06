@@ -1391,11 +1391,16 @@ ipcMain.handle('restart-and-install-patch', async () => {
       const batContent = `@echo off\r\ntimeout /t 1 /nobreak >nul\r\nstart /wait "" "${downloadedInstallerPath}" /S\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\ndel "%~f0"\r\n`;
       fs.writeFileSync(batPath, batContent, 'utf8');
 
-      const child = spawn('cmd.exe', ['/c', batPath], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-      });
+      // Launch completely hidden in background without any console window flashing
+      const child = spawn(
+        'powershell.exe',
+        ['-WindowStyle', 'Hidden', '-NoProfile', '-Command', `Start-Process -FilePath cmd.exe -ArgumentList '/c', [System.IO.Path]::Combine($env:TEMP, 'cloudmix_patch_relaunch.bat') -WindowStyle Hidden`],
+        {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true,
+        }
+      );
       child.unref();
 
       setTimeout(() => {
