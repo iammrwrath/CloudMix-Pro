@@ -608,6 +608,30 @@ export const App: React.FC = () => {
           // Pause AudioEngine source so no local audio conflicts
           audioEngine.pauseDeck(deckId);
 
+          // Set deck track immediately so transport controls and UI have valid track metadata right away
+          const initialDur = track.duration || 210;
+          if (deckId === 'A') {
+            setDeckA((prev) => ({
+              ...prev,
+              track,
+              currentTime: 0,
+              duration: initialDur,
+              isPlaying: false,
+              playbackRate: 1.0,
+            }));
+            broadcastService.update({ trackA: track, isPlayingA: false });
+          } else {
+            setDeckB((prev) => ({
+              ...prev,
+              track,
+              currentTime: 0,
+              duration: initialDur,
+              isPlaying: false,
+              playbackRate: 1.0,
+            }));
+            broadcastService.update({ trackB: track, isPlayingB: false });
+          }
+
           const duration = await youtubeDeckBridge.loadVideo(deckId, vidId, track.title, track.artist);
           track.duration = duration || track.duration || 210;
 

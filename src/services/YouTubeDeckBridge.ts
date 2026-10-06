@@ -468,7 +468,7 @@ class YouTubeDeckBridge {
         console.warn(`[YouTubeDeckBridge] cueVideoById error on Deck ${deckId}:`, err);
       }
 
-      // Wait a moment to get actual duration if available
+      // Wait briefly for duration if immediately available from IFrame metadata
       return new Promise<number>((resolve) => {
         let attempts = 0;
         const checkDuration = () => {
@@ -477,14 +477,14 @@ class YouTubeDeckBridge {
           if (dur && dur > 0) {
             console.log(`[YouTubeDeckBridge] Duration resolved for Deck ${deckId}: ${dur.toFixed(2)}s (attempt ${attempts})`);
             resolve(dur);
-          } else if (attempts < 15) {
-            setTimeout(checkDuration, 100);
+          } else if (attempts < 6) {
+            setTimeout(checkDuration, 80);
           } else {
-            console.warn(`[YouTubeDeckBridge] Duration not available for Deck ${deckId} after ${attempts} attempts — using fallback 210s`);
-            resolve(210); // sensible default fallback if pending
+            console.log(`[YouTubeDeckBridge] Duration pending for Deck ${deckId} — proceeding with fallback 210s`);
+            resolve(210); // sensible default fallback while background time listener updates duration
           }
         };
-        setTimeout(checkDuration, 150);
+        setTimeout(checkDuration, 50);
       });
     }
 

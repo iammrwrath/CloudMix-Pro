@@ -3,6 +3,16 @@
 All notable changes to CloudMix Pro are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.6] - 2026-10-06
+
+### Fixed & Improved
+- **Resolved YouTube InnerTube API 403 Forbidden & Instant Track Transport Binding**:
+  - Fixed header interceptor in `main.cjs` to route `Origin: https://www.youtube.com` for YouTube inner API telemetry, embedded player and logging requests (`youtubei/v1/log_event`, `youtubei/v1/player`, `youtubei/v1/next`), eliminating 403 Forbidden rejections.
+  - Bound track metadata immediately upon loading to Deck A/B, preventing "Cannot toggle playback on Deck — no track loaded" race conditions during track cueing.
+  - Optimized duration polling in `YouTubeDeckBridge` to prevent blocking the deck transport while background listeners resolve track duration.
+
+---
+
 ## [v1.9.5] - 2026-10-06
 
 ### Fixed & Improved

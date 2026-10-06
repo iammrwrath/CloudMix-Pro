@@ -259,7 +259,7 @@ if (!gotTheLock) {
         (details, callback) => {
           const headers = Object.assign({}, details.requestHeaders);
           headers['Referer'] = 'https://localhost:8088/';
-          headers['Origin'] = 'https://localhost:8088';
+          headers['Origin'] = 'https://www.youtube.com';
           callback({ cancel: false, requestHeaders: headers });
         }
       );
