@@ -1,3 +1,10 @@
+## v2.0.1
+- **Interactive OBS Stream Canvas Layout Customizer**:
+  - Full drag-and-drop support: easily reposition overlay widgets (`Track Card`, `Up Next`, `Lyrics`, `Video Feed`) directly on the visual stream canvas map using tactile mouse gestures.
+  - Interactive corner resize handles: freely drag widget corners to resize width and height with live aspect ratio and bounds clamping.
+  - Granular dimension controls: added dedicated `Width` and `Height` numeric input controls alongside `X`, `Y`, and `Scale` for pixel-perfect framing.
+  - Real-time synchronization: layout edits automatically update local storage and broadcast to live OBS Browser Source overlays via WebSocket bridge.
+
 ## v2.0.0
 - **Pure Neural Vocals & Acapella Isolation**: Upgraded `StemSeparatorService` with cascaded 24dB/octave Linkwitz-Riley dual IIR bandpass filters, dynamic stereo side energy rejection (`sideEnv / midEnv` ratio), and percussive transient ducking. Soloing Vocals now yields 100% clean acapella with zero kick, snare, bass, or instrumental bleed.
 - **Immediate Engine Takeover on Streaming Stems**: Engaging Acapella, Instrumental, or any stem control on YouTube Music / streaming decks immediately mutes the unfiltered YouTube iframe and hands off playback to `AudioEngine` at the current playhead position without waiting for offline processing.

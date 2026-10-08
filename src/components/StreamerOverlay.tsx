@@ -31,6 +31,8 @@ import {
   Send,
   Terminal,
   Cpu,
+  Move,
+  Maximize2,
 } from 'lucide-react';
 
 interface StreamerOverlayProps {
@@ -139,6 +141,21 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
     });
   };
 
+  const [selectedWidgetKey, setSelectedWidgetKey] = useState<keyof CanvasConfig['widgets'] | null>('currentTrack');
+  const [activeDragState, setActiveDragState] = useState<{
+    widgetKey: keyof CanvasConfig['widgets'];
+    mode: 'move' | 'resize';
+    startMouseX: number;
+    startMouseY: number;
+    initialX: number;
+    initialY: number;
+    initialWidth: number;
+    initialHeight: number;
+    canvasRect: DOMRect;
+  } | null>(null);
+
+  const canvasRef = React.useRef<HTMLDivElement | null>(null);
+
   const handleUpdateWidgetTransform = (
     widgetName: keyof CanvasConfig['widgets'],
     partial: Partial<CanvasConfig['widgets']['currentTrack']>
@@ -158,6 +175,65 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
       broadcastService.update({ canvasConfig: next });
       return next;
     });
+  };
+
+  const handlePointerDown = (
+    e: React.PointerEvent,
+    key: keyof CanvasConfig['widgets'],
+    mode: 'move' | 'resize'
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const w = canvasConfig.widgets[key];
+    const initialWidth = w.width || (key === 'video' ? 480 : 520);
+    const initialHeight = w.height || (key === 'video' ? 270 : key === 'lyrics' ? 70 : key === 'nextTrack' ? 60 : 120);
+
+    setSelectedWidgetKey(key);
+    setActiveDragState({
+      widgetKey: key,
+      mode,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      initialX: w.x || 0,
+      initialY: w.y || 0,
+      initialWidth,
+      initialHeight,
+      canvasRect: rect,
+    });
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!activeDragState || !canvasRef.current) return;
+    const { widgetKey, mode, startMouseX, startMouseY, initialX, initialY, initialWidth, initialHeight, canvasRect } = activeDragState;
+    
+    // Scale factor between screen pixels in mini-canvas and true OBS canvas resolution
+    const scaleX = canvasConfig.width / canvasRect.width;
+    const scaleY = canvasConfig.height / canvasRect.height;
+
+    const deltaX = (e.clientX - startMouseX) * scaleX;
+    const deltaY = (e.clientY - startMouseY) * scaleY;
+
+    if (mode === 'move') {
+      const curW = canvasConfig.widgets[widgetKey].width || initialWidth;
+      const curH = canvasConfig.widgets[widgetKey].height || initialHeight;
+      const newX = Math.round(Math.max(0, Math.min(canvasConfig.width - curW, initialX + deltaX)));
+      const newY = Math.round(Math.max(0, Math.min(canvasConfig.height - curH, initialY + deltaY)));
+      handleUpdateWidgetTransform(widgetKey, { x: newX, y: newY });
+    } else if (mode === 'resize') {
+      const newW = Math.round(Math.max(120, Math.min(canvasConfig.width - initialX, initialWidth + deltaX)));
+      const newH = Math.round(Math.max(40, Math.min(canvasConfig.height - initialY, initialHeight + deltaY)));
+      handleUpdateWidgetTransform(widgetKey, { width: newW, height: newH });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (activeDragState) {
+      try { (e.target as HTMLElement).releasePointerCapture?.(e.pointerId); } catch {}
+      setActiveDragState(null);
+    }
   };
 
   const handleResetCanvasLayout = () => {
@@ -530,48 +606,78 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                 {/* Interactive Scaled Mini Canvas Preview */}
                 <div className="space-y-1.5 pt-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <Move className="w-3.5 h-3.5 text-cyan-400" />
                       Stream Canvas Layout Map ({canvasConfig.width} × {canvasConfig.height})
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      Real-time interactive boundary
+                    <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded">
+                      🖱️ Click & drag to move • Drag ↘ corner to resize
                     </span>
                   </div>
                   <div
-                    className="relative w-full rounded-xl bg-slate-950 border border-cyan-900/50 shadow-inner overflow-hidden mx-auto"
+                    ref={canvasRef}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    className="relative w-full rounded-xl bg-slate-950 border border-cyan-900/50 shadow-inner overflow-hidden mx-auto touch-none select-none"
                     style={{
                       aspectRatio: `${canvasConfig.width} / ${canvasConfig.height}`,
-                      maxHeight: '260px',
+                      maxHeight: '300px',
                     }}
                   >
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b22_1px,transparent_1px),linear-gradient(to_bottom,#1e293b22_1px,transparent_1px)] bg-[size:12px_12px] pointer-events-none" />
                     
                     {/* Widget Representations mapped proportionally */}
                     {[
-                      { key: 'currentTrack' as const, label: 'Track Card', color: 'bg-cyan-500/20 border-cyan-400 text-cyan-300' },
-                      { key: 'nextTrack' as const, label: 'Up Next', color: 'bg-purple-500/20 border-purple-400 text-purple-300' },
-                      { key: 'lyrics' as const, label: 'Lyrics', color: 'bg-pink-500/20 border-pink-400 text-pink-300' },
-                      { key: 'video' as const, label: 'Video Feed', color: 'bg-emerald-500/20 border-emerald-400 text-emerald-300' },
-                    ].map(({ key, label, color }) => {
+                      { key: 'currentTrack' as const, label: 'Track Card', color: 'bg-cyan-500/25 border-cyan-400 text-cyan-300', activeRing: 'ring-2 ring-cyan-300 shadow-lg shadow-cyan-500/40' },
+                      { key: 'nextTrack' as const, label: 'Up Next', color: 'bg-purple-500/25 border-purple-400 text-purple-300', activeRing: 'ring-2 ring-purple-300 shadow-lg shadow-purple-500/40' },
+                      { key: 'lyrics' as const, label: 'Lyrics', color: 'bg-pink-500/25 border-pink-400 text-pink-300', activeRing: 'ring-2 ring-pink-300 shadow-lg shadow-pink-500/40' },
+                      { key: 'video' as const, label: 'Video Feed', color: 'bg-emerald-500/25 border-emerald-400 text-emerald-300', activeRing: 'ring-2 ring-emerald-300 shadow-lg shadow-emerald-500/40' },
+                    ].map(({ key, label, color, activeRing }) => {
                       const w = canvasConfig.widgets[key];
                       if (!w || !w.visible) return null;
                       const leftPercent = ((w.x || 0) / canvasConfig.width) * 100;
                       const topPercent = ((w.y || 0) / canvasConfig.height) * 100;
-                      const widthPercent = ((w.width || 420) / canvasConfig.width) * 100 * (w.scale || 1);
-                      const heightPercent = ((w.height || 100) / canvasConfig.height) * 100 * (w.scale || 1);
+                      const defaultW = key === 'video' ? 480 : 520;
+                      const defaultH = key === 'video' ? 270 : key === 'lyrics' ? 70 : key === 'nextTrack' ? 60 : 120;
+                      const currentW = (w.width || defaultW) * (w.scale || 1);
+                      const currentH = (w.height || defaultH) * (w.scale || 1);
+                      const widthPercent = (currentW / canvasConfig.width) * 100;
+                      const heightPercent = (currentH / canvasConfig.height) * 100;
+                      const isSelected = selectedWidgetKey === key;
+                      const isDraggingThis = activeDragState?.widgetKey === key;
 
                       return (
                         <div
                           key={key}
-                          className={`absolute border rounded flex items-center justify-center font-mono text-[9px] font-bold select-none p-1 transition-all ${color}`}
+                          onPointerDown={(e) => handlePointerDown(e, key, 'move')}
+                          className={`absolute border rounded-lg flex items-center justify-between font-mono text-[9px] font-bold select-none p-1.5 transition-shadow cursor-grab active:cursor-grabbing group ${color} ${
+                            isSelected ? activeRing : 'hover:border-white/80'
+                          } ${isDraggingThis ? 'opacity-90 scale-[1.01]' : ''}`}
                           style={{
-                            left: `${Math.max(0, Math.min(leftPercent, 90))}%`,
-                            top: `${Math.max(0, Math.min(topPercent, 90))}%`,
-                            width: `${Math.max(widthPercent, 12)}%`,
-                            height: `${Math.max(heightPercent, 8)}%`,
+                            left: `${Math.max(0, Math.min(leftPercent, 95))}%`,
+                            top: `${Math.max(0, Math.min(topPercent, 95))}%`,
+                            width: `${Math.max(widthPercent, 8)}%`,
+                            height: `${Math.max(heightPercent, 5)}%`,
+                            zIndex: isSelected ? 30 : 10,
                           }}
                         >
-                          <span className="truncate">{label}</span>
+                          <div className="flex items-center gap-1 truncate pointer-events-none">
+                            <Move className="w-2.5 h-2.5 opacity-70 shrink-0" />
+                            <span className="truncate">{label}</span>
+                          </div>
+
+                          <div className="text-[8px] font-mono opacity-80 pointer-events-none hidden sm:block shrink-0 px-1">
+                            {w.width || defaultW}×{w.height || defaultH}
+                          </div>
+
+                          {/* Interactive Corner Resize Handle */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, key, 'resize')}
+                            title="Drag to resize widget width & height"
+                            className="absolute -right-1.5 -bottom-1.5 w-4 h-4 rounded-full bg-slate-900 border border-cyan-300 hover:bg-cyan-400 hover:text-black flex items-center justify-center cursor-nwse-resize shadow-md transition-transform hover:scale-125 z-40"
+                          >
+                            <Maximize2 className="w-2 h-2 text-cyan-300 hover:text-black transform rotate-90" />
+                          </div>
                         </div>
                       );
                     })}
@@ -588,40 +694,73 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                   ].map(({ key, name }) => {
                     const w = canvasConfig.widgets[key];
                     if (!w) return null;
+                    const defaultW = key === 'video' ? 480 : 520;
+                    const defaultH = key === 'video' ? 270 : key === 'lyrics' ? 70 : key === 'nextTrack' ? 60 : 120;
                     return (
-                      <div key={key} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
+                      <div
+                        key={key}
+                        onClick={() => setSelectedWidgetKey(key)}
+                        className={`p-3 rounded-lg bg-slate-950/60 border transition-all space-y-2 cursor-pointer ${
+                          selectedWidgetKey === key ? 'border-cyan-500/80 shadow-sm shadow-cyan-500/20' : 'border-slate-800'
+                        }`}
+                      >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-200">{name}</span>
+                          <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${
+                              key === 'currentTrack' ? 'bg-cyan-400' : key === 'nextTrack' ? 'bg-purple-400' : key === 'lyrics' ? 'bg-pink-400' : 'bg-emerald-400'
+                            }`} />
+                            {name}
+                          </span>
                           <span className="text-[10px] font-mono text-cyan-400">Scale: {(w.scale || 1.0).toFixed(2)}x</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-5 gap-1.5">
                           <div>
-                            <label className="text-[10px] text-slate-400 font-mono block">X (px)</label>
+                            <label className="text-[9px] text-slate-400 font-mono block">X (px)</label>
                             <input
                               type="number"
                               value={w.x}
                               onChange={(e) => handleUpdateWidgetTransform(key, { x: Number(e.target.value) || 0 })}
-                              className="w-full px-1.5 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200"
+                              className="w-full px-1 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200 text-center"
                               step={10}
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-slate-400 font-mono block">Y (px)</label>
+                            <label className="text-[9px] text-slate-400 font-mono block">Y (px)</label>
                             <input
                               type="number"
                               value={w.y}
                               onChange={(e) => handleUpdateWidgetTransform(key, { y: Number(e.target.value) || 0 })}
-                              className="w-full px-1.5 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200"
+                              className="w-full px-1 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200 text-center"
                               step={10}
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-slate-400 font-mono block">Scale</label>
+                            <label className="text-[9px] text-slate-400 font-mono block">Width</label>
+                            <input
+                              type="number"
+                              value={w.width || defaultW}
+                              onChange={(e) => handleUpdateWidgetTransform(key, { width: Math.max(100, Number(e.target.value) || defaultW) })}
+                              className="w-full px-1 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200 text-center"
+                              step={10}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 font-mono block">Height</label>
+                            <input
+                              type="number"
+                              value={w.height || defaultH}
+                              onChange={(e) => handleUpdateWidgetTransform(key, { height: Math.max(30, Number(e.target.value) || defaultH) })}
+                              className="w-full px-1 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-slate-200 text-center"
+                              step={10}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 font-mono block">Scale</label>
                             <input
                               type="number"
                               value={w.scale || 1.0}
                               onChange={(e) => handleUpdateWidgetTransform(key, { scale: Math.max(0.2, Math.min(3.0, Number(e.target.value) || 1.0)) })}
-                              className="w-full px-1.5 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-cyan-300"
+                              className="w-full px-1 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-cyan-300 text-center"
                               step={0.05}
                               min={0.2}
                               max={3.0}
