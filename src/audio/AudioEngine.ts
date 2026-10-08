@@ -199,15 +199,25 @@ class AudioEngine {
     const stemBassXfaderGain = this.ctx.createGain();
     stemBassXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 3. Vocals Stem (Lead & Formant Crossover Bandpass: 380Hz - 3600Hz)
+    // 3. Vocals Stem (Lead & Formant Crossover Bandpass: 220Hz - 3800Hz, steep 24dB/oct Linkwitz-Riley)
     const stemVocalsHpf = this.ctx.createBiquadFilter();
     stemVocalsHpf.type = 'highpass';
-    stemVocalsHpf.frequency.setValueAtTime(380, this.ctx.currentTime);
+    stemVocalsHpf.frequency.setValueAtTime(220, this.ctx.currentTime);
     stemVocalsHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemVocalsHpf2 = this.ctx.createBiquadFilter();
+    stemVocalsHpf2.type = 'highpass';
+    stemVocalsHpf2.frequency.setValueAtTime(220, this.ctx.currentTime);
+    stemVocalsHpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+
     const stemVocalsLpf = this.ctx.createBiquadFilter();
     stemVocalsLpf.type = 'lowpass';
-    stemVocalsLpf.frequency.setValueAtTime(3600, this.ctx.currentTime);
+    stemVocalsLpf.frequency.setValueAtTime(3800, this.ctx.currentTime);
     stemVocalsLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemVocalsLpf2 = this.ctx.createBiquadFilter();
+    stemVocalsLpf2.type = 'lowpass';
+    stemVocalsLpf2.frequency.setValueAtTime(3800, this.ctx.currentTime);
+    stemVocalsLpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+
     const stemVocalsGain = this.ctx.createGain();
     stemVocalsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemVocalsXfaderGain = this.ctx.createGain();
@@ -262,10 +272,12 @@ class AudioEngine {
     stemBassGain.connect(stemBassXfaderGain);
     stemBassXfaderGain.connect(channelFader);
 
-    // Stem 3: Vocals
+    // Stem 3: Vocals (Cascaded 24dB/oct dual HPF + dual LPF)
     filterHpf.connect(stemVocalsHpf);
-    stemVocalsHpf.connect(stemVocalsLpf);
-    stemVocalsLpf.connect(stemVocalsGain);
+    stemVocalsHpf.connect(stemVocalsHpf2);
+    stemVocalsHpf2.connect(stemVocalsLpf);
+    stemVocalsLpf.connect(stemVocalsLpf2);
+    stemVocalsLpf2.connect(stemVocalsGain);
     stemVocalsGain.connect(stemVocalsXfaderGain);
     stemVocalsXfaderGain.connect(channelFader);
 

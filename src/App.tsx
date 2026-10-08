@@ -658,6 +658,17 @@ export const App: React.FC = () => {
               if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(real).bpm;
               if (deckId === 'A') setWaveformDataA(realWf); else setWaveformDataB(realWf);
               console.log(`[YouTubeAudio] Real waveform ready for Deck ${deckId} (${real.duration.toFixed(1)}s)`);
+
+              // Pre-calculate stems in the background immediately so stems/acapella work with 0 latency
+              const trackId = track.id;
+              stemSeparatorService.separateTrack(trackId, real).then((stems) => {
+                console.log(`[YouTubeAudio] Discrete stems pre-computed for Deck ${deckId} (${track.title})`);
+                if (youtubeDeckBridge.isEngineTakeover(deckId)) {
+                  audioEngine.setDeckStems(deckId, stems);
+                }
+              }).catch((err) => {
+                console.warn('[YouTubeAudio] Background stem separation warning:', err);
+              });
             } catch (e) {
               console.warn('[YouTubeAudio] real audio unavailable, keeping synthetic waveform:', e);
             }
@@ -802,14 +813,24 @@ export const App: React.FC = () => {
       buffer = ytRealAudioRef.current[deckId]?.buffer || null;
       if (!buffer) {
         console.warn(`[Stems] Deck ${deckId}: real audio still downloading — stems will activate when ready.`);
-        // Retry once audio lands
-        setTimeout(() => { void prepareStems(deckId); }, 2500);
+        setTimeout(() => { void prepareStems(deckId); }, 1500);
         return;
       }
     } else {
       buffer = audioEngine.getDeckBuffer(deckId);
     }
     if (!buffer) return;
+
+    // IMMEDIATE ENGINE TAKEOVER: If currently playing via YouTube IFrame,
+    // take over immediately with AudioEngine so unfiltered IFrame audio stops playing right away!
+    if (isYt && !youtubeDeckBridge.isEngineTakeover(deckId)) {
+      const cachedStems = stemSeparatorService.getCachedStems(trackId);
+      const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
+      audioEngine.loadTrackToDeck(deckId, buffer, cachedStems || undefined);
+      audioEngine.seekDeck(deckId, time);
+      if (wasPlaying) audioEngine.playDeck(deckId, time);
+    }
+
     stemPrepRef.current[deckId] = true;
     try {
       let stems = audioEngine.getDeckStems(deckId);
@@ -823,7 +844,7 @@ export const App: React.FC = () => {
           audioEngine.loadTrackToDeck(deckId, buffer, stems);
           audioEngine.seekDeck(deckId, time);
           if (wasPlaying) audioEngine.playDeck(deckId, time);
-        } else if (!audioEngine.getDeckStems(deckId)) {
+        } else {
           audioEngine.setDeckStems(deckId, stems);
         }
       } else if (!audioEngine.getDeckStems(deckId)) {

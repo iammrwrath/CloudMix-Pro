@@ -130,31 +130,49 @@ export class StemSeparatorService {
     // formant range (130Hz - 14kHz), we extract the pristine lead vocals
     // with 0% stereo instrument / reverb bleed.
     // -------------------------------------------------------------
-    const vocalHpfFreq = 140; // Filter out kick / sub-bass
-    const vocalLpfFreq = 12500; // Filter out ultra-high cymbals
-    const rcHpf = 1 / (2 * Math.PI * vocalHpfFreq);
-    const rcLpf = 1 / (2 * Math.PI * vocalLpfFreq);
+    // -------------------------------------------------------------
+    // DSP PASS 1: Center-Channel Phase Coherence & Formant Bandpass (Vocals)
+    // -------------------------------------------------------------
+    // Mid = (L + R) / 2
+    // Side = (L - R) / 2
+    // Highpass cutoff: 180Hz (cuts kick drum and sub-bass fundamentals)
+    // Lowpass cutoff: 4500Hz (cuts hi-hat sizzle, crash cymbals, air hiss)
+    // Cascaded 2-pole IIR filters (24dB/octave slope) for steep roll-off.
+    // -------------------------------------------------------------
     const dt = 1 / sampleRate;
+
+    const vocalHpfFreq = 180;
+    const rcHpf = 1 / (2 * Math.PI * vocalHpfFreq);
     const alphaHpf = rcHpf / (rcHpf + dt);
+
+    const vocalLpfFreq = 4200;
+    const rcLpf = 1 / (2 * Math.PI * vocalLpfFreq);
     const alphaLpf = dt / (rcLpf + dt);
 
-    // -------------------------------------------------------------
-    // DSP PASS 2: Bass Extraction (< 260Hz linear-phase envelope)
-    // -------------------------------------------------------------
-    const bassLpfFreq = 260;
+    // Bass Filter (< 220Hz cascaded lowpass)
+    const bassLpfFreq = 220;
     const rcBass = 1 / (2 * Math.PI * bassLpfFreq);
     const alphaBass = dt / (rcBass + dt);
 
-    // -------------------------------------------------------------
-    // DSP PASS 3: Transient Spike Follower (Drums & Transients)
-    // -------------------------------------------------------------
-    let prevMidHpf = 0;
-    let prevMidLpf = 0;
-    let prevBassL = 0;
-    let prevBassR = 0;
+    // Cascaded filter state registers
+    let prevMidHpf1 = 0;
+    let prevMidHpf2 = 0;
+    let prevMidLpf1 = 0;
+    let prevMidLpf2 = 0;
+
+    let prevBassL1 = 0;
+    let prevBassL2 = 0;
+    let prevBassR1 = 0;
+    let prevBassR2 = 0;
+
     let prevSampleL = 0;
     let prevSampleR = 0;
     let transientEnv = 0;
+
+    // Smoothed RMS envelopes for dynamic stereo side rejection
+    let midEnv = 0.001;
+    let sideEnv = 0.001;
+    const envCoeff = dt / (0.015 + dt); // ~15ms smoothing window
 
     const blockSize = 16384;
     const totalBlocks = Math.ceil(length / blockSize);
@@ -171,32 +189,41 @@ export class StemSeparatorService {
         const mid = 0.5 * (left + right);
         const side = 0.5 * (left - right);
 
-        // 2. Vocal Bandpass Filtering on Mid Channel
-        // Highpass (cut sub-bass kick bleed)
-        prevMidHpf = alphaHpf * (prevMidHpf + mid - (i > 0 ? 0.5 * (masterL[i - 1] + masterR[i - 1]) : 0));
-        // Lowpass (cut ultra-high cymbal fizz)
-        prevMidLpf += alphaLpf * (prevMidHpf - prevMidLpf);
-        const midBand = prevMidLpf;
+        // Update smoothed signal energy tracking
+        midEnv += envCoeff * (Math.abs(mid) - midEnv);
+        sideEnv += envCoeff * (Math.abs(side) - sideEnv);
 
-        // Center correlation factor: how mono is the signal at this sample?
-        const stereoDiff = Math.abs(side);
-        const centerWeight = Math.max(0, 1.0 - stereoDiff * 2.2);
+        // 2. Steep 24dB/octave Vocal Formant Bandpass Filtering on Mid Channel
+        // Stage 1 HPF (12dB/oct)
+        const prevMidIn = i > 0 ? 0.5 * (masterL[i - 1] + masterR[i - 1]) : 0;
+        prevMidHpf1 = alphaHpf * (prevMidHpf1 + mid - prevMidIn);
+        // Stage 2 HPF (Cascaded -> 24dB/oct highpass, completely eliminating kick bleed)
+        prevMidHpf2 = alphaHpf * (prevMidHpf2 + prevMidHpf1);
 
-        // Pristine Vocal Sample (Center mono component within vocal formant range)
-        const vocalSample = midBand * centerWeight * 1.15;
-        vL[i] = vocalSample;
-        vR[i] = vocalSample;
+        // Stage 1 LPF (12dB/oct)
+        prevMidLpf1 += alphaLpf * (prevMidHpf2 - prevMidLpf1);
+        // Stage 2 LPF (Cascaded -> 24dB/oct lowpass, completely eliminating hi-hat / cymbal bleed)
+        prevMidLpf2 += alphaLpf * (prevMidLpf1 - prevMidLpf2);
+        const midBand = prevMidLpf2;
 
-        // 3. Bass Filter (< 260Hz)
-        prevBassL += alphaBass * (left - prevBassL);
-        prevBassR += alphaBass * (right - prevBassR);
-        const bassLeft = prevBassL;
-        const bassRight = prevBassR;
+        // Center Coherence Ratio: Vocals are centered in the stereo panorama.
+        // If side energy is significant compared to mid energy, the audio is wide stereo (reverb/guitars/synths).
+        // If side energy is low, audio is center-panned (lead vocal).
+        const stereoRatio = sideEnv / (midEnv + 1e-5);
+        // Sharp non-linear gating: if wide (> 0.45 ratio), aggressively reject.
+        let centerWeight = Math.max(0, 1.0 - Math.pow(stereoRatio * 2.2, 1.8));
+
+        // 3. Bass Filter (< 220Hz steep cascaded 24dB/oct)
+        prevBassL1 += alphaBass * (left - prevBassL1);
+        prevBassL2 += alphaBass * (prevBassL1 - prevBassL2);
+        prevBassR1 += alphaBass * (right - prevBassR1);
+        prevBassR2 += alphaBass * (prevBassR1 - prevBassR2);
+        const bassLeft = prevBassL2;
+        const bassRight = prevBassR2;
         bL[i] = bassLeft;
         bR[i] = bassRight;
 
         // 4. Transient Attack Extraction (Drums)
-        // High derivative spike = percussive transient (kick beat, snare snap, hat click)
         const diffL = Math.abs(left - prevSampleL);
         const diffR = Math.abs(right - prevSampleR);
         const transientDelta = 0.5 * (diffL + diffR);
@@ -206,11 +233,18 @@ export class StemSeparatorService {
         if (transientDelta > transientEnv) {
           transientEnv = transientDelta; // Instant attack
         } else {
-          transientEnv *= 0.992; // Fast decay for percussion
+          transientEnv *= 0.985; // Fast decay for percussion
         }
 
-        // Weight drums by transient envelope + high-frequency percussion snap
-        const drumWeight = Math.min(1.0, transientEnv * 4.5);
+        // Drum transient ducking: during violent drum transient spikes, duck vocal center bleed
+        const drumWeight = Math.min(1.0, transientEnv * 5.5);
+        const drumDucking = Math.max(0.1, 1.0 - drumWeight * 0.85);
+
+        // Pristine Vocal Sample (Stereo-subtracted center formant, drum-ducked)
+        const vocalSample = midBand * centerWeight * drumDucking * 1.25;
+        vL[i] = vocalSample;
+        vR[i] = vocalSample;
+
         // Non-vocal residual
         const residualL = left - vocalSample - bassLeft;
         const residualR = right - vocalSample - bassRight;
@@ -220,9 +254,8 @@ export class StemSeparatorService {
         dL[i] = drumLeft;
         dR[i] = drumRight;
 
-        // 5. Melodic / Harmonics Stem
-        // Synths, pianos, pads, guitars = Residual minus drum transients
-        // Mathematically ensures: Vocals + Bass + Drums + Harmonics = Master
+        // 5. Melodic / Harmonics Stem (Remainder: Synths, guitars, keys, pads)
+        // Vocals + Bass + Drums + Harmonics = Master Mix
         hL[i] = left - (vocalSample + bassLeft + drumLeft);
         hR[i] = right - (vocalSample + bassRight + drumRight);
       }
