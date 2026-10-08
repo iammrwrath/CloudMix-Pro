@@ -56,6 +56,7 @@ export interface DeckAudioNodes {
   audioBuffer: AudioBuffer | null;
   reverseAudioBuffer: AudioBuffer | null;
   scratchSourceNode: AudioBufferSourceNode | null;
+  scratchGainNode: GainNode | null;
   scratchDirection: 'forward' | 'reverse';
   startTime: number;
   pauseOffset: number;
@@ -429,6 +430,7 @@ class AudioEngine {
       audioBuffer: null,
       reverseAudioBuffer: null,
       scratchSourceNode: null,
+      scratchGainNode: null,
       scratchDirection: 'forward',
       startTime: 0,
       pauseOffset: 0,
@@ -505,6 +507,10 @@ class AudioEngine {
       const currentPos = this.getCurrentTime(deckId);
       this.playDeck(deckId, currentPos);
     }
+  }
+
+  public getDeckBuffer(deckId: DeckId): AudioBuffer | null {
+    return this.decks.get(deckId)?.audioBuffer || null;
   }
 
   public getDeckStems(deckId: DeckId): DiscreteStems | null {
@@ -771,6 +777,7 @@ class AudioEngine {
   public startScratch(deckId: DeckId) {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
+    this.resumeContext();
     deck.isScratching = true;
     deck.scratchPlaybackPos = this.getCurrentTime(deckId);
     deck.scratchLastTimestamp = performance.now();
@@ -800,13 +807,20 @@ class AudioEngine {
       deck.stemBassSource = null;
       deck.stemHarmonicsSource = null;
     }
+
+    // Preload or synthesize scratch sample so audio is ready instantly
+    if (!this.scratchSampleBuffer && !this.scratchSampleLoading) {
+      this.loadScratchSample().catch(() => {});
+    }
+
+    // Start immediate tactile vinyl groove contact sound so user hears vinyl bite upon initial touch
+    this.updateScratch(deckId, 0.001);
   }
 
   public updateScratch(deckId: DeckId, deltaSec: number) {
     const deck = this.decks.get(deckId);
-    if (!deck || !this.ctx) return;
+    if (!deck || !this.ctx || !deck.isScratching) return;
 
-    // Ensure authentic vinyl scratch sample is available
     if (!this.scratchSampleBuffer && !this.scratchSampleLoading) {
       this.loadScratchSample().catch(() => {});
     }
@@ -827,17 +841,19 @@ class AudioEngine {
     deck.scratchPlaybackPos = nextPos;
     deck.pauseOffset = nextPos;
 
-    if (speed < 0.04) {
-      // Near dead-stop: mute scratch source cleanly
-      if (deck.scratchSourceNode) {
-        try {
-          deck.scratchSourceNode.playbackRate.setTargetAtTime(0.0001, this.ctx.currentTime, 0.005);
-        } catch {}
-      }
-      return;
-    }
-
     const direction: 'forward' | 'reverse' = clampedRate < 0 ? 'reverse' : 'forward';
+
+    // Algoriddim djay Pro behavior: When mouse is pressed, the needle rests on rotating vinyl.
+    // When stationary (speed near 0), sustain continuous vinyl groove friction / needle rumble at low volume,
+    // rather than cutting audio off completely. When moving, scale pitch & volume dynamically with scratch velocity.
+    const isPausedHolding = speed < 0.04;
+    const effectiveRate = isPausedHolding
+      ? 0.18 // subtle needle drag frequency
+      : direction === 'reverse'
+      ? Math.max(0.2, Math.min(3.5, speed * 1.35 * 0.9))
+      : Math.max(0.2, Math.min(3.5, speed * 1.35));
+
+    const targetGain = isPausedHolding ? 0.22 : Math.min(1.0, 0.45 + speed * 0.55);
 
     // If scratch direction changed or scratch source not created yet, instantiate scratch source node
     if (!deck.scratchSourceNode || deck.scratchDirection !== direction) {
@@ -848,6 +864,12 @@ class AudioEngine {
         } catch {}
         deck.scratchSourceNode = null;
       }
+      if (deck.scratchGainNode) {
+        try {
+          deck.scratchGainNode.disconnect();
+        } catch {}
+        deck.scratchGainNode = null;
+      }
 
       deck.scratchDirection = direction;
 
@@ -857,17 +879,11 @@ class AudioEngine {
 
       let targetBuffer: AudioBuffer | null = null;
       let bufferOffset = nextPos;
-      let scratchRate = Math.max(0.05, speed);
 
       if (isBufferSilent && this.scratchSampleBuffer) {
-        // Use authentic analog vinyl scratch sample with velocity & direction modulation
         targetBuffer = this.scratchSampleBuffer;
         const sampleDur = this.scratchSampleBuffer.duration;
         bufferOffset = (Math.abs(nextPos * 2.5) % Math.max(0.1, sampleDur - 0.05));
-        // Reverse direction modulates detune/pitch downwards slightly for authentic pull-back sound
-        scratchRate = direction === 'reverse'
-          ? Math.max(0.2, Math.min(3.5, speed * 1.3 * 0.88))
-          : Math.max(0.2, Math.min(3.5, speed * 1.3));
       } else {
         targetBuffer = (direction === 'reverse' && deck.reverseAudioBuffer)
           ? deck.reverseAudioBuffer
@@ -877,23 +893,35 @@ class AudioEngine {
           : nextPos;
       }
 
+      if (!targetBuffer) {
+        targetBuffer = this.scratchSampleBuffer;
+        bufferOffset = 0;
+      }
+
       if (!targetBuffer) return;
+
+      const scratchGain = this.ctx.createGain();
+      scratchGain.gain.setValueAtTime(targetGain, this.ctx.currentTime);
+      scratchGain.connect(deck.gainTrim);
+      deck.scratchGainNode = scratchGain;
 
       const scratchSrc = this.ctx.createBufferSource();
       scratchSrc.buffer = targetBuffer;
       scratchSrc.loop = true;
       scratchSrc.loopStart = 0;
       scratchSrc.loopEnd = Math.max(0.1, targetBuffer.duration);
-      scratchSrc.playbackRate.setValueAtTime(scratchRate, this.ctx.currentTime);
-      scratchSrc.connect(deck.gainTrim);
+      scratchSrc.playbackRate.setValueAtTime(effectiveRate, this.ctx.currentTime);
+      scratchSrc.connect(scratchGain);
 
       scratchSrc.start(0, Math.max(0, Math.min(targetBuffer.duration - 0.01, bufferOffset)));
       deck.scratchSourceNode = scratchSrc;
     } else {
-      // Update playback speed dynamically with realistic analog turntable response
+      // Modulate playback rate and volume continuously while user holds mouse click
       try {
-        const modSpeed = Math.max(0.1, Math.min(3.5, speed * 1.3));
-        deck.scratchSourceNode.playbackRate.setTargetAtTime(modSpeed, this.ctx.currentTime, 0.008);
+        deck.scratchSourceNode.playbackRate.setTargetAtTime(effectiveRate, this.ctx.currentTime, 0.01);
+        if (deck.scratchGainNode) {
+          deck.scratchGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.02);
+        }
       } catch {}
     }
   }
@@ -903,7 +931,15 @@ class AudioEngine {
     if (!deck || !this.ctx) return;
     deck.isScratching = false;
 
-    // Disconnect scratch source node
+    // Disconnect scratch source node cleanly upon mouse release
+    if (deck.scratchGainNode) {
+      try {
+        deck.scratchGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+        deck.scratchGainNode.disconnect();
+      } catch {}
+      deck.scratchGainNode = null;
+    }
+
     if (deck.scratchSourceNode) {
       try {
         deck.scratchSourceNode.stop();

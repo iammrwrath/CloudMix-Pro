@@ -1,3 +1,9 @@
+## v1.9.9
+- **Neural Stems for YouTube Music & Streaming**: Real-time backend streaming audio caching via `yt-dlp` (`/api/youtube/audio`) enabling authentic 4-stem DSP isolation (Vocals, Drums, Bass, Melodics) and genuine waveforms on YouTube tracks without requiring manual downloads.
+- **Sustained Vinyl Jog Wheel Scratch Audio**: Physical needle friction and groove rumble sustain continuously while mouse click is held down until release, matching Algoriddim djay Pro behavior.
+- **Persistent YouTube Music OAuth & Sign-in**: Permanent official OAuth client ID baked in with playlist caching across patches and origin alignment eliminating postMessage errors.
+- **MixCortex AI Zero-Lockup Optimization**: Pre-bucketed harmonic retrieval and query memoization caching preventing main UI thread freezes.
+
 ## v1.9.8
 - Waveforms: normalize near-silent (streaming placeholder) peaks so they render in all layouts.
 - MIDI: no phantom profile restored without a connected controller.

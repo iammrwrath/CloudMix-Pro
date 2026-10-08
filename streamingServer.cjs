@@ -9,6 +9,69 @@ const os = require('os');
 const videoIdCache = new Map();
 const YOUTUBE_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
 
+// ---- YouTube audio fetch (yt-dlp) -------------------------------------------------
+const { spawn, execFile } = require('child_process');
+const YT_CACHE_DIR = path.join(os.tmpdir(), 'cloudmixpro-yt');
+const ytInflight = new Map();
+let ytDlpPathPromise = null;
+
+function downloadFile(url, dest, redirects = 6) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'CloudMixPro' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && redirects > 0) {
+        r.resume();
+        return resolve(downloadFile(r.headers.location, dest, redirects - 1));
+      }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error('download http ' + r.statusCode)); }
+      const tmp = dest + '.part';
+      const ws = fs.createWriteStream(tmp);
+      r.pipe(ws);
+      ws.on('finish', () => ws.close(() => { fs.renameSync(tmp, dest); resolve(dest); }));
+      ws.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+function resolveYtDlp() {
+  if (ytDlpPathPromise) return ytDlpPathPromise;
+  ytDlpPathPromise = new Promise((resolve, reject) => {
+    execFile('yt-dlp', ['--version'], { windowsHide: true }, (err) => {
+      if (!err) return resolve('yt-dlp');
+      fs.mkdirSync(YT_CACHE_DIR, { recursive: true });
+      const isWin = process.platform === 'win32';
+      const bin = path.join(YT_CACHE_DIR, isWin ? 'yt-dlp.exe' : 'yt-dlp');
+      if (fs.existsSync(bin)) return resolve(bin);
+      const asset = isWin ? 'yt-dlp.exe' : process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp_linux';
+      downloadFile(`https://github.com/yt-dlp/yt-dlp/releases/latest/download/${asset}`, bin)
+        .then(() => { try { fs.chmodSync(bin, 0o755); } catch {} resolve(bin); })
+        .catch(reject);
+    });
+  });
+  ytDlpPathPromise.catch(() => { ytDlpPathPromise = null; });
+  return ytDlpPathPromise;
+}
+
+function fetchYouTubeAudioFile(videoId) {
+  fs.mkdirSync(YT_CACHE_DIR, { recursive: true });
+  const out = path.join(YT_CACHE_DIR, `${videoId}.m4a`);
+  if (fs.existsSync(out) && fs.statSync(out).size > 10000) return Promise.resolve(out);
+  if (ytInflight.has(videoId)) return ytInflight.get(videoId);
+  const p = resolveYtDlp().then((bin) => new Promise((resolve, reject) => {
+    const args = ['-f', '140/bestaudio[ext=m4a]/bestaudio', '--no-playlist', '--no-warnings', '-o', out, `https://www.youtube.com/watch?v=${videoId}`];
+    const child = spawn(bin, args, { windowsHide: true });
+    let errTxt = '';
+    child.stderr.on('data', (d) => { errTxt += d.toString(); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0 && fs.existsSync(out)) resolve(out);
+      else reject(new Error('yt-dlp exit ' + code + ' ' + errTxt.slice(-200)));
+    });
+  }));
+  ytInflight.set(videoId, p);
+  p.finally(() => ytInflight.delete(videoId)).catch(() => {});
+  return p;
+}
+
 function detectGenre(title, artist) {
   const text = `${title || ''} ${artist || ''}`.toLowerCase();
   if (/\b(dancehall|reggae|ragga|soca|dub|soundclash)\b/.test(text)) return 'Dancehall';
@@ -1103,6 +1166,31 @@ function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
       }).catch((err) => {
         res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ id: playlistId, title: 'Error', items: [], error: err.message }));
+      });
+      return;
+    }
+
+    // 2c-2. REST YouTube audio fetch (yt-dlp, cached) - gives the renderer real PCM for stems & waveforms
+    if (pathname === '/api/youtube/audio') {
+      const vid = (parsedUrl.searchParams.get('id') || '').trim();
+      if (!/^[a-zA-Z0-9_-]{11}$/.test(vid)) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: 'invalid video id' }));
+        return;
+      }
+      fetchYouTubeAudioFile(vid).then((file) => {
+        const stat = fs.statSync(file);
+        res.writeHead(200, {
+          'Content-Type': 'audio/mp4',
+          'Content-Length': stat.size,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400',
+        });
+        fs.createReadStream(file).pipe(res);
+      }).catch((err) => {
+        console.warn('[YouTubeAudio] failed:', err.message);
+        res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: err.message }));
       });
       return;
     }

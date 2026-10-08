@@ -31,6 +31,7 @@ class YouTubeDeckBridge {
   private deckReadyResolvers: Map<DeckId, () => void> = new Map();
   private pendingCues: Map<DeckId, string> = new Map();
   private activeVideoIds: Map<DeckId, string> = new Map();
+  private engineTakeover: Set<DeckId> = new Set();
   private deckVolumes: Map<DeckId, number> = new Map([['A', 1.0], ['B', 1.0]]);
   private isDeckPlaying: Map<DeckId, boolean> = new Map([['A', false], ['B', false]]);
   private timePollInterval: any = null;
@@ -429,6 +430,7 @@ class YouTubeDeckBridge {
 
   public async loadVideo(deckId: DeckId, videoId: string, trackTitle?: string, trackArtist?: string): Promise<number> {
     console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId} title="${trackTitle || ''}" artist="${trackArtist || ''}"`);
+    if (this.activeVideoIds.get(deckId) !== videoId) this.releaseFromEngine(deckId);
     this.activeVideoIds.set(deckId, videoId);
     this.pendingCues.set(deckId, videoId);
     this.deckTrackInfo.set(deckId, { videoId, title: trackTitle || '', artist: trackArtist || '' });
@@ -611,7 +613,41 @@ class YouTubeDeckBridge {
   }
 
   public isYouTubeDeck(deckId: DeckId): boolean {
+    return this.activeVideoIds.has(deckId) && !this.engineTakeover.has(deckId);
+  }
+
+  /** True when a YouTube video is loaded on the deck (regardless of engine takeover). */
+  public hasVideo(deckId: DeckId): boolean {
     return this.activeVideoIds.has(deckId);
+  }
+
+  public getActiveVideoId(deckId: DeckId): string | null {
+    return this.activeVideoIds.get(deckId) || null;
+  }
+
+  public isEngineTakeover(deckId: DeckId): boolean {
+    return this.engineTakeover.has(deckId);
+  }
+
+  /**
+   * Silence & pause the iframe so the AudioEngine (decoded real audio + discrete stems)
+   * becomes the sole audio source. Returns the iframe's playhead and play state.
+   */
+  public handOffToEngine(deckId: DeckId): { time: number; wasPlaying: boolean } {
+    const time = this.getCurrentTime(deckId);
+    const wasPlaying = this.isDeckPlaying.get(deckId) || false;
+    this.engineTakeover.add(deckId);
+    const player = this.players.get(deckId);
+    try { player?.mute?.(); } catch {}
+    try { player?.pauseVideo?.(); } catch {}
+    this.isDeckPlaying.set(deckId, false);
+    return { time, wasPlaying };
+  }
+
+  public releaseFromEngine(deckId: DeckId) {
+    this.engineTakeover.delete(deckId);
+    const player = this.players.get(deckId);
+    try { player?.unMute?.(); } catch {}
   }
 
   public setAudioQuality(quality: StreamingQuality) {
@@ -645,6 +681,7 @@ class YouTubeDeckBridge {
   }
 
   public clearDeck(deckId: DeckId) {
+    this.releaseFromEngine(deckId);
     this.activeVideoIds.delete(deckId);
     this.isDeckPlaying.set(deckId, false);
     this.failoverAttempts.set(deckId, 0);

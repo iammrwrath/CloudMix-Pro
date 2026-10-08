@@ -43,6 +43,7 @@ import { CortexFloatingWindow } from './components/cortex/CortexFloatingWindow';
 import { MixCortexStandaloneApp } from './components/cortex/MixCortexStandaloneApp';
 import { cortexMonitorService } from './services/CortexMonitorService';
 import { pulseMonitorService } from './services/PulseMonitorService';
+import { stemSeparatorService } from './services/StemSeparatorService';
 import { PatchUpdateModal } from './components/PatchUpdateModal';
 import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown, Maximize2, Minimize2, Columns, Activity, Brain } from 'lucide-react';
 
@@ -224,6 +225,9 @@ export const App: React.FC = () => {
     C: undefined,
     D: undefined,
   });
+  // Real decoded audio (via server-side yt-dlp) for YouTube-sourced decks, enabling true stems + real waveforms
+  const ytRealAudioRef = useRef<Record<string, { videoId: string; buffer: AudioBuffer } | undefined>>({});
+  const stemPrepRef = useRef<Record<string, boolean>>({});
 
   const applyZoom = (factor: number) => {
     lastAppliedZoomRef.current = factor;
@@ -640,6 +644,25 @@ export const App: React.FC = () => {
           const wf = AudioAnalyzer.extractWaveformData(silentBuffer);
           audioEngine.loadTrackToDeck(deckId, silentBuffer);
 
+          // Background: pull real audio server-side (yt-dlp) -> real waveform + stems-capable buffer
+          ytRealAudioRef.current[deckId] = undefined;
+          const yid: string = vidId;
+          (async () => {
+            try {
+              const resp = await fetch(`http://127.0.0.1:8088/api/youtube/audio?id=${yid}`);
+              if (!resp.ok) throw new Error('audio http ' + resp.status);
+              const real = await audioEngine.decodeAudioData(await resp.arrayBuffer());
+              if (youtubeDeckBridge.getActiveVideoId(deckId) !== yid) return; // deck changed meanwhile
+              ytRealAudioRef.current[deckId] = { videoId: yid, buffer: real };
+              const realWf = AudioAnalyzer.extractWaveformData(real);
+              if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(real).bpm;
+              if (deckId === 'A') setWaveformDataA(realWf); else setWaveformDataB(realWf);
+              console.log(`[YouTubeAudio] Real waveform ready for Deck ${deckId} (${real.duration.toFixed(1)}s)`);
+            } catch (e) {
+              console.warn('[YouTubeAudio] real audio unavailable, keeping synthetic waveform:', e);
+            }
+          })();
+
           // Update volume multiplier on YouTube player based on current faders
           const currentVol = deckId === 'A' ? deckA.volume : deckB.volume;
           youtubeDeckBridge.setVolume(deckId, currentVol);
@@ -766,6 +789,52 @@ export const App: React.FC = () => {
       }
     }
   }, [deckA.volume, deckB.volume]);
+
+  // Ensure the deck is playing REAL discrete stems (not just a volume change).
+  // YouTube decks: swap iframe -> AudioEngine once real audio + stems are ready.
+  const prepareStems = async (deckId: DeckId) => {
+    if (stemPrepRef.current[deckId]) return;
+    const trackId = (deckId === 'A' ? deckA : deckB).track?.id;
+    if (!trackId) return;
+    const isYt = youtubeDeckBridge.hasVideo(deckId);
+    let buffer: AudioBuffer | null = null;
+    if (isYt) {
+      buffer = ytRealAudioRef.current[deckId]?.buffer || null;
+      if (!buffer) {
+        console.warn(`[Stems] Deck ${deckId}: real audio still downloading — stems will activate when ready.`);
+        // Retry once audio lands
+        setTimeout(() => { void prepareStems(deckId); }, 2500);
+        return;
+      }
+    } else {
+      buffer = audioEngine.getDeckBuffer(deckId);
+    }
+    if (!buffer) return;
+    stemPrepRef.current[deckId] = true;
+    try {
+      let stems = audioEngine.getDeckStems(deckId);
+      if (!stems) {
+        stems = await stemSeparatorService.separateTrack(trackId, buffer);
+      }
+      if (isYt) {
+        if (youtubeDeckBridge.getActiveVideoId(deckId) === null) return;
+        if (!youtubeDeckBridge.isEngineTakeover(deckId)) {
+          const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
+          audioEngine.loadTrackToDeck(deckId, buffer, stems);
+          audioEngine.seekDeck(deckId, time);
+          if (wasPlaying) audioEngine.playDeck(deckId, time);
+        } else if (!audioEngine.getDeckStems(deckId)) {
+          audioEngine.setDeckStems(deckId, stems);
+        }
+      } else if (!audioEngine.getDeckStems(deckId)) {
+        audioEngine.setDeckStems(deckId, stems);
+      }
+    } catch (e) {
+      console.warn('[Stems] separation failed:', e);
+    } finally {
+      stemPrepRef.current[deckId] = false;
+    }
+  };
 
   // Seek Deck
   const handleSeek = (deckId: DeckId, sec: number) => {
@@ -972,6 +1041,7 @@ export const App: React.FC = () => {
 
   // 1-Tap Acapella Isolation (Strict 100% Vocals, 0% Instruments)
   const handleIsolateAcapella = (deckId: DeckId) => {
+    void prepareStems(deckId);
     const isAcapella = audioEngine.isolateAcapella(deckId);
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       youtubeDeckBridge.isolateAcapella(deckId);
@@ -995,6 +1065,7 @@ export const App: React.FC = () => {
 
   // 1-Tap Instrumental Isolation (Strict 100% Instruments, 0% Vocals)
   const handleIsolateInstrumental = (deckId: DeckId) => {
+    void prepareStems(deckId);
     const isInst = audioEngine.isolateInstrumental(deckId);
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       youtubeDeckBridge.isolateInstrumental(deckId);
@@ -1198,6 +1269,7 @@ export const App: React.FC = () => {
   };
 
   const handleStemGainChange = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) => {
+    void prepareStems(deckId);
     audioEngine.setStemGain(deckId, stem, val);
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       youtubeDeckBridge.setStemGain(deckId, stem, val);
@@ -1210,6 +1282,7 @@ export const App: React.FC = () => {
   };
 
   const handleStemMuteToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
+    void prepareStems(deckId);
     const isMuted = audioEngine.toggleStemMute(deckId, stem);
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       youtubeDeckBridge.toggleStemMute(deckId, stem);
@@ -1223,6 +1296,7 @@ export const App: React.FC = () => {
   };
 
   const handleStemSoloToggle = (deckId: 'A' | 'B', stem: 'vocals' | 'harmonics' | 'bass' | 'drums') => {
+    void prepareStems(deckId);
     const isSolo = audioEngine.toggleStemSolo(deckId, stem);
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       youtubeDeckBridge.toggleStemSolo(deckId, stem);
