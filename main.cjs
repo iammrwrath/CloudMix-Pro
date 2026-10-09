@@ -796,41 +796,7 @@ ipcMain.handle('read-djay-nowplaying', async () => {
     log('read-djay-nowplaying sqlite error: ' + err.message);
   }
 
-  // 2. Fast HTTP daemon fallback (port 8765)
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 350);
-    const res = await fetch('http://127.0.0.1:8765/lyrics?meta=1', { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.current_song && data.current_song !== '...') {
-        let title = data.current_song;
-        let artist = 'djay Pro Artist';
-        if (title.includes(' - ')) {
-          const parts = title.split(' - ');
-          artist = parts[0].trim();
-          title = parts.slice(1).join(' - ').trim();
-        }
-        const elapsedSec = Math.floor((data.elapsed_ms || 0) / 1000);
-        return {
-          title,
-          artist,
-          deck: '1',
-          deckId: 'A',
-          bpm: 124.0,
-          key: '8A',
-          camelotKey: '8A',
-          duration: 210,
-          currentTime: elapsedSec,
-          remainingTime: Math.max(0, 210 - elapsedSec),
-          isPlaying: !!data.is_playing,
-        };
-      }
-    }
-  } catch {}
-
-  // 3. Watched output text file fallback
+  // 2. Watched output text file fallback
   const watchedFiles = [
     path.join(app.getPath('userData'), 'obs', 'nowplaying.txt'),
     path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro', 'obs', 'nowplaying.txt'),
