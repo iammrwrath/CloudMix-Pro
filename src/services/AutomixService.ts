@@ -3,7 +3,7 @@
  * Provides autonomous phrase-aligned mixing, EQ blending, and Neural Stem crossfades.
  */
 
-import { AutomixMode, AutomixState, DeckId, DeckState, AutomixQueueItem, HistoryItem, TrackMetadata } from '../types/dj';
+import { AutomixMode, AutomixState, DeckId, DeckState, AutomixQueueItem, HistoryItem, TrackMetadata, NeuralTransitionMode } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
 import { storageCache } from './StorageCacheService';
 
