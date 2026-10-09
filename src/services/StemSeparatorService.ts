@@ -135,28 +135,30 @@ export class StemSeparatorService {
     // -------------------------------------------------------------
     // Mid = (L + R) / 2
     // Side = (L - R) / 2
-    // Highpass cutoff: 180Hz (cuts kick drum and sub-bass fundamentals)
-    // Lowpass cutoff: 4500Hz (cuts hi-hat sizzle, crash cymbals, air hiss)
-    // Cascaded 2-pole IIR filters (24dB/octave slope) for steep roll-off.
+    // Highpass cutoff: 130Hz (eliminates sub-bass rumble/kick thump while preserving full vocal body)
+    // Lowpass cutoff: 11,000Hz (preserves vocal sibilance, air, presence, and consonants)
+    // Cascaded 2-pole IIR filters (24dB/octave slope) for clean separation.
     // -------------------------------------------------------------
     const dt = 1 / sampleRate;
 
-    const vocalHpfFreq = 180;
+    const vocalHpfFreq = 130;
     const rcHpf = 1 / (2 * Math.PI * vocalHpfFreq);
     const alphaHpf = rcHpf / (rcHpf + dt);
 
-    const vocalLpfFreq = 4200;
+    const vocalLpfFreq = 11000;
     const rcLpf = 1 / (2 * Math.PI * vocalLpfFreq);
     const alphaLpf = dt / (rcLpf + dt);
 
-    // Bass Filter (< 220Hz cascaded lowpass)
-    const bassLpfFreq = 220;
+    // Bass Filter (< 180Hz cascaded lowpass)
+    const bassLpfFreq = 180;
     const rcBass = 1 / (2 * Math.PI * bassLpfFreq);
     const alphaBass = dt / (rcBass + dt);
 
     // Cascaded filter state registers
     let prevMidHpf1 = 0;
     let prevMidHpf2 = 0;
+    let prevMidIn1 = 0;
+    let prevMidIn2 = 0;
     let prevMidLpf1 = 0;
     let prevMidLpf2 = 0;
 
@@ -172,7 +174,7 @@ export class StemSeparatorService {
     // Smoothed RMS envelopes for dynamic stereo side rejection
     let midEnv = 0.001;
     let sideEnv = 0.001;
-    const envCoeff = dt / (0.015 + dt); // ~15ms smoothing window
+    const envCoeff = dt / (0.025 + dt); // ~25ms smoothing window for natural transients
 
     const blockSize = 16384;
     const totalBlocks = Math.ceil(length / blockSize);
@@ -193,27 +195,27 @@ export class StemSeparatorService {
         midEnv += envCoeff * (Math.abs(mid) - midEnv);
         sideEnv += envCoeff * (Math.abs(side) - sideEnv);
 
-        // 2. Steep 24dB/octave Vocal Formant Bandpass Filtering on Mid Channel
+        // 2. Steep Cascaded Bandpass Filtering on Mid Channel (Vocal Formant & Presence: 130Hz - 11kHz)
         // Stage 1 HPF (12dB/oct)
-        const prevMidIn = i > 0 ? 0.5 * (masterL[i - 1] + masterR[i - 1]) : 0;
-        prevMidHpf1 = alphaHpf * (prevMidHpf1 + mid - prevMidIn);
-        // Stage 2 HPF (Cascaded -> 24dB/oct highpass, completely eliminating kick bleed)
-        prevMidHpf2 = alphaHpf * (prevMidHpf2 + prevMidHpf1);
+        prevMidHpf1 = alphaHpf * (prevMidHpf1 + mid - prevMidIn1);
+        prevMidIn1 = mid;
+
+        // Stage 2 HPF (Cascaded -> 24dB/oct highpass, mathematically correct difference equation)
+        prevMidHpf2 = alphaHpf * (prevMidHpf2 + prevMidHpf1 - prevMidIn2);
+        prevMidIn2 = prevMidHpf1;
 
         // Stage 1 LPF (12dB/oct)
         prevMidLpf1 += alphaLpf * (prevMidHpf2 - prevMidLpf1);
-        // Stage 2 LPF (Cascaded -> 24dB/oct lowpass, completely eliminating hi-hat / cymbal bleed)
+        // Stage 2 LPF (Cascaded -> 24dB/oct lowpass)
         prevMidLpf2 += alphaLpf * (prevMidLpf1 - prevMidLpf2);
         const midBand = prevMidLpf2;
 
         // Center Coherence Ratio: Vocals are centered in the stereo panorama.
-        // If side energy is significant compared to mid energy, the audio is wide stereo (reverb/guitars/synths).
-        // If side energy is low, audio is center-panned (lead vocal).
+        // Smooth curve avoids harsh gating/chatter on stereo reverb or panned vocal layers
         const stereoRatio = sideEnv / (midEnv + 1e-5);
-        // Sharp non-linear gating: if wide (> 0.45 ratio), aggressively reject.
-        let centerWeight = Math.max(0, 1.0 - Math.pow(stereoRatio * 2.2, 1.8));
+        let centerWeight = Math.max(0.15, 1.0 - Math.pow(stereoRatio * 1.5, 1.5));
 
-        // 3. Bass Filter (< 220Hz steep cascaded 24dB/oct)
+        // 3. Bass Filter (< 180Hz steep cascaded 24dB/oct)
         prevBassL1 += alphaBass * (left - prevBassL1);
         prevBassL2 += alphaBass * (prevBassL1 - prevBassL2);
         prevBassR1 += alphaBass * (right - prevBassR1);
@@ -236,12 +238,12 @@ export class StemSeparatorService {
           transientEnv *= 0.985; // Fast decay for percussion
         }
 
-        // Drum transient ducking: during violent drum transient spikes, duck vocal center bleed
-        const drumWeight = Math.min(1.0, transientEnv * 5.5);
-        const drumDucking = Math.max(0.1, 1.0 - drumWeight * 0.85);
+        // Drum transient ducking: gentle ducking to avoid vocal fluttering/chopping during drum hits
+        const drumWeight = Math.min(1.0, transientEnv * 4.0);
+        const drumDucking = Math.max(0.35, 1.0 - drumWeight * 0.5);
 
-        // Pristine Vocal Sample (Stereo-subtracted center formant, drum-ducked)
-        const vocalSample = midBand * centerWeight * drumDucking * 1.25;
+        // Pristine Vocal Sample (Full frequency clarity, stereo-natural, flutter-free)
+        const vocalSample = midBand * centerWeight * drumDucking;
         vL[i] = vocalSample;
         vR[i] = vocalSample;
 
@@ -292,7 +294,7 @@ export class StemSeparatorService {
    */
   private async loadFromStorageCache(trackId: string, sampleRate: number): Promise<DiscreteStems | null> {
     try {
-      const raw = await storageCache.getSetting<any>(`stems_${trackId}`, null);
+      const raw = await storageCache.getSetting<any>(`stems_v2_${trackId}`, null);
       if (!raw || !raw.vL) return null;
 
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -334,7 +336,7 @@ export class StemSeparatorService {
         hL: Array.from(stems.harmonics.getChannelData(0)),
         hR: Array.from(stems.harmonics.getChannelData(1)),
       };
-      await storageCache.setSetting(`stems_${trackId}`, payload);
+      await storageCache.setSetting(`stems_v2_${trackId}`, payload);
     } catch {
       // Storage quota or serialization limit, memory cache remains active
     }

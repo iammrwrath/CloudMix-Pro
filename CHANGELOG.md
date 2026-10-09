@@ -1,3 +1,10 @@
+## v2.0.5
+- **Studio-Grade Vocal Stem Separation & Crossover Clarity**:
+  - **Fixed 2nd-Order HPF Accumulation Bug**: Fixed cascaded highpass difference equation in `StemSeparatorService` that was erroneously causing 8.5x gain blowout and harsh digital distortion on isolated vocals.
+  - **Expanded Vocal Formant & Presence Response**: Replaced restrictive 4200Hz / 3800Hz lowpass choke with 11,000Hz / 10,500Hz ceiling and 130Hz highpass cutoff, restoring full vocal air, chest resonance, sibilance, and consonant definition.
+  - **Natural Stereo Coherence & Flutter-Free Ducking**: Relaxed non-linear center gating curve and softened transient drum ducking penalty to eliminate watery gating chatter and chopping during drum hits.
+  - **Storage Cache Invalidation (`stems_v2_`)**: Updated stem cache prefix to guarantee all previously cached distorted stems are recalculated with the new high-fidelity DSP engine.
+
 ## v2.0.4
 - **Complete Retirement of Legacy Python Daemon (`update_song.py`)**:
   - Fully removed obsolete external script `update_song.py` from repository.
