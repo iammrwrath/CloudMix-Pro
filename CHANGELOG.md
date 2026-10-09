@@ -1,3 +1,10 @@
+## v2.0.3
+- **Robust YouTube Audio Streaming & Stem Pipeline**:
+  - Python module and native binary fallback in `resolveYtDlp()` ensuring reliable background stream downloads on all operating system environments.
+  - Dynamic stream format negotiation (`ba/b`) and automatic audio extension resolution (`.webm`, `.ogg`, `.opus`, `.m4a`, `.mp3`) with exact MIME type delivery, eliminating 502 Bad Gateway responses.
+  - Eliminated infinite stem preparation loop: added graceful failure state handling preventing event loop congestion and repeated console warnings when audio fetches fail.
+  - Seamless fallback to real-time 24dB/oct Linkwitz-Riley dual-filter crossover when discrete audio files are unavailable.
+
 ## v2.0.2
 - **Algoriddim djay Pro Style Neural Auto-Transition**:
   - Interactive Crossfader Neural Mix menu: Added popover selection menu right on the crossfader well with real-time transition presets (`Vocal Sustain`, `Harmonic Sustain`, `Drum Swap`, `Bass Swap`, `Vocal Swap`, `Harmonic Swap`, `Vocal Cut`, `Drum Cut`, and `Standard Crossfade`).

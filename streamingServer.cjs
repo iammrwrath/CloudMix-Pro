@@ -35,16 +35,22 @@ function downloadFile(url, dest, redirects = 6) {
 function resolveYtDlp() {
   if (ytDlpPathPromise) return ytDlpPathPromise;
   ytDlpPathPromise = new Promise((resolve, reject) => {
+    // 1. Check if yt-dlp is in PATH
     execFile('yt-dlp', ['--version'], { windowsHide: true }, (err) => {
-      if (!err) return resolve('yt-dlp');
-      fs.mkdirSync(YT_CACHE_DIR, { recursive: true });
-      const isWin = process.platform === 'win32';
-      const bin = path.join(YT_CACHE_DIR, isWin ? 'yt-dlp.exe' : 'yt-dlp');
-      if (fs.existsSync(bin)) return resolve(bin);
-      const asset = isWin ? 'yt-dlp.exe' : process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp_linux';
-      downloadFile(`https://github.com/yt-dlp/yt-dlp/releases/latest/download/${asset}`, bin)
-        .then(() => { try { fs.chmodSync(bin, 0o755); } catch {} resolve(bin); })
-        .catch(reject);
+      if (!err) return resolve({ cmd: 'yt-dlp', prefixArgs: [] });
+      // 2. Check if python -m yt_dlp is available
+      execFile('python', ['-m', 'yt_dlp', '--version'], { windowsHide: true }, (pyErr) => {
+        if (!pyErr) return resolve({ cmd: 'python', prefixArgs: ['-m', 'yt_dlp'] });
+        // 3. Fallback to cached binary in YT_CACHE_DIR or download it
+        fs.mkdirSync(YT_CACHE_DIR, { recursive: true });
+        const isWin = process.platform === 'win32';
+        const bin = path.join(YT_CACHE_DIR, isWin ? 'yt-dlp.exe' : 'yt-dlp');
+        if (fs.existsSync(bin)) return resolve({ cmd: bin, prefixArgs: [] });
+        const asset = isWin ? 'yt-dlp.exe' : process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp_linux';
+        downloadFile(`https://github.com/yt-dlp/yt-dlp/releases/latest/download/${asset}`, bin)
+          .then(() => { try { fs.chmodSync(bin, 0o755); } catch {} resolve({ cmd: bin, prefixArgs: [] }); })
+          .catch(reject);
+      });
     });
   });
   ytDlpPathPromise.catch(() => { ytDlpPathPromise = null; });
@@ -53,18 +59,45 @@ function resolveYtDlp() {
 
 function fetchYouTubeAudioFile(videoId) {
   fs.mkdirSync(YT_CACHE_DIR, { recursive: true });
-  const out = path.join(YT_CACHE_DIR, `${videoId}.m4a`);
-  if (fs.existsSync(out) && fs.statSync(out).size > 10000) return Promise.resolve(out);
+  // Check if any matching audio file for this videoId already exists and is non-empty
+  const existingFiles = fs.readdirSync(YT_CACHE_DIR).filter((f) => f.startsWith(`${videoId}.`));
+  for (const f of existingFiles) {
+    const fullP = path.join(YT_CACHE_DIR, f);
+    try {
+      if (fs.statSync(fullP).size > 10000) return Promise.resolve(fullP);
+    } catch {}
+  }
+
   if (ytInflight.has(videoId)) return ytInflight.get(videoId);
-  const p = resolveYtDlp().then((bin) => new Promise((resolve, reject) => {
-    const args = ['-f', '140/bestaudio[ext=m4a]/bestaudio', '--no-playlist', '--no-warnings', '-o', out, `https://www.youtube.com/watch?v=${videoId}`];
-    const child = spawn(bin, args, { windowsHide: true });
+  const p = resolveYtDlp().then(({ cmd, prefixArgs }) => new Promise((resolve, reject) => {
+    const outTemplate = path.join(YT_CACHE_DIR, `${videoId}.%(ext)s`);
+    // ba/b: best audio or best fallback stream, m4a preference if available
+    const args = [
+      ...prefixArgs,
+      '-f', 'ba/b',
+      '--no-playlist',
+      '--no-warnings',
+      '-o', outTemplate,
+      `https://www.youtube.com/watch?v=${videoId}`
+    ];
+    const child = spawn(cmd, args, { windowsHide: true });
     let errTxt = '';
     child.stderr.on('data', (d) => { errTxt += d.toString(); });
     child.on('error', reject);
     child.on('close', (code) => {
-      if (code === 0 && fs.existsSync(out)) resolve(out);
-      else reject(new Error('yt-dlp exit ' + code + ' ' + errTxt.slice(-200)));
+      // Find downloaded file
+      const matches = fs.readdirSync(YT_CACHE_DIR).filter((f) => f.startsWith(`${videoId}.`));
+      for (const m of matches) {
+        const target = path.join(YT_CACHE_DIR, m);
+        try {
+          if (fs.statSync(target).size > 10000) return resolve(target);
+        } catch {}
+      }
+      if (code === 0 && matches.length > 0) {
+        resolve(path.join(YT_CACHE_DIR, matches[0]));
+      } else {
+        reject(new Error('yt-dlp exit ' + code + ' ' + errTxt.slice(-200)));
+      }
     });
   }));
   ytInflight.set(videoId, p);
@@ -1180,8 +1213,13 @@ function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
       }
       fetchYouTubeAudioFile(vid).then((file) => {
         const stat = fs.statSync(file);
+        const ext = path.extname(file).toLowerCase();
+        const mime = ext === '.webm' ? 'audio/webm' :
+                     ext === '.ogg' || ext === '.opus' ? 'audio/ogg' :
+                     ext === '.mp3' ? 'audio/mpeg' :
+                     'audio/mp4';
         res.writeHead(200, {
-          'Content-Type': 'audio/mp4',
+          'Content-Type': mime,
           'Content-Length': stat.size,
           'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=86400',

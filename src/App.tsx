@@ -226,7 +226,7 @@ export const App: React.FC = () => {
     D: undefined,
   });
   // Real decoded audio (via server-side yt-dlp) for YouTube-sourced decks, enabling true stems + real waveforms
-  const ytRealAudioRef = useRef<Record<string, { videoId: string; buffer: AudioBuffer } | undefined>>({});
+  const ytRealAudioRef = useRef<Record<string, { videoId: string; buffer?: AudioBuffer; failed?: boolean } | undefined>>({});
   const stemPrepRef = useRef<Record<string, boolean>>({});
 
   const applyZoom = (factor: number) => {
@@ -671,6 +671,9 @@ export const App: React.FC = () => {
               });
             } catch (e) {
               console.warn('[YouTubeAudio] real audio unavailable, keeping synthetic waveform:', e);
+              if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
+                ytRealAudioRef.current[deckId] = { videoId: yid, failed: true };
+              }
             }
           })();
 
@@ -810,7 +813,12 @@ export const App: React.FC = () => {
     const isYt = youtubeDeckBridge.hasVideo(deckId);
     let buffer: AudioBuffer | null = null;
     if (isYt) {
-      buffer = ytRealAudioRef.current[deckId]?.buffer || null;
+      const audioState = ytRealAudioRef.current[deckId];
+      if (audioState?.failed) {
+        console.warn(`[Stems] Deck ${deckId}: real audio unavailable — using real-time audio filter fallback.`);
+        return;
+      }
+      buffer = audioState?.buffer || null;
       if (!buffer) {
         console.warn(`[Stems] Deck ${deckId}: real audio still downloading — stems will activate when ready.`);
         setTimeout(() => { void prepareStems(deckId); }, 1500);
