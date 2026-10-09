@@ -801,7 +801,7 @@ class DjayEngine:
     def get_current_song_info(self):
         """Fast MTIME-gated query into historySessionItems (<0.01ms when unchanged, ~1ms on change)."""
         if not self.db_path or not os.path.exists(self.db_path):
-            return None, 0, 0.0
+            return None, 0, 0.0, 0.0
         try:
             cur_mtime = os.path.getmtime(self.db_path)
             wal_path = self.db_path + "-wal"
@@ -1110,6 +1110,16 @@ def start_http_server():
 # MAIN BACKGROUND LOOP (Zero Subprocesses, Zero Gaming Lag)
 # ==============================================================================
 def main_loop():
+    # Single-instance lock via local TCP binding or lockfile
+    import socket
+    global _daemon_instance_lock_socket
+    try:
+        _daemon_instance_lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _daemon_instance_lock_socket.bind(('127.0.0.1', 42899))
+    except Exception as e:
+        log(f"[INSTANCE] Another instance of update_song daemon is already running. Exiting cleanly.")
+        sys.exit(0)
+
     # Set Windows Process Priority to BELOW_NORMAL (Guarantees zero interference with Overwatch)
     try:
         import ctypes

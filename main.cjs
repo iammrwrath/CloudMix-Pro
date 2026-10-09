@@ -343,11 +343,8 @@ app.on('window-all-closed', () => {
 // IPC Handlers for Native Desktop Capabilities
 ipcMain.handle('read-local-audio', async (event, filePath) => {
   try {
-    if (fs.existsSync(filePath)) {
-      const buffer = fs.readFileSync(filePath);
-      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-    }
-    throw new Error('File not found: ' + filePath);
+    const buffer = await fs.promises.readFile(filePath);
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   } catch (err) {
     log('Error reading local audio: ' + err);
     throw err;

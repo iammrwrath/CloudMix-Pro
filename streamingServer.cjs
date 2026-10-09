@@ -17,6 +17,15 @@ let ytDlpPathPromise = null;
 
 function downloadFile(url, dest, redirects = 6) {
   return new Promise((resolve, reject) => {
+    try {
+      const parsed = new URL(url);
+      const allowedHosts = ['github.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com'];
+      if (!allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+        return reject(new Error('Untrusted download source host: ' + parsed.hostname));
+      }
+    } catch (e) {
+      return reject(e);
+    }
     https.get(url, { headers: { 'User-Agent': 'CloudMixPro' } }, (r) => {
       if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && redirects > 0) {
         r.resume();
@@ -415,15 +424,19 @@ function broadcastToWsClients(msgObj) {
   }
 }
 
+let lastObsNowPlayingLine = '';
+
 function writeObsFiles(state) {
   try {
+    const nowPlayingLine = `${state.artist} - ${state.title} [${state.bpm} BPM | ${state.key}] (Deck ${state.deck})`;
+    if (nowPlayingLine === lastObsNowPlayingLine) return;
+    lastObsNowPlayingLine = nowPlayingLine;
+
     const appObsDir = path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro', 'obs');
 
     if (!fs.existsSync(appObsDir)) {
       try { fs.mkdirSync(appObsDir, { recursive: true }); } catch {}
     }
-
-    const nowPlayingLine = `${state.artist} - ${state.title} [${state.bpm} BPM | ${state.key}] (Deck ${state.deck})`;
 
     // Write dedicated granular files to standard OBS directory
     try {
@@ -1408,11 +1421,13 @@ function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
       const cleanPath = pathname.replace(/^\/+/, '');
       let filePath = path.join(distDir, cleanPath === '' ? 'index.html' : cleanPath);
 
-      // Verify path stays within distDir
+      // Verify path stays strictly within distDir (prevent directory traversal)
       const resolvedDist = path.resolve(distDir);
       const resolvedFile = path.resolve(filePath);
+      const rel = path.relative(resolvedDist, resolvedFile);
+      const isWithinDist = !rel.startsWith('..') && !path.isAbsolute(rel);
 
-      if (resolvedFile.startsWith(resolvedDist)) {
+      if (isWithinDist) {
         if (fs.existsSync(resolvedFile)) {
           try {
             if (fs.statSync(resolvedFile).isDirectory()) {
@@ -1475,15 +1490,23 @@ function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
     socket.on('close', () => wsClients.delete(socket));
     socket.on('error', () => wsClients.delete(socket));
 
-    // Send initial snapshot immediately
+    // Send initial snapshot immediately using RFC 6455 framing
     try {
       const payload = Buffer.from(JSON.stringify(currentBroadcastState), 'utf8');
       const len = payload.length;
-      let header = len < 126 ? Buffer.from([0x81, len]) : Buffer.alloc(4);
-      if (len >= 126) {
+      let header;
+      if (len < 126) {
+        header = Buffer.from([0x81, len]);
+      } else if (len <= 65535) {
+        header = Buffer.alloc(4);
         header[0] = 0x81;
         header[1] = 126;
         header.writeUInt16BE(len, 2);
+      } else {
+        header = Buffer.alloc(10);
+        header[0] = 0x81;
+        header[1] = 127;
+        header.writeBigUInt64BE(BigInt(len), 2);
       }
       socket.write(Buffer.concat([header, payload]));
     } catch {}
