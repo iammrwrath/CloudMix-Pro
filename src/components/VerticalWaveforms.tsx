@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { DeckState, WaveformData } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
+import { youtubeDeckBridge } from '../services/YouTubeDeckBridge';
 
 interface VerticalWaveformsProps {
   deckA: DeckState;
@@ -34,8 +35,12 @@ export const VerticalWaveforms: React.FC<VerticalWaveformsProps> = React.memo(({
     const render = () => {
       const curA = deckARef.current;
       const curB = deckBRef.current;
-      const liveTimeA = curA.isPlaying ? audioEngine.getCurrentTime('A') : curA.currentTime;
-      const liveTimeB = curB.isPlaying ? audioEngine.getCurrentTime('B') : curB.currentTime;
+      const liveTimeA = youtubeDeckBridge.isYouTubeDeck('A')
+        ? youtubeDeckBridge.getCurrentTime('A')
+        : (curA.isPlaying ? audioEngine.getCurrentTime('A') : curA.currentTime);
+      const liveTimeB = youtubeDeckBridge.isYouTubeDeck('B')
+        ? youtubeDeckBridge.getCurrentTime('B')
+        : (curB.isPlaying ? audioEngine.getCurrentTime('B') : curB.currentTime);
 
       const w = canvas.width;
       const h = canvas.height;
