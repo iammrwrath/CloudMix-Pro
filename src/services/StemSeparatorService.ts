@@ -260,7 +260,10 @@ export class StemSeparatorService {
         hR[i] = right - (vocalSample + bassRight + drumRight);
       }
 
-      if (block % 20 === 0) {
+      // Non-blocking UI guarantee: yield to browser microtask/event queue periodically
+      // to guarantee 60-120fps UI fluidity and zero turntable/canvas hitching during heavy DSP
+      if (block % 10 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
         const pct = 0.25 + 0.65 * (block / totalBlocks);
         onProgress?.({
           trackId,
