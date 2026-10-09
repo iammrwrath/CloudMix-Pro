@@ -169,7 +169,33 @@ export class AutomixService {
     this.executeTransition(currentPlaying, target, (currentPlaying === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || 126);
   }
 
-  private executeTransition(fromDeckId: DeckId, toDeckId: DeckId, bpm: number) {
+  public triggerNeuralTransition(
+    deckA: DeckState,
+    deckB: DeckState,
+    options?: { beats?: number; tempoBlend?: boolean; mode?: NeuralTransitionMode }
+  ) {
+    if (options?.mode) {
+      audioEngine.setNeuralTransitionMode(options.mode);
+    }
+    const isPlayingA = audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying;
+    const currentPlaying = isPlayingA ? 'A' : 'B';
+    const target: DeckId = currentPlaying === 'A' ? 'B' : 'A';
+    const sourceBpm = (currentPlaying === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || 126;
+    const targetBpm = (target === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || sourceBpm;
+
+    this.executeTransition(currentPlaying, target, sourceBpm, {
+      beats: options?.beats,
+      tempoBlend: options?.tempoBlend,
+      targetBpm: targetBpm,
+    });
+  }
+
+  private executeTransition(
+    fromDeckId: DeckId,
+    toDeckId: DeckId,
+    bpm: number,
+    opts?: { beats?: number; tempoBlend?: boolean; targetBpm?: number }
+  ) {
     if (this.state.transitioning) return;
     this.state.transitioning = true;
     this.notify();
@@ -179,11 +205,15 @@ export class AutomixService {
       this.onDeckAction('play', toDeckId);
     }
 
-    // 2. Animate crossfader, phrase alignment and intelligent bass swap over duration
-    const durationMs = ((60 / bpm) * this.state.transitionDurationBeats) * 1000;
+    const beats = opts?.beats || this.state.transitionDurationBeats || 16;
+    const durationMs = ((60 / bpm) * beats) * 1000;
     const startTime = Date.now();
     const startXfader = fromDeckId === 'A' ? -1.0 : 1.0;
     const endXfader = fromDeckId === 'A' ? 1.0 : -1.0;
+
+    const doTempoBlend = opts?.tempoBlend ?? false;
+    const startRate = 1.0;
+    const targetRate = doTempoBlend && opts?.targetBpm && bpm > 0 ? bpm / opts.targetBpm : 1.0;
 
     if (this.transitionTimer) clearInterval(this.transitionTimer);
 
@@ -194,6 +224,14 @@ export class AutomixService {
       // Smooth cosine curve
       const smoothProgress = 0.5 - 0.5 * Math.cos(rawProgress * Math.PI);
       const currentXfader = startXfader + (endXfader - startXfader) * smoothProgress;
+
+      // Tempo Blend: gradually pitch adjust outgoing and incoming decks towards common tempo
+      if (doTempoBlend && Math.abs(targetRate - 1.0) > 0.001) {
+        const curRate = startRate + (targetRate - startRate) * smoothProgress;
+        try {
+          audioEngine.setPlaybackRate(toDeckId, curRate);
+        } catch {}
+      }
 
       // Intelligent Bass EQ Swap (djay Pro / VirtualDJ club standard):
       // Before midpoint (progress < 0.5): incoming deck bass is smoothly scooped to avoid low-end clashing.

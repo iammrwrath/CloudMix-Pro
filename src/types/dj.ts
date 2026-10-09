@@ -73,7 +73,16 @@ export interface StemState {
   drumsSolo: boolean;
 }
 
-export type NeuralTransitionMode = 'standard' | 'bass_swap' | 'vocal_swap' | 'harmonic_swap';
+export type NeuralTransitionMode =
+  | 'standard'
+  | 'bass_swap'
+  | 'vocal_swap'
+  | 'harmonic_swap'
+  | 'drum_swap'
+  | 'vocal_sustain'
+  | 'harmonic_sustain'
+  | 'vocal_cut'
+  | 'drum_cut';
 export type EQMode = 'isolator' | 'stems';
 
 export interface DeckState {

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DeckState, MixerState, NeuralTransitionMode } from '../types/dj';
 import { RotaryKnob } from './RotaryKnob';
 import { VUMeter } from './VUMeter';
 import { ChannelFader } from './ChannelFader';
-import { Headphones, Sliders, Volume2, Sparkles } from 'lucide-react';
+import { Headphones, Sliders, Volume2, Sparkles, ChevronDown, Play, Shuffle } from 'lucide-react';
+import { automixService } from '../services/AutomixService';
 
 interface MixerProps {
   deckA: DeckState;
@@ -46,6 +47,30 @@ export const Mixer = React.memo<MixerProps>(({
   onStemSoloToggle,
   onNeuralTransitionModeChange,
 }) => {
+  const [showTransitionMenu, setShowTransitionMenu] = useState(false);
+  const [transitionBars, setTransitionBars] = useState<number>(4);
+  const [tempoBlend, setTempoBlend] = useState<boolean>(true);
+
+  const NEURAL_TRANSITION_OPTIONS: { id: NeuralTransitionMode; label: string; desc: string }[] = [
+    { id: 'vocal_sustain', label: 'Vocal Sustain', desc: 'Sustains vocals across incoming mix' },
+    { id: 'harmonic_sustain', label: 'Harmonic Sustain', desc: 'Pads/melody float over incoming rhythm' },
+    { id: 'drum_swap', label: 'Drum Swap', desc: 'Instant punchy beat drop on phrase' },
+    { id: 'bass_swap', label: 'Bass Swap', desc: 'Clean low-end crossover prevents clashing' },
+    { id: 'vocal_swap', label: 'Vocal Swap', desc: 'Smooth vocal handoff at center phrase' },
+    { id: 'harmonic_swap', label: 'Harmonic Swap', desc: 'Melody swaps keeping bass groove locked' },
+    { id: 'vocal_cut', label: 'Vocal Cut', desc: 'Cuts vocals early for clear incoming entry' },
+    { id: 'drum_cut', label: 'Drum Cut', desc: 'Rhythm cuts into melodic breakdown' },
+    { id: 'standard', label: 'Standard Crossfade', desc: 'Smooth full-frequency power blend' },
+  ];
+
+  const handleStartTransition = () => {
+    automixService.triggerNeuralTransition(deckA, deckB, {
+      beats: transitionBars * 4,
+      tempoBlend,
+      mode: mixer.neuralTransitionMode,
+    });
+    setShowTransitionMenu(false);
+  };
   return (
     <div className="flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border border-dj-border shadow-2xl w-[260px] sm:w-[290px] xl:w-[330px] min-w-[240px] max-w-[350px] overflow-hidden justify-between shrink-0 min-h-0">
       {/* 1. Mixer Header / Master Volume Section */}
@@ -673,34 +698,119 @@ export const Mixer = React.memo<MixerProps>(({
       {/* 3. Crossfader Section (Studio Magvel Well) */}
       <div className="bg-dj-surface/90 rounded-lg p-1 mt-0.5 border border-dj-border shadow-[0_4px_12px_rgba(0,0,0,0.6)] shrink-0">
         {/* Unified Neural FX & Curve Selector Row */}
-        <div className="flex items-center justify-between mb-0.5 pb-0.5 border-b border-dj-border/50 text-[8px] font-mono">
+        <div className="relative flex items-center justify-between mb-0.5 pb-0.5 border-b border-dj-border/50 text-[8px] font-mono">
           <div className="flex items-center space-x-1">
-            <span className="text-purple-400 font-bold flex items-center space-x-0.5">
+            {/* djay Pro style Neural Auto-Transition Selector Trigger */}
+            <button
+              onClick={() => setShowTransitionMenu((v) => !v)}
+              className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:bg-purple-900/80 transition-all cursor-pointer shadow-sm active:scale-95"
+              title="Configure & Trigger Neural Auto-Transition"
+            >
               <Sparkles className="w-2.5 h-2.5 text-purple-400 animate-pulse" />
-              <span>NEURAL</span>
-            </span>
-            <div className="flex space-x-0.5 bg-slate-950/80 p-0.5 rounded border border-purple-500/30">
-              {[
-                { id: 'standard', label: 'STD' },
-                { id: 'bass_swap', label: 'BAS' },
-                { id: 'vocal_swap', label: 'VOC' },
-                { id: 'harmonic_swap', label: 'HRM' },
-              ].map((mode) => (
-                <button
-                  key={mode.id}
-                  onClick={() => onNeuralTransitionModeChange?.(mode.id as NeuralTransitionMode)}
-                  title={`Neural Mix Mode: ${mode.label}`}
-                  className={`px-1 py-0.2 text-[7.5px] font-mono font-black rounded uppercase transition-all cursor-pointer ${
-                    mixer.neuralTransitionMode === mode.id
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_8px_rgba(168,85,247,0.8)] border border-purple-300'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {mode.label}
-                </button>
-              ))}
-            </div>
+              <span className="font-bold text-[8.5px] uppercase tracking-wide">
+                {mixer.neuralTransitionMode.replace('_', ' ')}
+              </span>
+              <ChevronDown className="w-2.5 h-2.5 text-purple-400" />
+            </button>
+
+            {/* Quick 1-tap Transition button */}
+            <button
+              onClick={handleStartTransition}
+              disabled={!deckA.track && !deckB.track}
+              className="flex items-center space-x-0.5 px-1.5 py-0.5 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-[8px] tracking-wider uppercase transition-all shadow-[0_0_8px_rgba(168,85,247,0.5)] active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Execute Neural Transition now"
+            >
+              <Play className="w-2 h-2 fill-current" />
+              <span>TRANSITION</span>
+            </button>
           </div>
+
+          {/* djay Pro Neural Transition Popover Menu */}
+          {showTransitionMenu && (
+            <div className="absolute bottom-full left-0 mb-1 z-50 w-64 bg-slate-900/95 backdrop-blur-md border border-purple-500/50 rounded-xl shadow-2xl p-2.5 text-slate-200">
+              <div className="flex items-center justify-between pb-1.5 border-b border-white/10 mb-2">
+                <div className="flex items-center space-x-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="font-mono font-black text-[10px] text-white uppercase tracking-wider">
+                    Neural Mix Transition
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowTransitionMenu(false)}
+                  className="text-slate-400 hover:text-white text-xs px-1 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Mode List */}
+              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar mb-2.5">
+                {NEURAL_TRANSITION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => onNeuralTransitionModeChange?.(opt.id)}
+                    className={`w-full text-left p-1.5 rounded-lg text-[9px] font-mono transition-all cursor-pointer flex flex-col ${
+                      mixer.neuralTransitionMode === opt.id
+                        ? 'bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white border border-purple-300/40 shadow-sm'
+                        : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <span className="font-black text-[9.5px] uppercase tracking-wide">{opt.label}</span>
+                    <span className="text-[7.5px] opacity-80">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Transition Settings: Bars & Tempo Blend */}
+              <div className="space-y-2 pt-1 border-t border-white/10 text-[9px] font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-bold">DURATION:</span>
+                  <div className="flex space-x-1">
+                    {[1, 2, 4, 8, 16].map((bars) => (
+                      <button
+                        key={bars}
+                        onClick={() => setTransitionBars(bars)}
+                        className={`px-1.5 py-0.5 rounded text-[8.5px] font-black cursor-pointer transition-all ${
+                          transitionBars === bars
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {bars}B
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-bold flex items-center space-x-1">
+                    <Shuffle className="w-2.5 h-2.5 text-cyan-400" />
+                    <span>TEMPO BLEND</span>
+                  </span>
+                  <button
+                    onClick={() => setTempoBlend((v) => !v)}
+                    className={`px-2 py-0.5 rounded text-[8.5px] font-black transition-all cursor-pointer ${
+                      tempoBlend
+                        ? 'bg-cyan-500 text-black shadow-sm font-black'
+                        : 'bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {tempoBlend ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
+                {/* Big Execute Button inside menu */}
+                <button
+                  onClick={handleStartTransition}
+                  disabled={!deckA.track && !deckB.track}
+                  className="w-full mt-1.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-500 hover:brightness-110 text-white font-black text-[10px] tracking-wider uppercase transition-all shadow-[0_0_12px_rgba(168,85,247,0.6)] active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center justify-center space-x-1.5"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>START NEURAL TRANSITION ({transitionBars} BARS)</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center space-x-1">
             <span className="text-slate-400 font-bold">CURVE</span>

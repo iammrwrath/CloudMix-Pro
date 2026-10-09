@@ -1281,6 +1281,10 @@ class AudioEngine {
       // Bass swaps cleanly across center (0.45 to 0.55), while Vocals/Melody blend smoothly
       stemBassA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
       stemBassB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+    } else if (this.neuralTransitionMode === 'drum_swap') {
+      // Drums/percussion swap instantly at center phrase mark
+      stemDrumsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
+      stemDrumsB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
     } else if (this.neuralTransitionMode === 'vocal_swap') {
       // Vocals swap cleanly on phrase at center, rhythm and harmony blend continuously
       stemVocalsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
@@ -1289,6 +1293,28 @@ class AudioEngine {
       // Melodic elements swap sharply, keeping the bass groove locked
       stemHarmonicsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
       stemHarmonicsB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+    } else if (this.neuralTransitionMode === 'vocal_sustain') {
+      // Outgoing vocals sustain all the way through the mix until full crossfade
+      stemVocalsA = pos < 0.85 ? 1.0 : (1.0 - pos) / 0.15;
+      stemBassA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
+      stemDrumsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
+      stemBassB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+      stemDrumsB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+    } else if (this.neuralTransitionMode === 'harmonic_sustain') {
+      // Outgoing melody/pads sustain and float over incoming rhythm
+      stemHarmonicsA = pos < 0.85 ? 1.0 : (1.0 - pos) / 0.15;
+      stemBassA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
+      stemDrumsA = pos < 0.45 ? 1.0 : pos > 0.55 ? 0.0 : (0.55 - pos) * 10.0;
+      stemBassB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+      stemDrumsB = pos > 0.55 ? 1.0 : pos < 0.45 ? 0.0 : (pos - 0.45) * 10.0;
+    } else if (this.neuralTransitionMode === 'vocal_cut') {
+      // Cuts outgoing vocals early so incoming vocals can enter with zero collision
+      stemVocalsA = pos < 0.25 ? 1.0 : pos > 0.35 ? 0.0 : (0.35 - pos) * 10.0;
+      stemVocalsB = pos > 0.35 ? 1.0 : pos < 0.25 ? 0.0 : (pos - 0.25) * 10.0;
+    } else if (this.neuralTransitionMode === 'drum_cut') {
+      // Outgoing drums cut early into an acapella/melodic drop
+      stemDrumsA = pos < 0.25 ? 1.0 : pos > 0.35 ? 0.0 : (0.35 - pos) * 10.0;
+      stemDrumsB = pos > 0.35 ? 1.0 : pos < 0.25 ? 0.0 : (pos - 0.25) * 10.0;
     }
 
     deckA.stemDrumsXfaderGain.gain.setTargetAtTime(stemDrumsA, this.ctx.currentTime, 0.01);

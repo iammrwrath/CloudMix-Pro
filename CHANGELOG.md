@@ -1,3 +1,10 @@
+## v2.0.2
+- **Algoriddim djay Pro Style Neural Auto-Transition**:
+  - Interactive Crossfader Neural Mix menu: Added popover selection menu right on the crossfader well with real-time transition presets (`Vocal Sustain`, `Harmonic Sustain`, `Drum Swap`, `Bass Swap`, `Vocal Swap`, `Harmonic Swap`, `Vocal Cut`, `Drum Cut`, and `Standard Crossfade`).
+  - Bar Duration Selector: Choose phrase alignment lengths (`1`, `2`, `4`, `8`, or `16` bars) for smooth or punchy drops.
+  - Tempo Blend Automation: Added intelligent BPM matching toggle that gradually synchronizes tempo curves during transition execution.
+  - 1-Tap Trigger Button: Launch instant neural mix automations directly from the mixer crossfader well or HUD.
+
 ## v2.0.1
 - **Interactive OBS Stream Canvas Layout Customizer**:
   - Full drag-and-drop support: easily reposition overlay widgets (`Track Card`, `Up Next`, `Lyrics`, `Video Feed`) directly on the visual stream canvas map using tactile mouse gestures.
