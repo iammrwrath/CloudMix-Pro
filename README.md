@@ -54,10 +54,11 @@ Traditional DJ applications like Serato, Traktor, VirtualDJ, and Algoriddim djay
 - **Transparent OBS Browser Source**: Connect OBS Studio to `http://localhost:3000/overlay` for a broadcast-ready HUD displaying album art, animated audio visualizer, elapsed progress bar, BPM, and key tags.
 - **Streamer.bot Integration**: Native endpoints for viewer song requests and twitch/kick channel point soundboard activations.
 
-### 🧠 Built-In Harmonic Co-Pilot
-- **Sub-Millisecond Key Matching**: Instant 24-key Camelot wheel harmonic search across your entire library.
-- **Interactive Camelot Radar**: Visualizes harmonic compatibility and energy jumps before mixing.
-- **Dynamic AutoMix Transitions**: Phrase-synchronized 16/32-beat crossfading with automatic low-end bass EQ swapping.
+### 🧠 MixCortex AI — Neural DJ Co-Pilot
+- **Native AI Companion**: Integrated directly inside CloudMix Pro (and available as a standalone companion window) to provide live harmonic guidance during live sets.
+- **Sub-Millisecond Key Matching**: Instant 24-key Camelot wheel harmonic search across your entire library and cloud tracks.
+- **Interactive Camelot Radar**: Visualizes harmonic compatibility, energy transitions, and semitone pitch adjustments before mixing.
+- **Algoriddim djay Pro Style Neural Auto-Transition**: 1-tap automated phrase crossfading with tempo blend curves and discrete stem swaps (Vocals, Drums, Bass, Melodics).
 
 ---
 
