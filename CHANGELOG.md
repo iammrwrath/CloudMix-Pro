@@ -1,3 +1,14 @@
+## v2.0.4
+- **Complete Retirement of Legacy Python Daemon (`update_song.py`)**:
+  - Fully removed obsolete external script `update_song.py` from repository.
+  - Retired legacy port 8765 fallback from `main.cjs`; all djay Pro `MediaLibrary.db` extraction, track metadata parsing, and OBS broadcasting run 100% natively in Node.js/Electron.
+- **Security Hardening & Core Stability**:
+  - Enforced strict relative path verification on static file routes in `streamingServer.cjs` to eliminate path traversal risks.
+  - Hardened binary downloader with trusted GitHub host verification.
+  - Implemented full RFC 6455 3-tier length framing for WebSocket clients.
+  - Added memory diff deduplication to OBS text file writes, eliminating disk I/O thrashing.
+  - Converted `read-local-audio` IPC handler to asynchronous `fs.promises.readFile` to ensure zero UI thread blocking on large audio files.
+
 ## v2.0.3
 - **Robust YouTube Audio Streaming & Stem Pipeline**:
   - Python module and native binary fallback in `resolveYtDlp()` ensuring reliable background stream downloads on all operating system environments.
