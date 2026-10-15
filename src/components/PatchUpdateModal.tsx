@@ -27,6 +27,7 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   const [releaseTag, setReleaseTag] = useState<string>('');
   const [publishedAt, setPublishedAt] = useState<string>('');
   const [assetSize, setAssetSize] = useState<string>('');
+  const [downloadUrl, setDownloadUrl] = useState<string>('');
   const [loadingNotes, setLoadingNotes] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
