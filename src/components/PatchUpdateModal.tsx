@@ -10,6 +10,10 @@ import {
   X,
   Sparkles,
   Zap,
+  Maximize2,
+  Minimize2,
+  FileText,
+  ChevronRight,
 } from 'lucide-react';
 
 interface PatchUpdateModalProps {
@@ -23,8 +27,8 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   const [releaseTag, setReleaseTag] = useState<string>('');
   const [publishedAt, setPublishedAt] = useState<string>('');
   const [assetSize, setAssetSize] = useState<string>('');
-  const [downloadUrl, setDownloadUrl] = useState<string>('');
   const [loadingNotes, setLoadingNotes] = useState<boolean>(false);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = updateService.subscribe((s) => {
@@ -37,6 +41,29 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
     return () => unsub();
   }, []);
 
+  const extractVersionChangelog = (changelogText: string, targetTag: string): string | null => {
+    if (!changelogText) return null;
+    const normTag = targetTag.replace(/^v/i, '').trim();
+    const lines = changelogText.split(/\r?\n/);
+    const captured: string[] = [];
+    let capturing = false;
+
+    for (const line of lines) {
+      if (line.match(new RegExp(`^##\\s*v?${normTag.replace(/\\./g, '\\.')}\\b`))) {
+        capturing = true;
+        continue;
+      }
+      if (capturing) {
+        if (line.match(/^##\s*v?\d/) || line.match(/^#\s*Changelog/)) {
+          break;
+        }
+        captured.push(line);
+      }
+    }
+    const result = captured.join('\n').trim();
+    return result.length > 0 ? result : null;
+  };
+
   const fetchGitHubReleaseInfo = async () => {
     setLoadingNotes(true);
     try {
@@ -47,9 +74,28 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
           ? releases.find((r: any) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || releases[0]
           : releases;
         if (data) {
-          setReleaseTag(data.tag_name || '');
+          const tag = data.tag_name || '';
+          setReleaseTag(tag);
           setReleaseName(data.name || data.tag_name || 'Latest Release');
-          setReleaseNotes(data.body || 'No release notes provided for this release.');
+          
+          let notes = (data.body || '').trim();
+          // If GitHub body is just the generic compare link or blank, fetch detailed notes from CHANGELOG.md
+          if (!notes || notes.startsWith('**Full Changelog**:') || notes.length < 50) {
+            try {
+              const clResp = await fetch('https://raw.githubusercontent.com/iammrwrath/CloudMix-Pro/main/CHANGELOG.md');
+              if (clResp.ok) {
+                const clText = await clResp.text();
+                const parsed = extractVersionChangelog(clText, tag || 'v2.0.5');
+                if (parsed) {
+                  notes = parsed;
+                }
+              }
+            } catch {
+              // fallback to raw notes
+            }
+          }
+
+          setReleaseNotes(notes || 'No release notes provided for this release.');
           if (data.published_at) {
             setPublishedAt(new Date(data.published_at).toLocaleDateString(undefined, {
               year: 'numeric',
@@ -117,7 +163,9 @@ function isNewer(latest: string, current: string): boolean {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-[#0b0e17] border border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] select-none font-sans">
+      <div className={`bg-[#0b0e17] border border-slate-800 rounded-2xl w-full shadow-2xl overflow-hidden flex flex-col select-none font-sans transition-all duration-300 ${
+        isExpanded ? 'max-w-3xl max-h-[94vh]' : 'max-w-xl max-h-[88vh]'
+      }`}>
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800/80 bg-slate-900/60">
           <div className="flex items-center space-x-2.5">
@@ -139,12 +187,21 @@ function isNewer(latest: string, current: string): boolean {
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
+              title={isExpanded ? 'Collapse Modal' : 'Expand Modal'}
+            >
+              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -237,24 +294,113 @@ function isNewer(latest: string, current: string): boolean {
           {/* Release Notes Preview */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
-                Release Notes / Changelog
-              </span>
-              {assetSize && (
-                <span className="text-[10px] font-mono text-slate-500">
-                  Installer: {assetSize}
+              <div className="flex items-center space-x-2">
+                <FileText className="w-3.5 h-3.5 text-purple-400" />
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
+                  Release Notes / Changelog
                 </span>
-              )}
+              </div>
+              <div className="flex items-center space-x-2.5">
+                {assetSize && (
+                  <span className="text-[10px] font-mono text-slate-500">
+                    Installer: {assetSize}
+                  </span>
+                )}
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="flex items-center space-x-1 text-[11px] font-mono text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
+                >
+                  {isExpanded ? (
+                    <>
+                      <Minimize2 className="w-3 h-3" />
+                      <span>Compact</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3 h-3" />
+                      <span>Expand</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/90 text-xs text-slate-300 font-mono max-h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+            <div className={`p-3.5 rounded-xl bg-slate-950 border border-slate-800/90 text-xs text-slate-300 font-mono overflow-y-auto leading-relaxed transition-all duration-300 ${
+              isExpanded ? 'max-h-96 min-h-[220px]' : 'max-h-56'
+            }`}>
               {loadingNotes ? (
-                <div className="flex items-center justify-center py-6 text-slate-500">
+                <div className="flex items-center justify-center py-8 text-slate-500">
                   <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                  <span>Loading changelog from GitHub...</span>
+                  <span>Loading changelog details...</span>
+                </div>
+              ) : releaseNotes ? (
+                <div className="space-y-2">
+                  {releaseNotes.split(/\r?\n/).map((line, idx) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return null;
+
+                    // Markdown header / category
+                    if (trimmed.startsWith('##')) {
+                      return (
+                        <div key={idx} className="text-xs font-bold text-cyan-400 pt-1 pb-0.5 border-b border-slate-800/70">
+                          {trimmed.replace(/^#+\s*/, '')}
+                        </div>
+                      );
+                    }
+
+                    // Bullet points
+                    if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+                      const cleanText = trimmed.replace(/^[-*]\s+/, '');
+                      const isSubBullet = line.startsWith('  ') || line.startsWith('\t');
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-start space-x-2 ${isSubBullet ? 'pl-4 text-slate-400 text-[11px]' : 'text-slate-200 text-xs font-medium'}`}
+                        >
+                          <span className="text-purple-400 mt-1 shrink-0">•</span>
+                          <span className="break-words leading-relaxed">
+                            {cleanText.split('**').map((part, pIdx) =>
+                              pIdx % 2 === 1 ? (
+                                <strong key={pIdx} className="text-white font-semibold">
+                                  {part}
+                                </strong>
+                              ) : (
+                                part
+                              )
+                            )}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    // Compare diff URL
+                    if (trimmed.includes('github.com') && trimmed.includes('/compare/')) {
+                      const diffUrl = trimmed.replace(/^\*\*Full Changelog\*\*:\s*/, '').trim();
+                      return (
+                        <div key={idx} className="pt-2 text-[11px] text-slate-400 border-t border-slate-900 flex items-center justify-between">
+                          <span>Compare Diff:</span>
+                          <a
+                            href={diffUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-purple-400 hover:text-purple-300 underline inline-flex items-center space-x-1"
+                          >
+                            <span>View Full Git Diff</span>
+                            <ExternalLink className="w-3 h-3 ml-0.5" />
+                          </a>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <p key={idx} className="text-slate-300 leading-relaxed">
+                        {trimmed}
+                      </p>
+                    );
+                  })}
                 </div>
               ) : (
-                releaseNotes || 'No release notes available.'
+                <span className="text-slate-500">No release notes available.</span>
               )}
             </div>
           </div>
