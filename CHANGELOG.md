@@ -1,3 +1,11 @@
+## v2.0.6
+- **Zero-Latency Performance & Zero-Freeze Stem Engine**:
+  - **Eliminated Main-Thread JSON Serialization Freeze**: Stems are now stored directly as native `Float32Array` binary buffers via dedicated `cacheStemsData` in IndexedDB (`audioBuffers`), eliminating the 250MB–350MB JSON stringification blocking the Electron IPC bridge.
+  - **High-Frequency DSP Microtask Slicing**: Reduced separation block size to 8,192 and increased event loop yield frequency to every 2 blocks (~16k samples), guaranteeing fluid 60–120 FPS animations across turntables, waveforms, and meters.
+- **Enhanced Release Notes Modal UI**:
+  - **Automatic Changelog Summarization**: Release notes panel parses detailed markdown bullets and categories directly from `CHANGELOG.md` with clean formatting, replacing raw compare links.
+  - **Expand / Compact Viewport**: Added dedicated expand and compact controls with smooth modal enlargement to `max-w-3xl` and `max-h-96` for comfortable release review.
+
 ## v2.0.5
 - **Studio-Grade Vocal Stem Separation & Crossover Clarity**:
   - **Fixed 2nd-Order HPF Accumulation Bug**: Fixed cascaded highpass difference equation in `StemSeparatorService` that was erroneously causing 8.5x gain blowout and harsh digital distortion on isolated vocals.
