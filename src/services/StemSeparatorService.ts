@@ -176,7 +176,7 @@ export class StemSeparatorService {
     let sideEnv = 0.001;
     const envCoeff = dt / (0.025 + dt); // ~25ms smoothing window for natural transients
 
-    const blockSize = 16384;
+    const blockSize = 8192;
     const totalBlocks = Math.ceil(length / blockSize);
 
     for (let block = 0; block < totalBlocks; block++) {
@@ -262,9 +262,8 @@ export class StemSeparatorService {
         hR[i] = right - (vocalSample + bassRight + drumRight);
       }
 
-      // Non-blocking UI guarantee: yield to browser microtask/event queue periodically
-      // to guarantee 60-120fps UI fluidity and zero turntable/canvas hitching during heavy DSP
-      if (block % 10 === 0) {
+      // Non-blocking UI guarantee: yield every 2 blocks (~16k samples) to keep UI running at a fluid 60-120fps
+      if (block % 2 === 0) {
         await new Promise((resolve) => setTimeout(resolve, 0));
         const pct = 0.25 + 0.65 * (block / totalBlocks);
         onProgress?.({
@@ -290,20 +289,22 @@ export class StemSeparatorService {
   }
 
   /**
-   * IndexedDB persistence helper
+   * IndexedDB persistence helper (Binary Float32Array direct storage - Zero JSON Stringification overhead)
    */
   private async loadFromStorageCache(trackId: string, sampleRate: number): Promise<DiscreteStems | null> {
     try {
-      const raw = await storageCache.getSetting<any>(`stems_v2_${trackId}`, null);
+      const raw = await storageCache.getCachedStemsData(`v2_${trackId}`);
       if (!raw || !raw.vL) return null;
 
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const length = raw.length;
 
-      const createStem = (lArr: number[], rArr: number[]) => {
+      const createStem = (lBuf: Float32Array | ArrayBuffer, rBuf: Float32Array | ArrayBuffer) => {
         const buf = audioCtx.createBuffer(2, length, sampleRate);
-        buf.getChannelData(0).set(new Float32Array(lArr));
-        buf.getChannelData(1).set(new Float32Array(rArr));
+        const lData = lBuf instanceof Float32Array ? lBuf : new Float32Array(lBuf);
+        const rData = rBuf instanceof Float32Array ? rBuf : new Float32Array(rBuf);
+        buf.getChannelData(0).set(lData);
+        buf.getChannelData(1).set(rData);
         return buf;
       };
 
@@ -324,21 +325,22 @@ export class StemSeparatorService {
   private async saveToStorageCache(trackId: string, stems: DiscreteStems): Promise<void> {
     try {
       const length = stems.vocals.length;
+      // Extract binary typed arrays directly (zero Array.from conversion, zero JSON stringify overhead)
       const payload = {
         trackId,
         length,
-        vL: Array.from(stems.vocals.getChannelData(0)),
-        vR: Array.from(stems.vocals.getChannelData(1)),
-        dL: Array.from(stems.drums.getChannelData(0)),
-        dR: Array.from(stems.drums.getChannelData(1)),
-        bL: Array.from(stems.bass.getChannelData(0)),
-        bR: Array.from(stems.bass.getChannelData(1)),
-        hL: Array.from(stems.harmonics.getChannelData(0)),
-        hR: Array.from(stems.harmonics.getChannelData(1)),
+        vL: stems.vocals.getChannelData(0),
+        vR: stems.vocals.getChannelData(1),
+        dL: stems.drums.getChannelData(0),
+        dR: stems.drums.getChannelData(1),
+        bL: stems.bass.getChannelData(0),
+        bR: stems.bass.getChannelData(1),
+        hL: stems.harmonics.getChannelData(0),
+        hR: stems.harmonics.getChannelData(1),
       };
-      await storageCache.setSetting(`stems_v2_${trackId}`, payload);
+      await storageCache.cacheStemsData(`v2_${trackId}`, payload);
     } catch {
-      // Storage quota or serialization limit, memory cache remains active
+      // Memory cache remains active if IndexedDB quota is reached
     }
   }
 }

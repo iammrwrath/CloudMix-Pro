@@ -73,6 +73,31 @@ export class StorageCacheService {
     return record ? record.data : null;
   }
 
+  // Discrete Stems Binary Storage (Zero-JSON, Zero IPC Overhead)
+  public async cacheStemsData(id: string, data: any): Promise<void> {
+    try {
+      const db = await this.dbPromise;
+      await db.put('audioBuffers', { id: `stems_${id}`, data, cachedAt: Date.now() });
+    } catch {}
+  }
+
+  public async getCachedStemsData(id: string): Promise<any | null> {
+    try {
+      const db = await this.dbPromise;
+      const record = await db.get('audioBuffers', `stems_${id}`);
+      return record ? record.data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async deleteCachedStems(id: string): Promise<void> {
+    try {
+      const db = await this.dbPromise;
+      await db.delete('audioBuffers', `stems_${id}`);
+    } catch {}
+  }
+
   // Playlists
   public async savePlaylist(playlist: Playlist): Promise<void> {
     const db = await this.dbPromise;
