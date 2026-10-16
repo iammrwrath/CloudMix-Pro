@@ -657,7 +657,20 @@ export const App: React.FC = () => {
               const realWf = AudioAnalyzer.extractWaveformData(real);
               if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(real).bpm;
               if (deckId === 'A') setWaveformDataA(realWf); else setWaveformDataB(realWf);
-              console.log(`[YouTubeAudio] Real waveform ready for Deck ${deckId} (${real.duration.toFixed(1)}s)`);
+              // Seamless AudioEngine Takeover: Once real audio is decoded, immediately hand off
+              // so all mixer knobs (GAIN, HI, MID, LOW, FILTER) and 4-stem DSP operate directly via Web Audio
+              if (youtubeDeckBridge.getActiveVideoId(deckId) === yid && !youtubeDeckBridge.isEngineTakeover(deckId)) {
+                const isPlaying = deckId === 'A' ? deckA.isPlaying : deckB.isPlaying;
+                const ytTime = youtubeDeckBridge.getCurrentTime(deckId);
+                const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
+                const playTime = ytTime > 0 ? ytTime : time;
+                audioEngine.loadTrackToDeck(deckId, real);
+                audioEngine.seekDeck(deckId, playTime);
+                if (wasPlaying || isPlaying) {
+                  audioEngine.playDeck(deckId, playTime);
+                }
+                console.log(`[YouTubeAudio] Seamless handoff to Web Audio DSP engine complete for Deck ${deckId} at ${playTime.toFixed(2)}s`);
+              }
 
               // Pre-calculate stems in the background immediately so stems/acapella work with 0 latency
               const trackId = track.id;
@@ -1214,6 +1227,9 @@ export const App: React.FC = () => {
 
   // Mixer Controls
   const handleEQChange = (deckId: 'A' | 'B', band: 'low' | 'mid' | 'high', val: number) => {
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      void prepareStems(deckId);
+    }
     audioEngine.setEQ(deckId, band, val);
     const key = band === 'low' ? 'eqLow' : band === 'mid' ? 'eqMid' : 'eqHigh';
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, [key]: val }));
@@ -1221,6 +1237,9 @@ export const App: React.FC = () => {
   };
 
   const handleEQKillToggle = (deckId: 'A' | 'B', band: 'low' | 'mid' | 'high') => {
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      void prepareStems(deckId);
+    }
     const deck = deckId === 'A' ? deckA : deckB;
     const killKey = band === 'low' ? 'eqLowKill' : band === 'mid' ? 'eqMidKill' : 'eqHighKill';
     const newKill = !deck[killKey];
@@ -1230,12 +1249,18 @@ export const App: React.FC = () => {
   };
 
   const handleFilterChange = (deckId: 'A' | 'B', val: number) => {
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      void prepareStems(deckId);
+    }
     audioEngine.setFilter(deckId, val);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, filter: val }));
     else setDeckB((prev) => ({ ...prev, filter: val }));
   };
 
   const handleTrimChange = (deckId: 'A' | 'B', val: number) => {
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      void prepareStems(deckId);
+    }
     audioEngine.setTrimGain(deckId, val);
     if (deckId === 'A') setDeckA((prev) => ({ ...prev, trimGain: val }));
     else setDeckB((prev) => ({ ...prev, trimGain: val }));
