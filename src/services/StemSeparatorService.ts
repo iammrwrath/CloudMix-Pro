@@ -284,7 +284,7 @@ export class StemSeparatorService {
         // 5. Melodic / Harmonics Stem (Remainder: Synths, guitars, keys, pads)
         // Vocals + Bass + Drums + Harmonics = Master Mix (100% Phase Complete)
         hL[i] = left - (vocalSample + bassL + drumLeft);
-        hR[i] = right - (vocalSample + bassRight + drumRight);
+        hR[i] = right - (vocalSample + bassR + drumRight);
       }
 
       // Non-blocking UI guarantee: yield every 2 blocks (~16k samples) to keep UI running at a fluid 60-120fps
