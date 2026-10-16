@@ -1347,8 +1347,8 @@ class AudioEngine {
 
   /**
    * Sets up output routing for Master bus and Headphone Cue bus.
-   * Supports modern setSinkId on AudioContext/HTMLAudioElement to route audio
-   * independently to USB DJ Controllers, external audio interfaces, or separate headphone jacks.
+   * Supports modern setSinkId on AudioContext and HTMLAudioElement fallback to route audio
+   * independently to USB DJ Controllers, GoXLR Mini, external interfaces, or private headphones.
    */
   private setupOutputRouting() {
     if (!this.ctx || !this.masterGain || !this.masterLimiter || !this.masterAnalyser || !this.headphoneGain) return;
@@ -1365,23 +1365,27 @@ class AudioEngine {
     this.masterGain.connect(this.masterLimiter);
     this.masterLimiter.connect(this.masterAnalyser);
 
-    const hasSetSinkId = typeof (AudioContext.prototype as any).setSinkId === 'function' ||
-                         typeof (this.ctx as any).setSinkId === 'function';
+    const sinkTarget = (devId: string) => (devId === 'default' ? '' : devId);
 
-    if (hasSetSinkId && this.masterDeviceId === this.headphoneDeviceId) {
-      // Single device or default: route both to ctx.destination
-      this.masterAnalyser.connect(this.ctx.destination);
-      this.headphoneGain.connect(this.ctx.destination);
+    // If both master and headphone share the same output or default, try AudioContext.setSinkId
+    const isShared = this.masterDeviceId === this.headphoneDeviceId;
+    let audioContextSinkSuccess = false;
+
+    if (isShared && typeof (this.ctx as any).setSinkId === 'function') {
       try {
-        if ((this.ctx as any).setSinkId) {
-          (this.ctx as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId);
-        }
+        (this.ctx as any).setSinkId(sinkTarget(this.masterDeviceId));
+        this.masterAnalyser.connect(this.ctx.destination);
+        this.headphoneGain.connect(this.ctx.destination);
+        audioContextSinkSuccess = true;
+        console.log(`[AUDIO ROUTING] Successfully set AudioContext sink to "${this.masterDeviceId}"`);
       } catch (err) {
-        console.warn('[AUDIO ROUTING] setSinkId on AudioContext failed:', err);
+        console.warn('[AUDIO ROUTING] AudioContext.setSinkId failed, falling back to MediaStream routing:', err);
       }
-    } else {
-      // Independent routing via MediaStreamAudioDestinationNode + HTMLAudioElement
-      // Master output element
+    }
+
+    if (!audioContextSinkSuccess) {
+      // Independent or dedicated routing via MediaStreamAudioDestinationNode + HTMLAudioElement
+      // 1. Master Output
       try {
         const masterDest = this.ctx.createMediaStreamDestination();
         this.masterAnalyser.connect(masterDest);
@@ -1391,16 +1395,16 @@ class AudioEngine {
         }
         this.masterAudioElement.srcObject = masterDest.stream;
         if (typeof (this.masterAudioElement as any).setSinkId === 'function') {
-          (this.masterAudioElement as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId)
-            .catch((e: any) => console.warn('[AUDIO ROUTING] Master setSinkId error:', e));
+          (this.masterAudioElement as any).setSinkId(sinkTarget(this.masterDeviceId))
+            .catch((e: any) => console.warn('[AUDIO ROUTING] Master HTMLAudioElement.setSinkId error:', e));
         }
         this.masterAudioElement.play().catch(() => {});
       } catch (err) {
-        console.warn('[AUDIO ROUTING] Master MediaStream fallback to ctx.destination:', err);
+        console.warn('[AUDIO ROUTING] Master MediaStream routing failed, falling back to ctx.destination:', err);
         this.masterAnalyser.connect(this.ctx.destination);
       }
 
-      // Headphone output element
+      // 2. Headphone Output
       try {
         const hpDest = this.ctx.createMediaStreamDestination();
         this.headphoneGain.connect(hpDest);
@@ -1410,12 +1414,12 @@ class AudioEngine {
         }
         this.headphoneAudioElement.srcObject = hpDest.stream;
         if (typeof (this.headphoneAudioElement as any).setSinkId === 'function') {
-          (this.headphoneAudioElement as any).setSinkId(this.headphoneDeviceId === 'default' ? '' : this.headphoneDeviceId)
-            .catch((e: any) => console.warn('[AUDIO ROUTING] Headphone setSinkId error:', e));
+          (this.headphoneAudioElement as any).setSinkId(sinkTarget(this.headphoneDeviceId))
+            .catch((e: any) => console.warn('[AUDIO ROUTING] Headphone HTMLAudioElement.setSinkId error:', e));
         }
         this.headphoneAudioElement.play().catch(() => {});
       } catch (err) {
-        console.warn('[AUDIO ROUTING] Headphone MediaStream fallback to ctx.destination:', err);
+        console.warn('[AUDIO ROUTING] Headphone MediaStream routing failed, falling back to ctx.destination:', err);
         this.headphoneGain.connect(this.ctx.destination);
       }
     }
@@ -1423,16 +1427,11 @@ class AudioEngine {
 
   public async setMasterOutputDevice(deviceId: string): Promise<boolean> {
     this.masterDeviceId = deviceId || 'default';
+    this.init();
     if (!this.ctx) return true;
 
     try {
-      if (this.masterAudioElement && typeof (this.masterAudioElement as any).setSinkId === 'function') {
-        await (this.masterAudioElement as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId);
-      } else if (typeof (this.ctx as any).setSinkId === 'function') {
-        await (this.ctx as any).setSinkId(this.masterDeviceId === 'default' ? '' : this.masterDeviceId);
-      } else {
-        this.setupOutputRouting();
-      }
+      this.setupOutputRouting();
       return true;
     } catch (err) {
       console.error('[AUDIO ROUTING] Failed to set master output device:', err);
@@ -1442,14 +1441,11 @@ class AudioEngine {
 
   public async setHeadphoneOutputDevice(deviceId: string): Promise<boolean> {
     this.headphoneDeviceId = deviceId || 'default';
+    this.init();
     if (!this.ctx) return true;
 
     try {
-      if (this.headphoneAudioElement && typeof (this.headphoneAudioElement as any).setSinkId === 'function') {
-        await (this.headphoneAudioElement as any).setSinkId(this.headphoneDeviceId === 'default' ? '' : this.headphoneDeviceId);
-      } else {
-        this.setupOutputRouting();
-      }
+      this.setupOutputRouting();
       return true;
     } catch (err) {
       console.error('[AUDIO ROUTING] Failed to set headphone output device:', err);

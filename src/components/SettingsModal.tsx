@@ -264,10 +264,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
     }, 400);
   };
 
+  const handleMasterDeviceChange = async (devId: string) => {
+    setMasterDeviceId(devId);
+    await audioEngine.setMasterOutputDevice(devId);
+    await storageCache.setSetting('audio_master_device_id', devId);
+  };
+
+  const handleHeadphoneDeviceChange = async (devId: string) => {
+    setHeadphoneDeviceId(devId);
+    await audioEngine.setHeadphoneOutputDevice(devId);
+    await storageCache.setSetting('audio_headphone_device_id', devId);
+  };
+
   const handleTestAudio = async (type: 'master' | 'headphone') => {
     setAudioTesting(type);
     try {
       audioEngine.init();
+      // Ensure target device is applied
+      if (type === 'master') {
+        await audioEngine.setMasterOutputDevice(masterDeviceId);
+      } else {
+        await audioEngine.setHeadphoneOutputDevice(headphoneDeviceId);
+      }
+
       const ctx = audioEngine.getContext();
       if (!ctx) return;
       if (ctx.state === 'suspended') await ctx.resume();
@@ -279,7 +298,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
       osc.type = 'sine';
       osc.frequency.setValueAtTime(type === 'master' ? 523.25 : 880.0, now); // C5 for master, A5 for headphone
-      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.setValueAtTime(0.4, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
 
       osc.connect(gain);
@@ -486,7 +505,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
                     <select
                       value={masterDeviceId}
-                      onChange={(e) => setMasterDeviceId(e.target.value)}
+                      onChange={(e) => handleMasterDeviceChange(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
                     >
                       <option value="default">Default System Audio Output</option>
@@ -522,7 +541,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
                     <select
                       value={headphoneDeviceId}
-                      onChange={(e) => setHeadphoneDeviceId(e.target.value)}
+                      onChange={(e) => handleHeadphoneDeviceChange(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer"
                     >
                       <option value="default">Default System Audio Output (Same as Master)</option>

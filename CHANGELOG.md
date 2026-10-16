@@ -1,3 +1,10 @@
+## v2.0.7
+- **Physical Audio Hardware Output Routing Fix (GoXLR Mini & Multi-Channel Interfaces)**:
+  - **Instant Device Switching & Immediate Persistence**: Fixed device dropdown so changing output device (e.g. `Music (TC-HELICON GoXLR Mini)`) immediately applies to the active audio pipeline and persists without requiring dialog save.
+  - **Dual-Path Hardware Routing (`setSinkId`)**: Implemented robust fallback between `AudioContext.setSinkId` (for unified hardware clock sync) and `HTMLAudioElement.setSinkId` over MediaStream destination nodes.
+  - **Synchronized Test Output Tone**: Test Output and Test Cue buttons now guarantee the audio engine initializes and routes test chime signals directly through the selected hardware device sink.
+  - **App Boot Device Restoration**: Boot initialization now restores and binds chosen output devices reliably even when defaulting or switching interfaces.
+
 ## v2.0.6
 - **Zero-Latency Performance & Zero-Freeze Stem Engine**:
   - **Eliminated Main-Thread JSON Serialization Freeze**: Stems are now stored directly as native `Float32Array` binary buffers via dedicated `cacheStemsData` in IndexedDB (`audioBuffers`), eliminating the 250MB–350MB JSON stringification blocking the Electron IPC bridge.

@@ -347,8 +347,8 @@ export const App: React.FC = () => {
       storageCache.getSetting<string>('audio_headphone_device_id', 'default'),
       storageCache.getSetting<'interactive' | 'balanced' | 'playback'>('audio_latency_hint', 'interactive'),
     ]).then(([masterDev, hpDev, latency]) => {
-      if (masterDev && masterDev !== 'default') audioEngine.setMasterOutputDevice(masterDev);
-      if (hpDev && hpDev !== 'default') audioEngine.setHeadphoneOutputDevice(hpDev);
+      audioEngine.setMasterOutputDevice(masterDev || 'default');
+      audioEngine.setHeadphoneOutputDevice(hpDev || 'default');
       if (latency) audioEngine.setLatencyHint(latency);
     }).catch(() => {});
 
