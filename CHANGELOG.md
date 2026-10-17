@@ -1,3 +1,9 @@
+## v2.0.11
+- **Automated UI/UX Layout Auditor & Live DevTools Telemetry Bridge (`UILayoutAuditorService`)**:
+  - **Real-Time DOM Geometry & Overlap Scanner**: Automatically audits bounding boxes (`getBoundingClientRect()`) across Header window controls, Decks, Jog Wheels, Waveforms, and Performance Pads on load, resize, theme toggle, and layout changes to detect off-screen/clipped buttons, platter collisions, container overflows, and unescaped HTML entities.
+  - **Live Diagnostic & Screenshot Endpoints**: Added `GET http://127.0.0.1:8088/api/diagnostics` (returning live UI telemetry, window bounds, CDP status, and recent console logs) and `GET http://127.0.0.1:8088/api/diagnostics/screenshot` (capturing live `mainWindow.webContents.capturePage()` snapshots to `%TEMP%\cloudmix_live_snapshot.png`).
+  - **Chrome DevTools Protocol (CDP) Port (`9222`)**: Enabled `--remote-debugging-port=9222` in `main.cjs` for direct automated DevTools inspection.
+
 ## v2.0.10
 - **Window Controls, Native Maximize/Resize & Responsive Header Fix**:
   - **Pinned Window Controls**: Fixed top header horizontal overflow at 100% zoom so the Fullscreen, Minimize, Maximize/Restore, Close, Theme Toggle, Settings, and Patch buttons are permanently pinned on the far right and never clipped off-screen.

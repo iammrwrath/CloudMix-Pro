@@ -46,6 +46,7 @@ import { pulseMonitorService } from './services/PulseMonitorService';
 import { stemSeparatorService } from './services/StemSeparatorService';
 import { PatchUpdateModal } from './components/PatchUpdateModal';
 import { sanitizeTrackMetadata } from './utils/sanitize';
+import { uiLayoutAuditor } from './services/UILayoutAuditorService';
 import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown, Maximize2, Minimize2, Columns, Activity, Brain } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -224,6 +225,10 @@ export const App: React.FC = () => {
   const [bottomDrawerTab, setBottomDrawerTab] = useState<BottomDrawerTab>('library');
 
   useEffect(() => {
+    uiLayoutAuditor.init();
+  }, []);
+
+  useEffect(() => {
     if (typeof document !== 'undefined' && document.documentElement) {
       document.documentElement.setAttribute('data-theme', themeMode);
     }
@@ -232,7 +237,8 @@ export const App: React.FC = () => {
         localStorage.setItem('cloudmix_theme', themeMode);
       } catch {}
     }
-  }, [themeMode]);
+    uiLayoutAuditor.triggerAuditSoon();
+  }, [themeMode, layoutMode, drawerMode]);
 
   const handleToggleTheme = useCallback(() => {
     setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));

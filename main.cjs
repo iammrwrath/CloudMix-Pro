@@ -47,8 +47,10 @@ app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('allow-file-access-from-files');
 app.commandLine.appendSwitch('disable-web-security');
+app.commandLine.appendSwitch('remote-debugging-port', '9222');
 
 let mainWindow = null;
+let latestUITelemetry = null;
 
 const isStandaloneCortex =
   process.argv.includes('--cortex') ||
@@ -305,6 +307,35 @@ if (!gotTheLock) {
         onStreamdeckAction: (actionData) => {
           log('[STREAM SERVER] Remote Stream Deck action: ' + JSON.stringify(actionData));
           mainWindow?.webContents.send('streamdeck-action', actionData);
+        },
+        getDiagnostics: async () => {
+          let recentLogs = [];
+          try {
+            if (fs.existsSync(logFile)) {
+              const raw = fs.readFileSync(logFile, 'utf8');
+              recentLogs = raw.split(/\r?\n/).filter(Boolean).slice(-80);
+            }
+          } catch {}
+          return {
+            version: app.getVersion(),
+            platform: `${process.platform} ${process.arch}`,
+            cdpUrl: 'http://127.0.0.1:9222/json',
+            windowBounds: mainWindow && !mainWindow.isDestroyed() ? mainWindow.getBounds() : null,
+            isMaximized: mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false,
+            isFullScreen: mainWindow && !mainWindow.isDestroyed() ? mainWindow.isFullScreen() : false,
+            uiTelemetry: latestUITelemetry,
+            recentLogs,
+          };
+        },
+        captureScreenshot: async () => {
+          if (!mainWindow || mainWindow.isDestroyed()) return null;
+          const img = await mainWindow.webContents.capturePage();
+          const pngBuf = img.toPNG();
+          const snapPath = path.join(os.tmpdir(), 'cloudmix_live_snapshot.png');
+          try {
+            fs.writeFileSync(snapPath, pngBuf);
+          } catch {}
+          return { pngBuf, snapPath };
         },
       }, distDir);
     } catch (e) {
@@ -1490,4 +1521,33 @@ ipcMain.handle('submit-auto-issue-report', async (event, report) => {
     return { success: false, error: err.message };
   }
 });
+
+ipcMain.handle('report-ui-telemetry', async (event, telemetry) => {
+  latestUITelemetry = telemetry;
+  try {
+    const telemetryFile = path.join(os.tmpdir(), 'cloudmix_ui_telemetry.json');
+    fs.writeFileSync(telemetryFile, JSON.stringify(telemetry, null, 2), 'utf8');
+    if (telemetry && telemetry.violationCount > 0) {
+      log(`[UI-AUDIT] ${telemetry.violationCount} violation(s) at ${telemetry.viewport?.innerWidth}x${telemetry.viewport?.innerHeight}: ${JSON.stringify(telemetry.violations.map((v) => v.message))}`);
+    }
+  } catch {}
+  return { success: true };
+});
+
+ipcMain.handle('capture-window-snapshot', async () => {
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { success: false, error: 'MainWindow unavailable' };
+    }
+    const img = await mainWindow.webContents.capturePage();
+    const pngBuf = img.toPNG();
+    const snapPath = path.join(os.tmpdir(), 'cloudmix_live_snapshot.png');
+    fs.writeFileSync(snapPath, pngBuf);
+    log(`[SNAPSHOT] Saved live window screenshot to ${snapPath}`);
+    return { success: true, path: snapPath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 

@@ -65,4 +65,6 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     return () => ipcRenderer.removeListener('display-metrics-changed', subscription);
   },
   submitAutoIssueReport: (report) => ipcRenderer.invoke('submit-auto-issue-report', report),
+  reportUITelemetry: (telemetry) => ipcRenderer.invoke('report-ui-telemetry', telemetry),
+  captureWindowSnapshot: () => ipcRenderer.invoke('capture-window-snapshot'),
 });

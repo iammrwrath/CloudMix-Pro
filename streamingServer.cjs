@@ -1184,6 +1184,50 @@ function startStreamingServer(port = 8088, callbacks = {}, distDir = null) {
       return;
     }
 
+    // 2a-diag. Antigravity Live UI/UX & Functional Telemetry Endpoint
+    if (pathname === '/api/diagnostics') {
+      if (typeof callbacks.getDiagnostics === 'function') {
+        try {
+          const diag = await callbacks.getDiagnostics();
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify(diag, null, 2));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ status: 'ok', broadcastState: currentBroadcastState }));
+      }
+      return;
+    }
+
+    // 2a-snap. Antigravity Live Window Screenshot Capture Endpoint
+    if (pathname === '/api/diagnostics/screenshot') {
+      if (typeof callbacks.captureScreenshot === 'function') {
+        try {
+          const snap = await callbacks.captureScreenshot();
+          if (snap && snap.pngBuf) {
+            if (parsedUrl.searchParams.get('json') === '1') {
+              res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ success: true, path: snap.snapPath, bytes: snap.pngBuf.length }));
+            } else {
+              res.writeHead(200, { 'Content-Type': 'image/png', 'Access-Control-Allow-Origin': '*' });
+              res.end(snap.pngBuf);
+            }
+            return;
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: err.message }));
+          return;
+        }
+      }
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Screenshot unavailable' }));
+      return;
+    }
+
     // 2b. REST YouTube Search API (Port 8088)
     if (pathname === '/api/youtube/search') {
       const q = parsedUrl.searchParams.get('q') || '';
