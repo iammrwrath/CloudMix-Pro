@@ -166,9 +166,10 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           }}
         >
           {/* Vinyl Microgroove Rings */}
-          <div className="absolute inset-1.5 rounded-full border border-slate-700/15 pointer-events-none" />
-          <div className="absolute inset-3 rounded-full border border-slate-700/25 pointer-events-none" />
-          <div className="absolute inset-5 rounded-full border border-slate-700/15 pointer-events-none" />
+          <div className="absolute inset-[4%] rounded-full border border-slate-600/20 pointer-events-none" />
+          <div className="absolute inset-[9%] rounded-full border border-slate-500/25 pointer-events-none" />
+          <div className="absolute inset-[14%] rounded-full border border-slate-600/20 pointer-events-none" />
+          <div className="absolute inset-[19%] rounded-full border border-slate-500/25 pointer-events-none" />
 
           {/* Anisotropic Light Sheen (Cross flare reflection) */}
           <div
@@ -187,7 +188,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           >
             {/* Illuminated Needle Position Marker with Comet Glow */}
             <div
-              className="absolute top-1 w-1 h-2.5 sm:h-3 rounded-full"
+              className="absolute top-1.5 w-1.5 h-3.5 sm:h-4 rounded-full"
               style={{
                 backgroundColor: accentColor,
                 boxShadow: `0 0 8px ${accentColor}, 0 0 16px ${accentColor}`,
@@ -199,7 +200,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
           </div>
 
       {/* Mechanical Vinyl Tonearm Assembly (djay Pro / Technics turntable emulation) */}
-      <div className="absolute -top-1.5 -right-0.5 pointer-events-none z-20">
+      <div className="absolute top-1 right-1 pointer-events-none z-20">
         {/* Tonearm Base & Gimbal Bearing */}
         <div className="relative w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-slate-900 via-slate-700 to-slate-500 border border-slate-600 shadow-[0_3px_8px_rgba(0,0,0,0.9)] flex items-center justify-center">
           {/* Gimbal Center Pivot Screw */}
@@ -215,7 +216,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             }}
           >
             {/* Curved Aluminum Tonearm Wand */}
-            <div className="w-1 h-[clamp(2.5rem,14cqh,4.5rem)] bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[1px_2px_6px_rgba(0,0,0,0.7)]" />
+            <div className="w-1 h-[clamp(2.75rem,38cqh,5.5rem)] bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 rounded-full shadow-[1px_2px_6px_rgba(0,0,0,0.7)]" />
 
             {/* Headshell & DJ Stylus Cartridge */}
             <div className="absolute -bottom-3 -left-0.5 w-2.5 h-3.5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-600 rounded-b flex flex-col items-center justify-end pb-0.5 shadow-md">
@@ -233,7 +234,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
       </div>
 
       {/* Center Jog LCD Display HUD */}
-      <div className="relative z-10 w-[58%] h-[58%] min-w-[58px] min-h-[58px] rounded-full bg-slate-950/95 border border-slate-800 flex flex-col items-center justify-center shadow-[0_0_16px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
+      <div className="relative z-10 w-[56%] h-[56%] min-w-[58px] min-h-[58px] rounded-full bg-slate-950/95 border border-slate-800 flex flex-col items-center justify-center shadow-[0_0_16px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
         {coverArtUrl && (
           <div className="absolute inset-0 opacity-30 rounded-full overflow-hidden pointer-events-none">
             <img src={coverArtUrl} alt="Cover Art" className="w-full h-full object-cover" />

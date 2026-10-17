@@ -290,8 +290,8 @@
 }
 
 .jog-wheel {
-  width: min(100cqh, 100cqw, clamp(96px, 32cqh, 235px));
-  height: min(100cqh, 100cqw, clamp(96px, 32cqh, 235px));
+  width: min(94cqh, 94cqw, 275px);
+  height: min(94cqh, 94cqw, 275px);
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1 / 1;

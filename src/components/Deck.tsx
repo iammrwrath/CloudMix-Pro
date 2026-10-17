@@ -149,7 +149,7 @@ export const Deck = React.memo<DeckProps>(({
           }
         } catch {}
       }}
-      className={`deck-container ${isDeckA ? 'deck-card-a' : 'deck-card-b'} relative flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border flex-1 min-w-0 min-h-0 overflow-hidden justify-between transition-all duration-150 ${
+      className={`deck-container deck-hardware-viewport ${isDeckA ? 'deck-card-a' : 'deck-card-b'} relative flex flex-col h-full bg-dj-panel rounded-xl p-1.5 sm:p-2 border flex-1 min-w-0 min-h-0 overflow-hidden justify-between transition-all duration-150 ${
         isDragOver
           ? 'border-cyan-400 ring-2 ring-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.6)]'
           : deckState.isPlaying

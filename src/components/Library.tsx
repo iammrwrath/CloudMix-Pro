@@ -282,6 +282,7 @@ export const Library = React.memo<LibraryProps>(({
         setTracks(djTracks);
       }
     });
+    musicLibraryService.getTracks().catch(() => {});
 
     return () => {
       unsubQ();

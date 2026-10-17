@@ -173,49 +173,65 @@ class AudioEngine {
 
     // ==========================================
     // Real-Time Neural Mix 4-Way Crossover DSP
-    // Linkwitz-Riley aligned 4-way crossover slopes
+    // Linkwitz-Riley aligned 24dB/oct 4-way crossover slopes
     // ==========================================
-    // 1. Drums Stem (Punch, Kick & Snare Transients: < 140Hz)
-    const stemDrumsFilter = this.ctx.createBiquadFilter();
-    stemDrumsFilter.type = 'lowpass';
-    stemDrumsFilter.frequency.setValueAtTime(140, this.ctx.currentTime);
-    stemDrumsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemDrumsGain = this.ctx.createGain();
-    stemDrumsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-    const stemDrumsXfaderGain = this.ctx.createGain();
-    stemDrumsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-
-    // 2. Bass Stem (Sub-bass, Bassline, 808s: 80Hz - 340Hz)
+    // 1. Bass Stem (Sub-bass, 808s, Deep Kick & Bassline: < 140Hz, 24dB/oct Linkwitz-Riley)
     const stemBassHpf = this.ctx.createBiquadFilter();
     stemBassHpf.type = 'highpass';
-    stemBassHpf.frequency.setValueAtTime(80, this.ctx.currentTime);
+    stemBassHpf.frequency.setValueAtTime(22, this.ctx.currentTime);
     stemBassHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemBassLpf = this.ctx.createBiquadFilter();
     stemBassLpf.type = 'lowpass';
-    stemBassLpf.frequency.setValueAtTime(340, this.ctx.currentTime);
+    stemBassLpf.frequency.setValueAtTime(140, this.ctx.currentTime);
     stemBassLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemBassLpf2 = this.ctx.createBiquadFilter();
+    stemBassLpf2.type = 'lowpass';
+    stemBassLpf2.frequency.setValueAtTime(140, this.ctx.currentTime);
+    stemBassLpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemBassGain = this.ctx.createGain();
     stemBassGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemBassXfaderGain = this.ctx.createGain();
     stemBassXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 3. Vocals Stem (Lead & Formant Crossover: 130Hz - 10,500Hz, steep 24dB/oct Linkwitz-Riley)
+    // 2. Drums Stem (Upper Kick Punch & Snare Fundamental Body: 140Hz - 380Hz, 24dB/oct Linkwitz-Riley)
+    const stemDrumsHpf = this.ctx.createBiquadFilter();
+    stemDrumsHpf.type = 'highpass';
+    stemDrumsHpf.frequency.setValueAtTime(140, this.ctx.currentTime);
+    stemDrumsHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemDrumsHpf2 = this.ctx.createBiquadFilter();
+    stemDrumsHpf2.type = 'highpass';
+    stemDrumsHpf2.frequency.setValueAtTime(140, this.ctx.currentTime);
+    stemDrumsHpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemDrumsFilter = this.ctx.createBiquadFilter();
+    stemDrumsFilter.type = 'lowpass';
+    stemDrumsFilter.frequency.setValueAtTime(380, this.ctx.currentTime);
+    stemDrumsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemDrumsFilter2 = this.ctx.createBiquadFilter();
+    stemDrumsFilter2.type = 'lowpass';
+    stemDrumsFilter2.frequency.setValueAtTime(380, this.ctx.currentTime);
+    stemDrumsFilter2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemDrumsGain = this.ctx.createGain();
+    stemDrumsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    const stemDrumsXfaderGain = this.ctx.createGain();
+    stemDrumsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
+    // 3. Vocals Stem (Lead Vocal & Formant Core: 380Hz - 4,200Hz, 24dB/oct Linkwitz-Riley)
     const stemVocalsHpf = this.ctx.createBiquadFilter();
     stemVocalsHpf.type = 'highpass';
-    stemVocalsHpf.frequency.setValueAtTime(130, this.ctx.currentTime);
+    stemVocalsHpf.frequency.setValueAtTime(380, this.ctx.currentTime);
     stemVocalsHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemVocalsHpf2 = this.ctx.createBiquadFilter();
     stemVocalsHpf2.type = 'highpass';
-    stemVocalsHpf2.frequency.setValueAtTime(130, this.ctx.currentTime);
+    stemVocalsHpf2.frequency.setValueAtTime(380, this.ctx.currentTime);
     stemVocalsHpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
 
     const stemVocalsLpf = this.ctx.createBiquadFilter();
     stemVocalsLpf.type = 'lowpass';
-    stemVocalsLpf.frequency.setValueAtTime(10500, this.ctx.currentTime);
+    stemVocalsLpf.frequency.setValueAtTime(4200, this.ctx.currentTime);
     stemVocalsLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemVocalsLpf2 = this.ctx.createBiquadFilter();
     stemVocalsLpf2.type = 'lowpass';
-    stemVocalsLpf2.frequency.setValueAtTime(10500, this.ctx.currentTime);
+    stemVocalsLpf2.frequency.setValueAtTime(4200, this.ctx.currentTime);
     stemVocalsLpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
 
     const stemVocalsGain = this.ctx.createGain();
@@ -223,11 +239,15 @@ class AudioEngine {
     const stemVocalsXfaderGain = this.ctx.createGain();
     stemVocalsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // 4. Harmonics / Melody Stem (Synths, Keys, Hi-Hats, Air: > 3600Hz)
+    // 4. Harmonics / Melody Stem (Upper Harmonics, Synths, Hi-Hats, Air: > 4,200Hz, 24dB/oct Linkwitz-Riley)
     const stemHarmonicsFilter = this.ctx.createBiquadFilter();
     stemHarmonicsFilter.type = 'highpass';
-    stemHarmonicsFilter.frequency.setValueAtTime(3600, this.ctx.currentTime);
+    stemHarmonicsFilter.frequency.setValueAtTime(4200, this.ctx.currentTime);
     stemHarmonicsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    const stemHarmonicsFilter2 = this.ctx.createBiquadFilter();
+    stemHarmonicsFilter2.type = 'highpass';
+    stemHarmonicsFilter2.frequency.setValueAtTime(4200, this.ctx.currentTime);
+    stemHarmonicsFilter2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
     const stemHarmonicsGain = this.ctx.createGain();
     stemHarmonicsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemHarmonicsXfaderGain = this.ctx.createGain();
@@ -258,21 +278,25 @@ class AudioEngine {
     eqHigh.connect(filterLpf);
     filterLpf.connect(filterHpf);
 
-    // Split filterHpf into 4 Parallel Neural Stems:
-    // Stem 1: Drums
-    filterHpf.connect(stemDrumsFilter);
-    stemDrumsFilter.connect(stemDrumsGain);
+    // Split filterHpf into 4 Non-Overlapping Linkwitz-Riley Neural Stems:
+    // Stem 1: Drums (140Hz - 380Hz)
+    filterHpf.connect(stemDrumsHpf);
+    stemDrumsHpf.connect(stemDrumsHpf2);
+    stemDrumsHpf2.connect(stemDrumsFilter);
+    stemDrumsFilter.connect(stemDrumsFilter2);
+    stemDrumsFilter2.connect(stemDrumsGain);
     stemDrumsGain.connect(stemDrumsXfaderGain);
     stemDrumsXfaderGain.connect(channelFader);
 
-    // Stem 2: Bass
+    // Stem 2: Bass (22Hz - 140Hz)
     filterHpf.connect(stemBassHpf);
     stemBassHpf.connect(stemBassLpf);
-    stemBassLpf.connect(stemBassGain);
+    stemBassLpf.connect(stemBassLpf2);
+    stemBassLpf2.connect(stemBassGain);
     stemBassGain.connect(stemBassXfaderGain);
     stemBassXfaderGain.connect(channelFader);
 
-    // Stem 3: Vocals (Cascaded 24dB/oct dual HPF + dual LPF)
+    // Stem 3: Vocals (380Hz - 4200Hz)
     filterHpf.connect(stemVocalsHpf);
     stemVocalsHpf.connect(stemVocalsHpf2);
     stemVocalsHpf2.connect(stemVocalsLpf);
@@ -281,9 +305,10 @@ class AudioEngine {
     stemVocalsGain.connect(stemVocalsXfaderGain);
     stemVocalsXfaderGain.connect(channelFader);
 
-    // Stem 4: Harmonics / Melody
+    // Stem 4: Harmonics / Melody (> 4200Hz)
     filterHpf.connect(stemHarmonicsFilter);
-    stemHarmonicsFilter.connect(stemHarmonicsGain);
+    stemHarmonicsFilter.connect(stemHarmonicsFilter2);
+    stemHarmonicsFilter2.connect(stemHarmonicsGain);
     stemHarmonicsGain.connect(stemHarmonicsXfaderGain);
     stemHarmonicsXfaderGain.connect(channelFader);
 

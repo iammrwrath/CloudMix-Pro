@@ -375,8 +375,20 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handlers for Native Desktop Capabilities
-ipcMain.handle('read-local-audio', async (event, filePath) => {
+ipcMain.handle('read-local-audio', async (event, rawFilePath) => {
   try {
+    let filePath = String(rawFilePath || '');
+    // If legacy cached track has concatenated 'file:///' URIs separated by '!' or control chars, split and find the existing file
+    if (filePath.includes('file:///') || filePath.includes('!')) {
+      const parts = filePath.split(/!?\s*file:\/\/\//i).map(p => p.replace(/[\x00-\x1F\x7F!]+/g, '').trim()).filter(Boolean);
+      for (const p of parts) {
+        const decoded = (() => { try { return decodeURIComponent(p); } catch { return p; } })().replace(/\//g, '\\');
+        if (fs.existsSync(decoded)) {
+          filePath = decoded;
+          break;
+        }
+      }
+    }
     const buffer = await fs.promises.readFile(filePath);
     return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   } catch (err) {
@@ -951,17 +963,27 @@ ipcMain.handle('read-djay-library', async (event, customDbPath) => {
       analyzed.set(r.key, { bpm, keyIdx, dur });
     }
 
-    // 2. Local locations (Real filesystem paths)
+    // 2. Local locations (Real filesystem paths — each record may have multiple sourceURIs separated by '!')
     const locStmt = db.prepare("SELECT key, data FROM database2 WHERE collection='localMediaItemLocations'");
     const locations = new Map();
     for (const r of locStmt.all()) {
       const str = Buffer.from(r.data).toString('utf8');
-      const match = str.match(/file:\/\/\/([^\x00-\x1F\x7F]+)/);
-      if (match) {
-        try {
-          const clean = decodeURIComponent(match[1].split('\0')[0]).replace(/\//g, '\\');
-          locations.set(r.key, clean);
-        } catch {}
+      const uriMatches = [...str.matchAll(/file:\/\/\/([^\x00-\x1F\x7F!]+)/g)];
+      if (uriMatches.length > 0) {
+        let selectedPath = '';
+        for (const m of uriMatches) {
+          try {
+            const candidate = decodeURIComponent(m[1].split('\0')[0]).replace(/\//g, '\\');
+            if (!selectedPath) selectedPath = candidate;
+            if (fs.existsSync(candidate)) {
+              selectedPath = candidate;
+              break;
+            }
+          } catch {}
+        }
+        if (selectedPath) {
+          locations.set(r.key, selectedPath);
+        }
       }
     }
 

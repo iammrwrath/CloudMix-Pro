@@ -98,7 +98,7 @@ export class MusicLibraryService {
       console.warn('Could not load djay library:', err);
     }
 
-    // 1. Load tracks from CloudMix Pro IndexedDB
+    // 1. Load tracks from CloudMix Pro IndexedDB (only for tracks not already freshly resolved from djay Pro DB)
     try {
       const storedTracks = await storageCache.getAllTracks();
       for (const t of storedTracks) {
@@ -338,10 +338,12 @@ export class MusicLibraryService {
 
       const id = `csv_${i}_${title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24)}`;
 
-      // Decode file:/// URL for display
+      // Decode file:/// or file://localhost/ URL for native Electron loading
       let fileUrl = rawUrl;
       try {
-        if (fileUrl.startsWith('file:///')) {
+        if (fileUrl.startsWith('file://localhost/')) {
+          fileUrl = 'file:///' + decodeURIComponent(fileUrl.replace(/^file:\/\/localhost\//i, ''));
+        } else if (fileUrl.startsWith('file:///')) {
           fileUrl = decodeURIComponent(fileUrl);
         }
       } catch {}

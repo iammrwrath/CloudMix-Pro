@@ -755,28 +755,65 @@ export const App: React.FC = () => {
         }
       }
 
-      // Decode audio (supports Google Drive, local audio, stream)
+      // Decode audio (supports Google Drive, local audio, Music.csv file://localhost/, stream)
       youtubeDeckBridge.clearDeck(deckId);
-      let arrayBuffer: ArrayBuffer;
-      if (
-        (track.fileSource === 'local' || track.fileSource === 'djay_pro') &&
+      let arrayBuffer: ArrayBuffer | null = null;
+      const isLocalFileUrl = Boolean(
         track.fileUrl &&
-        (track.fileUrl.startsWith('file:///') || (track.fileUrl.includes(':\\') || track.fileUrl.includes(':/')))
-      ) {
-        // Local filesystem path — use Electron IPC to read binary, bypassing fetch CORS
-        const filePath = track.fileUrl.startsWith('file:///')
-          ? decodeURIComponent(track.fileUrl.replace(/^file:\/\/\//, '')).replace(/\//g, '\\')
-          : track.fileUrl;
-        const desktopAPI = (window as any).desktopAPI;
-        if (desktopAPI?.readLocalAudio) {
-          arrayBuffer = await desktopAPI.readLocalAudio(filePath);
-        } else {
-          // In browser dev mode — try blob URL approach
+        (track.fileUrl.startsWith('file://') || /^[A-Za-z]:[\\/]/.test(track.fileUrl))
+      );
+
+      try {
+        if (isLocalFileUrl && track.fileUrl) {
+          // Normalize file://localhost/G:/... or file:///G:/... to native Windows path (and strip any legacy concatenated '!' URIs)
+          const rawFirstUri = track.fileUrl.split(/!?\s*file:\/\/\//i).filter(Boolean)[0] || track.fileUrl;
+          const filePath = rawFirstUri
+            ? decodeURIComponent(
+                rawFirstUri
+                  .replace(/^file:\/\/localhost\//i, '')
+                  .replace(/^file:\/\/\//i, '')
+                  .replace(/^file:\/\//i, '')
+                  .replace(/[\x00-\x1F\x7F!]+$/g, '')
+              ).replace(/\//g, '\\')
+            : track.fileUrl;
+          const desktopAPI = (window as any).desktopAPI;
+          if (desktopAPI?.readLocalAudio) {
+            arrayBuffer = await desktopAPI.readLocalAudio(track.fileUrl.includes('!') ? track.fileUrl : filePath);
+          } else {
+            arrayBuffer = await googleDriveService.loadAudioData(track);
+          }
+        } else if (track.fileUrl) {
           arrayBuffer = await googleDriveService.loadAudioData(track);
         }
-      } else {
-        arrayBuffer = await googleDriveService.loadAudioData(track);
+      } catch (localReadErr) {
+        console.warn(`[TrackLoader] Local/Drive read failed for "${track.title}" (${track.fileUrl}), attempting automatic YouTube audio resolution...`, localReadErr);
+        arrayBuffer = null;
       }
+
+      // If local file was moved/missing or empty, automatically resolve real audio via YouTube so the user NEVER hears a synthetic test loop!
+      if (!arrayBuffer) {
+        try {
+          const resolveResp = await fetch(
+            `http://127.0.0.1:8088/api/youtube/resolve?artist=${encodeURIComponent(track.artist || '')}&title=${encodeURIComponent(track.title || '')}`
+          );
+          if (resolveResp.ok) {
+            const resolveData = await resolveResp.json();
+            if (resolveData?.videoId) {
+              const ytAudioResp = await fetch(`http://127.0.0.1:8088/api/youtube/audio?id=${resolveData.videoId}`);
+              if (ytAudioResp.ok) {
+                arrayBuffer = await ytAudioResp.arrayBuffer();
+              }
+            }
+          }
+        } catch (ytFallbackErr) {
+          console.warn('[TrackLoader] Automatic YouTube audio resolution warning:', ytFallbackErr);
+        }
+      }
+
+      if (!arrayBuffer) {
+        throw new Error('Could not load audio from local path or YouTube resolver');
+      }
+
       const audioBuffer = await audioEngine.decodeAudioData(arrayBuffer);
 
       // Extract high-speed waveform data & auto BPM estimation if missing
@@ -786,7 +823,19 @@ export const App: React.FC = () => {
         track.bpm = est.bpm;
       }
 
-      audioEngine.loadTrackToDeck(deckId, audioBuffer);
+      const cachedStems = stemSeparatorService.getCachedStems(track.id);
+      audioEngine.loadTrackToDeck(deckId, audioBuffer, cachedStems || undefined);
+
+      // Proactively separate 4 discrete stems in the background immediately upon track load
+      if (!cachedStems) {
+        stemSeparatorService.separateTrack(track.id, audioBuffer).then((stems) => {
+          if (audioEngine.getDeckBuffer(deckId) === audioBuffer) {
+            audioEngine.setDeckStems(deckId, stems);
+          }
+        }).catch((err) => {
+          console.warn('[Stems] Background discrete stem separation warning:', err);
+        });
+      }
 
       if (deckId === 'A') {
         setWaveformDataA(wf);
@@ -818,7 +867,15 @@ export const App: React.FC = () => {
         const audioBuffer = audioEngine.generateOfflineGrooveBuffer(track.bpm || 126, 32);
         const wf = AudioAnalyzer.extractWaveformData(audioBuffer);
         track.bpm = track.bpm || 126.0;
-        audioEngine.loadTrackToDeck(deckId, audioBuffer);
+        const cachedStems = stemSeparatorService.getCachedStems(track.id);
+        audioEngine.loadTrackToDeck(deckId, audioBuffer, cachedStems || undefined);
+        if (!cachedStems) {
+          stemSeparatorService.separateTrack(track.id, audioBuffer).then((stems) => {
+            if (audioEngine.getDeckBuffer(deckId) === audioBuffer) {
+              audioEngine.setDeckStems(deckId, stems);
+            }
+          }).catch(() => {});
+        }
 
         if (deckId === 'A') {
           setWaveformDataA(wf);
@@ -1131,9 +1188,9 @@ export const App: React.FC = () => {
         harmonicsSolo: false,
         bassSolo: false,
         drumsSolo: false,
-        drumsMuted: isAcapella,
-        bassMuted: isAcapella,
-        harmonicsMuted: isAcapella,
+        drumsMuted: false,
+        bassMuted: false,
+        harmonicsMuted: false,
       },
     }));
   };
