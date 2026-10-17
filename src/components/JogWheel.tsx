@@ -267,9 +267,9 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
 
             {/* Status Pill */}
             <span
-              className={`text-[7.5px] sm:text-[8.5px] font-mono font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full leading-none ${
+              className={`text-[9.5px] sm:text-[10.5px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full leading-none ${
                 isScratching
-                  ? 'bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,0.8)]'
+                  ? 'bg-[#ffb703] text-black shadow-[0_0_10px_rgba(255,183,3,0.85)]'
                   : isPlaying
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
                   : 'bg-slate-800 text-slate-300'
@@ -279,13 +279,13 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             </span>
 
             {/* Time Elapsed Readout */}
-            <span className="text-[11px] sm:text-[13px] md:text-[14px] font-mono font-black text-white tracking-tight mt-0.5 leading-none drop-shadow-md">
+            <span className="text-[13px] sm:text-[15px] md:text-[16px] font-mono font-semibold text-white tracking-tight mt-0.5 leading-none drop-shadow-md">
               {formatTime(currentTime)}
             </span>
 
             {/* Remaining Time (Pulsing warning when track is ending) */}
             <span
-              className={`text-[8px] sm:text-[9.5px] font-mono font-black leading-tight mt-0.5 ${
+              className={`text-[10px] sm:text-[11.5px] font-mono font-semibold leading-tight mt-0.5 ${
                 isNearEnd
                   ? 'text-rose-400 animate-pulse drop-shadow-[0_0_6px_rgba(244,63,94,0.9)]'
                   : 'text-slate-300'
@@ -295,7 +295,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             </span>
 
             {/* Live Virtual RPM */}
-            <span className="text-[7.5px] sm:text-[8px] font-mono font-bold text-slate-400 tracking-wider mt-0.5 hidden xs:inline">
+            <span className="text-[9px] sm:text-[10px] font-mono font-medium text-slate-400 tracking-wider mt-0.5 hidden xs:inline">
               {liveRpm} RPM
             </span>
           </div>

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { DeckState, WaveformData, MixerState, TrackMetadata } from '../types/dj';
 import { Play, Pause, Disc, Repeat, Minimize2, Music, Maximize2 as MaximizeIcon, Minus, Square, X } from 'lucide-react';
+import { decodeEntities } from '../utils/sanitize';
 
 interface MiniDeckHeaderProps {
   deckA: DeckState;
@@ -240,22 +241,22 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
         </div>
 
         {/* Track Title, Artist, BPM & Key */}
-        <div className="flex flex-col min-w-0 w-40 xl:w-48 shrink-0">
-          <span className="text-xs sm:text-[13px] font-black text-white truncate" title={deck.track?.title || 'No Track Loaded'}>
-            {deck.track?.title || 'No Track Loaded'}
+        <div className="flex flex-col min-w-0 w-44 xl:w-52 shrink-0">
+          <span className="text-[14px] sm:text-[15px] font-semibold text-white truncate" title={decodeEntities(deck.track?.title || 'No Track Loaded')}>
+            {decodeEntities(deck.track?.title || 'No Track Loaded')}
           </span>
-          <span className="text-[11px] text-slate-300 truncate" title={deck.track?.artist || 'Load from Library'}>
-            {deck.track?.artist || 'Drag or click LOAD'}
+          <span className="text-[12px] sm:text-[13px] font-medium text-slate-300 truncate" title={decodeEntities(deck.track?.artist || 'Load from Library')}>
+            {decodeEntities(deck.track?.artist || 'Drag or click LOAD')}
           </span>
           <div className="flex items-center space-x-1.5 mt-0.5">
-            <span className={`font-mono text-[11px] font-black ${accentText}`}>
-              {((deck.track?.bpm ? deck.track.bpm * deck.playbackRate : masterBpm) || 120.0).toFixed(1)} <span className="text-[9px] text-slate-400 font-normal">BPM</span>
+            <span className={`font-mono text-[12px] font-semibold ${accentText}`}>
+              {((deck.track?.bpm ? deck.track.bpm * deck.playbackRate : masterBpm) || 120.0).toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">BPM</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-white/15 text-[10px] font-mono font-black text-amber-300">
+            <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-white/15 text-[11px] font-mono font-semibold text-[#ffb703]">
               {deck.musicalKey || deck.track?.camelotKey || '8A'}
             </span>
             {deck.isSync && (
-              <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/60 text-[9px] font-mono font-black animate-pulse">
+              <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/60 text-[10px] font-mono font-semibold animate-pulse">
                 SYNC
               </span>
             )}

@@ -45,6 +45,7 @@ import { cortexMonitorService } from './services/CortexMonitorService';
 import { pulseMonitorService } from './services/PulseMonitorService';
 import { stemSeparatorService } from './services/StemSeparatorService';
 import { PatchUpdateModal } from './components/PatchUpdateModal';
+import { sanitizeTrackMetadata } from './utils/sanitize';
 import { BookOpen, SlidersHorizontal, Volume2, Bot, ChevronUp, ChevronDown, Maximize2, Minimize2, Columns, Activity, Brain } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -211,7 +212,31 @@ export const App: React.FC = () => {
 
   // Pro DJ Workstation State
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('horizontal');
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('cloudmix_theme');
+        if (saved === 'light' || saved === 'dark') return saved;
+      } catch {}
+    }
+    return 'dark';
+  });
   const [bottomDrawerTab, setBottomDrawerTab] = useState<BottomDrawerTab>('library');
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.documentElement) {
+      document.documentElement.setAttribute('data-theme', themeMode);
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('cloudmix_theme', themeMode);
+      } catch {}
+    }
+  }, [themeMode]);
+
+  const handleToggleTheme = useCallback(() => {
+    setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
   const [isKeyboardModalOpen, setIsKeyboardModalOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -596,7 +621,9 @@ export const App: React.FC = () => {
   }, [deckA, deckB]);
 
   // Load Track to Deck
-  const handleLoadTrack = useCallback(async (deckId: DeckId, track: TrackMetadata) => {
+  const handleLoadTrack = useCallback(async (deckId: DeckId, rawTrack: TrackMetadata) => {
+    const track = sanitizeTrackMetadata(rawTrack);
+    audioEngine.resumeContext().catch(() => {});
     try {
       // 1. YouTube Music direct bridge integration: real audio via native YouTube player
       if (track.fileSource === 'youtube') {
@@ -1661,12 +1688,18 @@ export const App: React.FC = () => {
           onDrawerModeChange={setDrawerMode}
           uiZoom={uiZoom}
           onUiZoomChange={handleUiZoomChange}
+          themeMode={themeMode}
+          onToggleTheme={handleToggleTheme}
         />
       )}
 
       {/* 2. Main DJ Decks & Mixer Workspace */}
       {drawerMode !== 'expanded' && (
-        <div className="flex-1 flex flex-col p-1 sm:p-1.5 space-y-1 sm:space-y-1.5 overflow-hidden relative z-10 min-h-0">
+        <div
+          className={`flex flex-col p-1 sm:p-1.5 space-y-1 sm:space-y-1.5 overflow-hidden relative z-10 min-h-0 ${
+            drawerMode === 'collapsed' ? 'flex-1' : 'h-[57vh] min-h-[360px] max-h-[600px] shrink-0'
+          }`}
+        >
           {/* Stacked Vertical Waveforms (Rekordbox / Serato Pro mode) */}
           {layoutMode === 'vertical' && (
             <div className="w-full">
@@ -1789,9 +1822,9 @@ export const App: React.FC = () => {
       <div
         className={`px-1 sm:px-1.5 pb-1 flex flex-col ${
           drawerMode === 'expanded'
-            ? 'flex-1 h-[calc(100vh-96px)] overflow-hidden'
+            ? 'flex-1 min-h-0 overflow-hidden'
             : drawerMode === 'split'
-            ? 'h-[34vh] min-h-[140px] max-h-[350px] shrink-0'
+            ? 'flex-1 min-h-[160px] overflow-hidden'
             : 'h-[40px] shrink-0 overflow-hidden'
         }`}
       >

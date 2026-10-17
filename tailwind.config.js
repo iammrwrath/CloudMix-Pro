@@ -1,33 +1,41 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
       colors: {
         dj: {
-          bg: '#0a0d14',
-          panel: '#111622',
-          surface: '#181f2f',
-          surfaceHover: '#222b40',
-          border: '#2a3449',
-          accent: '#00f0ff',
-          neonBlue: '#00b4d8',
-          neonGreen: '#10b981',
-          neonOrange: '#f97316',
-          neonRed: '#ef4444',
-          neonPurple: '#a855f7',
-          deckA: '#00e5ff',
-          deckB: '#ff3366',
-        }
+          bg: 'var(--bg-primary)',
+          panel: 'var(--surface)',
+          surface: 'var(--surface-elevated)',
+          border: 'var(--border-subtle)',
+        },
+        deck: {
+          a: '#00f2fe',
+          b: '#ff007f',
+        },
+        accent: {
+          cyan: '#00f2fe',
+          magenta: '#ff007f',
+          amber: '#ffb703',
+          green: '#00ff66',
+        },
+      },
+      fontSize: {
+        '2xs': ['0.8125rem', { lineHeight: '1.25' }], // 13px
+        xs: ['0.875rem', { lineHeight: '1.35' }],    // 14px
+        sm: ['0.9375rem', { lineHeight: '1.4' }],    // 15px
+        base: ['1rem', { lineHeight: '1.5' }],       // 16px
       },
       fontFamily: {
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      }
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
     },
   },
   plugins: [],
-}
+};

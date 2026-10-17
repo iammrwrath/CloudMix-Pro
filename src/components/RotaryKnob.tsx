@@ -208,7 +208,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
       </div>
 
       {/* Label */}
-      <span className={`font-mono font-extrabold text-slate-300 group-hover:text-cyan-300 uppercase tracking-wider transition-colors leading-none ${isCompact ? 'text-[7.5px] mt-0.5' : 'text-[8.5px] mt-1'}`}>
+      <span className={`font-mono font-semibold text-slate-300 group-hover:text-cyan-300 uppercase tracking-wider transition-colors leading-none ${isCompact ? 'text-[10px] mt-0.5' : 'text-[11px] sm:text-xs mt-1'}`}>
         {label}
       </span>
     </div>

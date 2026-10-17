@@ -474,11 +474,50 @@ class AudioEngine {
 
   public loadTrackToDeck(deckId: DeckId, buffer: AudioBuffer, stems?: DiscreteStems) {
     this.init();
+    this.resumeContext().catch(() => {});
     const deck = this.decks.get(deckId);
     if (!deck) return;
 
     if (deck.isPlaying) {
       this.pauseDeck(deckId);
+    }
+
+    // Explicitly stop and disconnect any leftover audio buffer or scratch sources to prevent memory leaks / audio overlap
+    if (deck.sourceNode) {
+      try {
+        deck.sourceNode.stop();
+        deck.sourceNode.disconnect();
+      } catch {}
+      deck.sourceNode = null;
+    }
+    if (deck.stemVocalsSource || deck.stemDrumsSource || deck.stemBassSource || deck.stemHarmonicsSource) {
+      try {
+        deck.stemVocalsSource?.stop();
+        deck.stemVocalsSource?.disconnect();
+        deck.stemDrumsSource?.stop();
+        deck.stemDrumsSource?.disconnect();
+        deck.stemBassSource?.stop();
+        deck.stemBassSource?.disconnect();
+        deck.stemHarmonicsSource?.stop();
+        deck.stemHarmonicsSource?.disconnect();
+      } catch {}
+      deck.stemVocalsSource = null;
+      deck.stemDrumsSource = null;
+      deck.stemBassSource = null;
+      deck.stemHarmonicsSource = null;
+    }
+    if (deck.scratchSourceNode) {
+      try {
+        deck.scratchSourceNode.stop();
+        deck.scratchSourceNode.disconnect();
+      } catch {}
+      deck.scratchSourceNode = null;
+    }
+    if (deck.scratchGainNode) {
+      try {
+        deck.scratchGainNode.disconnect();
+      } catch {}
+      deck.scratchGainNode = null;
     }
 
     deck.audioBuffer = buffer;

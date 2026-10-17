@@ -522,13 +522,13 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
   };
 
   return (
-    <div className="flex flex-col w-full bg-dj-surface rounded-lg overflow-hidden border border-dj-border shadow-inner">
-      {/* 1. Dynamic Scrolling Waveform (Tri-Band RGB) */}
-      <div className="relative h-[clamp(2.75rem,7cqh,5.5rem)] w-full cursor-ew-resize min-h-[44px]">
+    <div className="flex flex-col w-full bg-dj-surface rounded-xl overflow-hidden border border-dj-border shadow-[inset_0_2px_12px_rgba(0,0,0,0.6)]">
+      {/* 1. Dynamic Scrolling Waveform (Tri-Band RGB — Expanded Prominent Display) */}
+      <div className="relative h-[clamp(4rem,13.5cqh,8.5rem)] w-full cursor-ew-resize min-h-[64px]">
         <canvas
           ref={scrollingCanvasRef}
-          width={800}
-          height={100}
+          width={960}
+          height={140}
           className="w-full h-full block"
           onWheel={handleWheel}
           onMouseDown={handleWaveformMouseDown}
@@ -537,19 +537,19 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
           onMouseLeave={handleWaveformMouseUp}
         />
         {/* Frequency color legend */}
-        <div className="absolute top-1 right-2 flex items-center space-x-2 text-[9px] font-mono text-slate-400 pointer-events-none bg-black/50 px-1.5 py-0.5 rounded">
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-[#ff3366] mr-1"></span>Bass</span>
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] mr-1"></span>Mid</span>
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-white mr-1"></span>Hi</span>
+        <div className="absolute top-1.5 right-2.5 flex items-center space-x-2.5 text-xs font-mono font-semibold text-slate-300 pointer-events-none bg-slate-950/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10">
+          <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-[#ff3366] mr-1 shadow-[0_0_6px_#ff3366]"></span>Bass</span>
+          <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-[#00e5ff] mr-1 shadow-[0_0_6px_#00e5ff]"></span>Mid</span>
+          <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-white mr-1"></span>Hi</span>
         </div>
       </div>
 
       {/* 2. Overview Waveform (Full track seeker) */}
-      <div className="relative h-[clamp(1.1rem,2.5cqh,1.75rem)] w-full cursor-pointer border-t border-dj-border/60 min-h-[16px]">
+      <div className="relative h-[clamp(1.45rem,3.6cqh,2.25rem)] w-full cursor-pointer border-t border-dj-border/80 min-h-[22px]">
         <canvas
           ref={overviewCanvasRef}
-          width={800}
-          height={32}
+          width={960}
+          height={42}
           className="w-full h-full block"
           onClick={handleOverviewClick}
         />

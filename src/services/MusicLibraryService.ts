@@ -8,6 +8,7 @@ import { CortexTrack, PulseTrack } from '../types/cortex';
 import { cortexAiService, pulseAiService } from './CortexAiService';
 import { storageCache } from './StorageCacheService';
 import { TrackMetadata } from '../types/dj';
+import { decodeHtmlEntities } from '../utils/decodeHtml';
 
 export class MusicLibraryService {
   private tracks: PulseTrack[] = [];
@@ -171,15 +172,18 @@ export class MusicLibraryService {
   }
 
   public convertPulseToDjTrack(track: PulseTrack): TrackMetadata {
+    const cleanTitle = decodeHtmlEntities(track.title);
+    const cleanArtist = decodeHtmlEntities(track.artist);
+    const cleanAlbum = decodeHtmlEntities(track.album || '');
     const genre = track.genre && track.genre !== 'Various' && track.genre !== 'Music'
       ? track.genre
-      : this.detectGenre(track.title, track.artist, track.album, track.fileUrl, track.bpm);
+      : this.detectGenre(cleanTitle, cleanArtist, cleanAlbum, track.fileUrl, track.bpm);
 
     return {
       id: track.id,
-      title: track.title,
-      artist: track.artist,
-      album: track.album || '',
+      title: cleanTitle,
+      artist: cleanArtist,
+      album: cleanAlbum,
       genre,
       year: track.year || new Date().getFullYear(),
       duration: track.duration || 180,
@@ -214,12 +218,12 @@ export class MusicLibraryService {
         const ext = f.name.split('.').pop()?.toLowerCase() || '';
         // Try to parse "Artist - Title.mp3" convention
         const nameNoExt = f.name.replace(/\.[^.]+$/, '');
-        let title = nameNoExt;
+        let title = decodeHtmlEntities(nameNoExt);
         let artist = 'Local File';
         if (nameNoExt.includes(' - ')) {
           const parts = nameNoExt.split(' - ');
-          artist = parts[0].trim();
-          title = parts.slice(1).join(' - ').trim();
+          artist = decodeHtmlEntities(parts[0].trim());
+          title = decodeHtmlEntities(parts.slice(1).join(' - ').trim());
         }
 
         const id = `local_${f.fullPath.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40)}`;
@@ -305,9 +309,9 @@ export class MusicLibraryService {
       if (!line) continue;
 
       const cols = this.parseCsvLine(line);
-      const title = (cols[titleIdx] || 'Untitled').trim().replace(/^"|"$/g, '');
-      const artist = (cols[artistIdx] || 'Unknown Artist').trim().replace(/^"|"$/g, '');
-      const album = cols[albumIdx] ? cols[albumIdx].trim().replace(/^"|"$/g, '') : undefined;
+      const title = decodeHtmlEntities((cols[titleIdx] || 'Untitled').trim().replace(/^"|"$/g, ''));
+      const artist = decodeHtmlEntities((cols[artistIdx] || 'Unknown Artist').trim().replace(/^"|"$/g, ''));
+      const album = cols[albumIdx] ? decodeHtmlEntities(cols[albumIdx].trim().replace(/^"|"$/g, '')) : undefined;
       const timeStr = (cols[timeIdx] || '03:00').trim();
       const bpmRaw = parseFloat(cols[bpmIdx] || '124');
       const keyRaw = (cols[keyIdx] || '8A').trim();
@@ -392,9 +396,9 @@ export class MusicLibraryService {
   public convertDjTrackToPulse(track: TrackMetadata): PulseTrack {
     return {
       id: track.id,
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
+      title: decodeHtmlEntities(track.title),
+      artist: decodeHtmlEntities(track.artist),
+      album: track.album ? decodeHtmlEntities(track.album) : track.album,
       genre: track.genre,
       year: track.year,
       duration: track.duration,

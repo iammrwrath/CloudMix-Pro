@@ -1,5 +1,6 @@
 import { DeckId, StreamingQuality, StemState } from '../types/dj';
 import { storageCache } from './StorageCacheService';
+import { decodeEntities } from '../utils/sanitize';
 
 declare global {
   interface Window {
@@ -429,11 +430,13 @@ class YouTubeDeckBridge {
   }
 
   public async loadVideo(deckId: DeckId, videoId: string, trackTitle?: string, trackArtist?: string): Promise<number> {
-    console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId} title="${trackTitle || ''}" artist="${trackArtist || ''}"`);
+    const cleanTitle = decodeEntities(trackTitle || '');
+    const cleanArtist = decodeEntities(trackArtist || '');
+    console.log(`[YouTubeDeckBridge] loadVideo() Deck ${deckId} — videoId=${videoId} title="${cleanTitle}" artist="${cleanArtist}"`);
     if (this.activeVideoIds.get(deckId) !== videoId) this.releaseFromEngine(deckId);
     this.activeVideoIds.set(deckId, videoId);
     this.pendingCues.set(deckId, videoId);
-    this.deckTrackInfo.set(deckId, { videoId, title: trackTitle || '', artist: trackArtist || '' });
+    this.deckTrackInfo.set(deckId, { videoId, title: cleanTitle, artist: cleanArtist });
     this.isDeckPlaying.set(deckId, false);
 
     // Reset auto-failover trackers for this deck on fresh track load

@@ -26,6 +26,8 @@ import {
   Minus,
   Square,
   X,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
@@ -56,6 +58,8 @@ interface HeaderProps {
   onDrawerModeChange?: (mode: 'collapsed' | 'split' | 'expanded') => void;
   uiZoom?: number;
   onUiZoomChange?: (zoom: number) => void;
+  themeMode?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -83,6 +87,8 @@ export const Header: React.FC<HeaderProps> = ({
   onDrawerModeChange,
   uiZoom = 1.0,
   onUiZoomChange,
+  themeMode = 'dark',
+  onToggleTheme,
 }) => {
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [quantize, setQuantize] = useState(true);
@@ -177,79 +183,79 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       style={{ WebkitAppRegion: 'drag' } as any}
-      className="flex items-center justify-between h-11 px-2 md:px-3 bg-slate-950/95 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.6)] select-none z-20 shrink-0 w-full overflow-hidden"
+      className="flex items-center justify-between h-12 px-2.5 md:px-3.5 bg-dj-panel/95 backdrop-blur-xl border-b border-dj-border shadow-[0_4px_18px_rgba(0,0,0,0.45)] select-none z-20 shrink-0 w-full overflow-hidden"
     >
       {/* 1. Brand & Title */}
       <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-2 shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 via-blue-600 to-purple-600 p-0.5 flex items-center justify-center shadow-[0_0_12px_rgba(0,240,255,0.4)]">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 via-blue-600 to-purple-600 p-0.5 flex items-center justify-center shadow-[0_0_12px_rgba(0,240,255,0.45)]">
           <div className="w-full h-full rounded-[6px] bg-slate-950 flex items-center justify-center">
-            <Disc3 className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '4s' }} />
+            <Disc3 className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '4s' }} />
           </div>
         </div>
         <div className="flex flex-col">
           <div className="flex items-center space-x-1.5">
-            <span className="font-black text-sm md:text-base tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300">
+            <span className="font-black text-[15px] md:text-base tracking-tight text-white">
               CLOUDMIX
             </span>
-            <span className="font-mono text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-cyan-950/90 text-cyan-400 border border-cyan-500/50 shadow-[0_0_8px_rgba(0,240,255,0.3)]">
+            <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-400 border border-cyan-500/50 shadow-[0_0_8px_rgba(0,240,255,0.3)]">
               PRO
             </span>
           </div>
-          <span className="text-[8.5px] font-mono text-slate-400 hidden 2xl:inline">
+          <span className="text-[11px] font-mono text-slate-400 hidden 2xl:inline">
             Next-Gen Cloud-Native DJ Workstation
           </span>
         </div>
 
         {/* Layout Switcher */}
-        <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-white/10 ml-0.5 sm:ml-1">
+        <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-white/10 ml-1">
           <button
             onClick={() => onLayoutModeChange('horizontal')}
             title="Classic Horizontal 2-Deck Jog View"
-            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+            className={`px-2 py-1 rounded text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
               layoutMode === 'horizontal' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <LayoutGrid className="w-3 h-3" />
+            <LayoutGrid className="w-3.5 h-3.5" />
             <span className="hidden xl:inline">2-DECK</span>
           </button>
           <button
             onClick={() => onLayoutModeChange('vertical')}
             title="Pro Rekordbox Stacked Vertical Waveforms (120 FPS)"
-            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+            className={`px-2 py-1 rounded text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
               layoutMode === 'vertical' && drawerMode !== 'expanded' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Columns className="w-3 h-3" />
+            <Columns className="w-3.5 h-3.5" />
             <span className="hidden xl:inline">STACKED</span>
           </button>
           <button
             onClick={() => onDrawerModeChange?.(drawerMode === 'expanded' ? 'split' : 'expanded')}
             title="djay Pro Expanded Library View (Press L)"
-            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+            className={`px-2 py-1 rounded text-xs font-mono font-bold flex items-center space-x-1 cursor-pointer transition-all ${
               drawerMode === 'expanded'
                 ? 'bg-indigo-600 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <BookOpen className="w-3 h-3 text-indigo-400" />
+            <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden xl:inline">LIBRARY</span>
           </button>
         </div>
 
         {/* Global UI Zoom / Scale Controller (Always Visible & Accessible) */}
         {onUiZoomChange && (
-          <div className="flex items-center space-x-0.5 bg-slate-900/90 px-1 py-0.5 rounded-lg border border-slate-800 shadow-sm shrink-0" title="Global UI Zoom / Display Scale (Click % to reset to Auto)">
+          <div className="flex items-center space-x-0.5 bg-slate-900/90 px-1.5 py-0.5 rounded-lg border border-slate-800 shadow-sm shrink-0" title="Global UI Zoom / Display Scale (Click % to reset to Auto)">
             <button
               onClick={() => onUiZoomChange(Math.max(0.65, Math.round((uiZoom - 0.05) * 100) / 100))}
               title="Zoom Out (Ctrl -)"
               className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
             >
-              <ZoomOut className="w-3 h-3" />
+              <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => onUiZoomChange(-1)} // Sentinel for auto-fit
               title="Click to reset to Auto-Fit Scale (Adapts to screen resolution)"
-              className="px-1 py-0.5 text-[10px] font-mono font-black text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors"
+              className="px-1.5 py-0.5 text-xs font-mono font-black text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors"
             >
               {Math.round(uiZoom * 100)}%
             </button>
@@ -258,31 +264,31 @@ export const Header: React.FC<HeaderProps> = ({
               title="Zoom In (Ctrl +)"
               className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
             >
-              <ZoomIn className="w-3 h-3" />
+              <ZoomIn className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
       </div>
 
       {/* 2. Master BPM & Quantize Hub */}
-      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900/90 px-1.5 sm:px-2 py-0.5 rounded-xl border border-white/10 shadow-inner shrink-0">
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1.5 bg-slate-900/90 px-2.5 py-1 rounded-xl border border-white/10 shadow-inner shrink-0">
         <div className="flex flex-col items-center">
-          <span className="text-[8px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">
+          <span className="text-[11px] font-mono text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">
             CLOCK
           </span>
-          <div className="flex items-center space-x-0.5">
+          <div className="flex items-center space-x-1">
             <button
               onClick={() => onMasterBpmChange(Math.max(60, masterBpm - 0.5))}
-              className="w-4 h-4 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
+              className="w-5 h-5 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-sm flex items-center justify-center cursor-pointer transition-colors"
             >
               -
             </button>
-            <span className="font-mono font-black text-xs sm:text-sm md:text-base text-white min-w-[42px] sm:min-w-[46px] text-center tracking-tight">
+            <span className="font-mono font-black text-sm md:text-base text-white min-w-[48px] text-center tracking-tight">
               {masterBpm.toFixed(1)}
             </span>
             <button
               onClick={() => onMasterBpmChange(Math.min(220, masterBpm + 0.5))}
-              className="w-4 h-4 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-xs flex items-center justify-center cursor-pointer transition-colors"
+              className="w-5 h-5 rounded bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 text-sm flex items-center justify-center cursor-pointer transition-colors"
             >
               +
             </button>
@@ -291,16 +297,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={handleTapTempo}
-          className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-mono font-black rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+          className="px-2 py-1 text-xs font-mono font-black rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 active:scale-95 transition-all cursor-pointer shadow-sm"
         >
           TAP
         </button>
 
         <button
           onClick={() => setQuantize(!quantize)}
-          className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-mono font-black rounded border transition-all cursor-pointer ${
+          className={`px-2 py-1 text-xs font-mono font-black rounded border transition-all cursor-pointer ${
             quantize
-              ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(160,185,129,0.7)]'
+              ? 'bg-emerald-500 text-black border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.7)]'
               : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
           }`}
         >
@@ -308,13 +314,13 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* 3. System Status Badges, Recording & Feature Toggles */}
-      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+      {/* 3. System Status Badges, Recording, Theme Toggle & Feature Toggles */}
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1.5 shrink-0">
         {/* Master Mix Recording Button */}
         <button
           onClick={onToggleRecording}
           title={isRecording ? "Click to Stop & Save Mix Recording" : "Record Live Master Mix to Lossless Audio"}
-          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer border ${
+          className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-black transition-all cursor-pointer border ${
             isRecording
               ? 'bg-red-600 text-white border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse'
               : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400'
@@ -329,7 +335,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleAutomix}
           title="Toggle Automix AI Autonomous Transition Engine"
-          className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+          className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
             isAutomixActive
               ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.7)] animate-pulse'
               : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-slate-800'
@@ -347,14 +353,14 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={handleToggle}
               title="Toggle MixCortex AI Co-Pilot (Real-time Harmonic & Vibe Next Track Ideas)"
-              className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+              className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
                 isCortexActive
                   ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.8)] font-black'
                   : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
               }`}
             >
               <Brain className={`w-3.5 h-3.5 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
-              <span className="font-extrabold tracking-wide text-[11px] hidden sm:inline">CORTEX</span>
+              <span className="font-extrabold tracking-wide text-xs hidden sm:inline">CORTEX</span>
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping hidden sm:inline-block" />
             </button>
           );
@@ -363,7 +369,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Google Drive Status Badge */}
         <div
           title="Google Drive Cloud Audio: Connected & Online"
-          className="hidden 2xl:flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300"
+          className="hidden 2xl:flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-xs font-mono text-slate-300"
         >
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
           <Cloud className="w-3.5 h-3.5 text-blue-400" />
@@ -373,7 +379,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Real-time Cloud Progression Sync Badge */}
         <div
           title="Real-time Cloud Progression Sync: Active"
-          className="hidden 2xl:flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10.5px] font-mono text-slate-300"
+          className="hidden 2xl:flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-xs font-mono text-slate-300"
         >
           <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] animate-pulse" />
           <Wifi className="w-3.5 h-3.5 text-cyan-400" />
@@ -384,10 +390,10 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleMidiModal}
           title={`Configure DJ Hardware / MIDI Mappings (${primaryMidiName})`}
-          className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[11px] font-mono text-slate-200 transition-colors cursor-pointer"
+          className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-200 transition-colors cursor-pointer"
         >
           <Sliders className="w-3.5 h-3.5 text-amber-400" />
-          <span className="max-w-[80px] truncate hidden 2xl:inline">{primaryMidiName}</span>
+          <span className="max-w-[85px] truncate hidden 2xl:inline">{primaryMidiName}</span>
           <span className="2xl:hidden">MIDI</span>
         </button>
 
@@ -405,7 +411,7 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden 2xl:inline">OBS / Stream</span>
           <span className="2xl:hidden">OBS</span>
           {requestCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white text-[9px] font-mono animate-pulse shadow-[0_0_8px_rgba(236,72,153,0.8)]">
+            <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white text-xs font-mono animate-pulse shadow-[0_0_8px_rgba(236,72,153,0.8)]">
               {requestCount}
             </span>
           )}
@@ -417,7 +423,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.startDownload())}
               title="A new patch is available on GitHub! Click to open patch downloader."
-              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all"
+              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-xs font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all"
             >
               <Download className="w-3.5 h-3.5" />
               <span>v{updateStatus.version}</span>
@@ -425,7 +431,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : updateStatus.status === 'downloading' ? (
             <button
               onClick={() => onOpenPatchModal && onOpenPatchModal()}
-              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[10.5px] font-mono text-purple-200 cursor-pointer"
+              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-xs font-mono text-purple-200 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" />
               <span>{updateStatus.percent || 0}%</span>
@@ -434,7 +440,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.restartAndApply())}
               title="Patch downloaded. Click to review and apply."
-              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10.5px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.6)] cursor-pointer transition-all"
+              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold shadow-[0_0_12px_rgba(168,85,247,0.6)] cursor-pointer transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Apply</span>
@@ -442,13 +448,13 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '1.6.6'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '2.0.9'} - Click to check GitHub for patches`}
               className="flex items-center space-x-1 px-2 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-cyan-300 text-xs font-mono transition-all cursor-pointer shadow-sm group"
             >
-              <Sparkles className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '1.6.6'}</span>
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
+              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '2.0.9'}</span>
               {updateStatus.status === 'checking' && (
-                <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin ml-0.5" />
               )}
             </button>
           )}
@@ -459,17 +465,42 @@ export const Header: React.FC<HeaderProps> = ({
             target="_blank"
             rel="noreferrer"
             title="Open GitHub Repository (iammrwrath/CloudMix-Pro)"
-            className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer hidden sm:flex items-center justify-center"
+            className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer hidden sm:flex items-center justify-center"
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
 
+        {/* Persistent Light / Dark Theme Toggle */}
+        {onToggleTheme && (
+          <button
+            onClick={onToggleTheme}
+            title={themeMode === 'dark' ? 'Switch to Studio Titanium Light Mode' : 'Switch to Cinematic Obsidian Dark Mode'}
+            className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer ${
+              themeMode === 'light'
+                ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                : 'bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border-slate-800 hover:border-cyan-500/40'
+            }`}
+          >
+            {themeMode === 'light' ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden lg:inline">LIGHT</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden lg:inline">DARK</span>
+              </>
+            )}
+          </button>
+        )}
+
         {/* Keyboard Shortcuts Help Button */}
         <button
           onClick={onToggleKeyboardModal}
           title="Keyboard Shortcuts Cheat Sheet (?)"
-          className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 transition-colors cursor-pointer"
         >
           <HelpCircle className="w-3.5 h-3.5" />
         </button>
@@ -478,19 +509,19 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onToggleSettingsModal}
           title="Cloud & Drive Settings"
-          className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors cursor-pointer"
         >
           <Settings className="w-3.5 h-3.5" />
         </button>
 
-        {/* Integrated Dark Frameless Window Controls (Desktop App) */}
+        {/* Integrated Frameless Window Controls (Desktop App) */}
         {typeof window !== 'undefined' && Boolean((window as any).desktopAPI) && (
           <div className="flex items-center space-x-1 pl-1.5 ml-0.5 border-l border-white/10 shrink-0 select-none">
             {/* Fullscreen Toggle (F11) */}
             <button
               onClick={handleToggleFullScreen}
               title={isFullScreen ? 'Exit Full Screen (F11)' : 'Enter Full Screen (F11)'}
-              className={`p-1 rounded-lg border transition-all cursor-pointer ${
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                 isFullScreen
                   ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
                   : 'bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border-slate-800'
@@ -503,7 +534,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={handleMinimize}
               title="Minimize to Taskbar"
-              className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
@@ -512,7 +543,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={handleMaximize}
               title={isMaximized ? 'Restore Down' : 'Maximize Window'}
-              className="p-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
             >
               <Square className="w-3 h-3" />
             </button>
@@ -521,7 +552,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={handleClose}
               title="Close CloudMix Pro"
-              className="p-1 rounded-lg bg-slate-900/90 hover:bg-rose-600/90 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-500 transition-colors cursor-pointer group"
+              className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-600/90 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-500 transition-colors cursor-pointer group"
             >
               <X className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
             </button>

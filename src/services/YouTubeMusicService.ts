@@ -1,6 +1,7 @@
 import { TrackMetadata } from '../types/dj';
 import { storageCache } from './StorageCacheService';
 import { musicLibraryService } from './MusicLibraryService';
+import { decodeHtmlEntities, sanitizeTrackMetadata } from '../utils/decodeHtml';
 
 export interface YouTubeSearchResult {
   videoId: string;
@@ -372,8 +373,8 @@ class YouTubeMusicService {
         // 4. Map collected playlists
         oauthPlaylists = Array.from(itemsMap.values()).map((item: any) => ({
           id: item.id,
-          title: item.snippet?.title || 'Untitled Playlist',
-          description: item.snippet?.description,
+          title: decodeHtmlEntities(item.snippet?.title || 'Untitled Playlist'),
+          description: decodeHtmlEntities(item.snippet?.description),
           trackCount: item.contentDetails?.itemCount,
           thumbnailUrl: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url,
         }));
@@ -399,7 +400,11 @@ class YouTubeMusicService {
     }
 
     // Merge: saved imported playlists first, then user's OAuth playlists, then curated
-    const all = [...savedPlaylists, ...oauthPlaylists, ...curatedOnly];
+    const all = [...savedPlaylists, ...oauthPlaylists, ...curatedOnly].map((pl) => ({
+      ...pl,
+      title: decodeHtmlEntities(pl.title),
+      description: pl.description ? decodeHtmlEntities(pl.description) : pl.description,
+    }));
     // De-duplicate by ID
     const seen = new Set<string>();
     return all.filter((p) => {
@@ -439,7 +444,7 @@ class YouTubeMusicService {
           try {
             const metaData = await metaRes.json();
             if (metaData.items && metaData.items[0]?.snippet?.title) {
-              plTitle = metaData.items[0].snippet.title;
+              plTitle = decodeHtmlEntities(metaData.items[0].snippet.title);
             }
           } catch {}
         }
@@ -447,13 +452,13 @@ class YouTubeMusicService {
         const tracks: TrackMetadata[] = (itemsData.items || [])
           .map((item: any) => {
             const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
-            const rawTitle = item.snippet?.title || 'Unknown Title';
+            const rawTitle = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
             let title = rawTitle;
-            let artist = item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist';
+            let artist = decodeHtmlEntities(item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist');
             if (rawTitle.includes(' - ')) {
               const parts = rawTitle.split(' - ');
-              artist = parts[0].trim();
-              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+              artist = decodeHtmlEntities(parts[0].trim());
+              title = decodeHtmlEntities(parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
             const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
@@ -502,14 +507,15 @@ class YouTubeMusicService {
       if (res.ok) {
         const data = await res.json();
         if (data.items && data.items.length > 0) {
+          const sanitizedItems = data.items.map((item: TrackMetadata) => sanitizeTrackMetadata(item));
           const newPl: YouTubePlaylist = {
             id: data.id || playlistId,
-            title: data.title || 'Imported Playlist',
-            trackCount: data.items.length,
-            thumbnailUrl: data.items[0]?.coverArtUrl || '',
+            title: decodeHtmlEntities(data.title || 'Imported Playlist'),
+            trackCount: sanitizedItems.length,
+            thumbnailUrl: sanitizedItems[0]?.coverArtUrl || '',
           };
 
-          await storageCache.setSetting(`yt_pl_tracks_${newPl.id}`, data.items);
+          await storageCache.setSetting(`yt_pl_tracks_${newPl.id}`, sanitizedItems);
           const existing: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
           const updated = [newPl, ...existing.filter((p) => p.id !== newPl.id)];
           await storageCache.setSetting('yt_user_saved_playlists', updated);
@@ -539,13 +545,13 @@ class YouTubeMusicService {
     // 1. Check curated playlists first
     const curatedMatch = this.curatedPlaylists.find((c) => c.playlist.id === playlistId);
     if (curatedMatch) {
-      return curatedMatch.tracks;
+      return curatedMatch.tracks.map((t) => sanitizeTrackMetadata(t));
     }
 
     // 2. Check cached tracks from imported playlist
     const cachedTracks = await storageCache.getSetting<TrackMetadata[] | null>(`yt_pl_tracks_${playlistId}`, null);
     if (cachedTracks && cachedTracks.length > 0) {
-      return cachedTracks;
+      return cachedTracks.map((t) => sanitizeTrackMetadata(t));
     }
 
     // 3. Direct Google YouTube Data API v3 query with API key (instant client execution)
@@ -558,13 +564,13 @@ class YouTubeMusicService {
         const tracks: TrackMetadata[] = (data.items || [])
           .map((item: any) => {
             const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
-            const rawTitle = item.snippet?.title || 'Unknown Title';
+            const rawTitle = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
             let title = rawTitle;
-            let artist = item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist';
+            let artist = decodeHtmlEntities(item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist');
             if (rawTitle.includes(' - ')) {
               const parts = rawTitle.split(' - ');
-              artist = parts[0].trim();
-              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+              artist = decodeHtmlEntities(parts[0].trim());
+              title = decodeHtmlEntities(parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
             const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
@@ -603,8 +609,9 @@ class YouTubeMusicService {
       if (res.ok) {
         const data = await res.json();
         if (data.items && data.items.length > 0) {
-          await storageCache.setSetting(`yt_pl_tracks_${playlistId}`, data.items);
-          return data.items;
+          const sanitized = data.items.map((item: TrackMetadata) => sanitizeTrackMetadata(item));
+          await storageCache.setSetting(`yt_pl_tracks_${playlistId}`, sanitized);
+          return sanitized;
         }
       }
     } catch {}
@@ -625,14 +632,14 @@ class YouTubeMusicService {
           const data = await res.json();
           const tracks = (data.items || []).map((item: any) => {
             const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
-            const title = item.snippet?.title || 'Unknown Title';
+            const title = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url;
             let trackTitle = title;
-            let artist = 'YouTube Music';
+            let artist = decodeHtmlEntities(item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Music');
             if (title.includes(' - ')) {
               const parts = title.split(' - ');
-              artist = parts[0].trim();
-              trackTitle = parts.slice(1).join(' - ').trim();
+              artist = decodeHtmlEntities(parts[0].trim());
+              trackTitle = decodeHtmlEntities(parts.slice(1).join(' - ').trim());
             }
             const genre = musicLibraryService.detectGenre(trackTitle, artist, undefined, undefined, 125.0);
             return {
@@ -662,7 +669,7 @@ class YouTubeMusicService {
   }
 
   public getFeaturedTracks(): TrackMetadata[] {
-    return this.defaultFeaturedTracks;
+    return this.defaultFeaturedTracks.map((t) => sanitizeTrackMetadata(t));
   }
 
   /**
@@ -689,13 +696,13 @@ class YouTubeMusicService {
         if (data.items && data.items.length > 0) {
           const apiTracks: TrackMetadata[] = data.items.map((item: any) => {
             const videoId = item.id?.videoId || '';
-            const rawTitle = item.snippet?.title || 'Unknown Title';
+            const rawTitle = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
             let title = rawTitle;
-            let artist = item.snippet?.channelTitle || 'YouTube Artist';
+            let artist = decodeHtmlEntities(item.snippet?.channelTitle || 'YouTube Artist');
             if (rawTitle.includes(' - ')) {
               const parts = rawTitle.split(' - ');
-              artist = parts[0].trim();
-              title = parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+              artist = decodeHtmlEntities(parts[0].trim());
+              title = decodeHtmlEntities(parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
             const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
@@ -740,8 +747,8 @@ class YouTubeMusicService {
           if (data.items && data.items.length > 0) {
             const apiTracks: TrackMetadata[] = data.items.map((item: any) => {
               const videoId = item.id?.videoId || '';
-              const title = item.snippet?.title || 'Unknown Title';
-              const artist = item.snippet?.channelTitle || 'YouTube Artist';
+              const title = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
+              const artist = decodeHtmlEntities(item.snippet?.channelTitle || 'YouTube Artist');
               const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
               const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
               return {
@@ -778,23 +785,27 @@ class YouTubeMusicService {
       if (res.ok) {
         const data = await res.json();
         if (data.results && data.results.length > 0) {
-          const serverTracks: TrackMetadata[] = data.results.map((r: any) => ({
-            id: `yt_${r.videoId}`,
-            title: r.title,
-            artist: r.artist,
-            genre: musicLibraryService.detectGenre(r.title, r.artist, undefined, undefined, 125.0),
-            duration: r.duration || 210,
-            bpm: 125.0,
-            key: '8A',
-            camelotKey: '8A',
-            fileUrl: `https://www.youtube.com/watch?v=${r.videoId}`,
-            fileSource: 'youtube' as const,
-            coverArtUrl: r.thumbnailUrl,
-            dateAdded: new Date().toISOString(),
-            hotCues: [],
-            savedLoops: [],
-            beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
-          }));
+          const serverTracks: TrackMetadata[] = data.results.map((r: any) => {
+            const cleanTitle = decodeHtmlEntities(r.title);
+            const cleanArtist = decodeHtmlEntities(r.artist);
+            return {
+              id: `yt_${r.videoId}`,
+              title: cleanTitle,
+              artist: cleanArtist,
+              genre: musicLibraryService.detectGenre(cleanTitle, cleanArtist, undefined, undefined, 125.0),
+              duration: r.duration || 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${r.videoId}`,
+              fileSource: 'youtube' as const,
+              coverArtUrl: r.thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+            };
+          });
           return [...matchedFeatured, ...serverTracks];
         }
       }

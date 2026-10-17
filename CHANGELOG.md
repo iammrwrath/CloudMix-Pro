@@ -1,3 +1,21 @@
+## v2.0.9
+- **Typography & Readability Overhaul**:
+  - Scaled up base font sizes across decks, transport controls, stem toggles, performance pads, and track library tables (`13px–14px` labels/controls, `15px–16px` track titles/headers) with responsive `clamp()` scaling and enhanced `font-medium` / `font-semibold` hierarchy.
+- **Cinematic Dark & Studio Console Light Mode Theming**:
+  - Added persistent Dark / Light theme toggle in the top utility bar (`localStorage` + `data-theme` attribute) powered by CSS custom properties (`--bg-primary`, `--surface`, `--accent`, `--border-glow`, `--text-primary`, `--text-muted`).
+  - Upgraded Dark Mode to deep obsidian/onyx tones (`#0a0b0e`, `#12151c`) with neon backlit deck rings (`#00f2fe` Cyan Deck A, `#ff007f` Magenta Deck B, `#ffb703` Amber Master/Pitch) and `backdrop-filter: blur(12px)` glassmorphism.
+  - Added "Studio Console" Light Mode (`#e8ecf2`, `#f3f5f9`) with crisp slate text (`#0f172a`), refined shadows, and vivid neon indicators.
+- **Layout Optimization & Dead Space Elimination**:
+  - Expanded scrolling RGB and overview waveform containers, proportionally scaled jog wheels and control clusters, and configured the bottom library drawer (`flex-1 min-h-0`) to dynamically fill remaining viewport height.
+- **HTML Entity Decoding & Functional QA Hardening**:
+  - Added `DOMParser` + multi-pass entity decoding (`decodeEntities` / `sanitizeTrackMetadata`) across YouTube Music, local library ingestion, and deck/table rendering to eliminate escaped HTML entities (`&#39;`, `&quot;`, `&amp;`).
+  - Hardened Web Audio source node and 4-stem source cleanup on track swaps in `AudioEngine.ts` and added YouTube deck support to `AutomixService.ts` automatic transitions and tempo blends.
+
+## v2.0.8
+- **Automatic Web Audio Takeover & 4-Stem Biquad Separation**:
+  - Seamless handoff from YouTube IFrame player to `AudioEngine` once real audio is decoded so mixer EQ/Filter knobs and 4-stem DSP operate with zero latency.
+  - Upgraded 4-way Linkwitz-Riley biquad stem separation and fixed right-channel bass stem buffer routing.
+
 ## v2.0.7
 - **Physical Audio Hardware Output Routing Fix (GoXLR Mini & Multi-Channel Interfaces)**:
   - **Instant Device Switching & Immediate Persistence**: Fixed device dropdown so changing output device (e.g. `Music (TC-HELICON GoXLR Mini)`) immediately applies to the active audio pipeline and persists without requiring dialog save.

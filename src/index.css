@@ -1,142 +1,319 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dj-bg: #07090e;
-  --color-dj-panel: #0d121d;
-  --color-dj-surface: #131b2a;
-  --color-dj-surface-hover: #1c263b;
-  --color-dj-border: #222e46;
-  --color-dj-accent: #00f0ff;
-  --color-dj-neon-blue: #00b4d8;
-  --color-dj-neon-green: #10b981;
-  --color-dj-neon-orange: #f97316;
-  --color-dj-neon-red: #ef4444;
-  --color-dj-neon-purple: #a855f7;
-  --color-dj-deck-a: #00f0ff;
-  --color-dj-deck-b: #ff2e88;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --color-dj-bg: var(--bg-primary);
+  --color-dj-panel: var(--surface);
+  --color-dj-surface: var(--surface-elevated);
+  --color-dj-border: var(--border-subtle);
+  --color-deck-a: #00f2fe;
+  --color-deck-b: #ff007f;
+  --color-accent-green: #00ff66;
+  --color-accent-amber: #ffb703;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
-body {
-  margin: 0;
-  user-select: none;
-  -webkit-user-select: none;
-  background-color: #07090e;
-  color: #f1f5f9;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  overflow: hidden;
+/* ==========================================================================
+   1. GLOBAL THEME CUSTOM PROPERTIES (CINEMATIC DARK & STUDIO TITANIUM LIGHT)
+   ========================================================================== */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #0a0b0e;
+  --bg-secondary: #0f1117;
+  --surface: #12151c;
+  --surface-elevated: #181c26;
+  --surface-glass: rgba(18, 21, 28, 0.84);
+  --accent: #00f2fe;
+  --accent-secondary: #ff007f;
+  --accent-amber: #ffb703;
+  --border-subtle: #232938;
+  --border-glow: rgba(0, 242, 254, 0.42);
+  --border-glow-pink: rgba(255, 0, 127, 0.42);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --shadow-console: 0 12px 32px -8px rgba(0, 0, 0, 0.78), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --deck-glow-a: 0 0 28px -6px rgba(0, 242, 254, 0.28), inset 0 1px 0 rgba(0, 242, 254, 0.16);
+  --deck-glow-b: 0 0 28px -6px rgba(255, 0, 127, 0.28), inset 0 1px 0 rgba(255, 0, 127, 0.16);
+  --scrollbar-track: #0a0b0e;
+  --scrollbar-thumb: #262d3d;
+  --scrollbar-thumb-hover: #3b465e;
+  color-scheme: dark;
 }
 
-/* Glassmorphism Panels */
-.glass-panel {
-  background: rgba(13, 18, 29, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+[data-theme="light"] {
+  --bg-primary: #e8ecf2;
+  --bg-secondary: #dfe5ee;
+  --surface: #f3f5f9;
+  --surface-elevated: #ffffff;
+  --surface-glass: rgba(243, 245, 249, 0.9);
+  --accent: #0284c7;
+  --accent-secondary: #e11d48;
+  --accent-amber: #d97706;
+  --border-subtle: #cbd5e1;
+  --border-glow: rgba(0, 242, 254, 0.55);
+  --border-glow-pink: rgba(255, 0, 127, 0.55);
+  --text-primary: #0f172a;
+  --text-secondary: #1e293b;
+  --text-muted: #475569;
+  --shadow-console: 0 10px 26px -6px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.07), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  --deck-glow-a: 0 8px 24px -6px rgba(2, 132, 199, 0.24), 0 0 0 1px rgba(2, 132, 199, 0.35);
+  --deck-glow-b: 0 8px 24px -6px rgba(225, 29, 72, 0.24), 0 0 0 1px rgba(225, 29, 72, 0.35);
+  --scrollbar-track: #e2e8f0;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+  color-scheme: light;
 }
 
-.glass-card {
-  background: rgba(19, 27, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
+@layer base {
+  html {
+    font-size: clamp(15px, 0.92vw + 6px, 18px);
+  }
 
-/* Tactile Performance Buttons */
-.tactile-btn {
-  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform, box-shadow;
-}
-
-.tactile-btn:active {
-  transform: scale(0.96);
-}
-
-/* Custom DJ Fader Thumbs - Brushed Aluminum Cap with Center Glow Line */
-input[type="range"].slider-thumb::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 32px;
-  height: 18px;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #475569 0%, #1e293b 50%, #0f172a 100%);
-  border: 1px solid #94a3b8;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  position: relative;
-}
-
-input[type="range"].slider-thumb::-moz-range-thumb {
-  width: 32px;
-  height: 18px;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #475569 0%, #1e293b 50%, #0f172a 100%);
-  border: 1px solid #94a3b8;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-/* Vertical Pitch Fader Thumb */
-input[type="range"].pitch-thumb::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 22px;
-  height: 14px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #64748b 0%, #334155 50%, #0f172a 100%);
-  border: 1px solid #cbd5e1;
-  cursor: ns-resize;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-input[type="range"].pitch-thumb::-moz-range-thumb {
-  width: 22px;
-  height: 14px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #64748b 0%, #334155 50%, #0f172a 100%);
-  border: 1px solid #cbd5e1;
-  cursor: ns-resize;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-/* Sleek cyber dark scrollbars */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: #080a0f;
-}
-::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-
-/* Deck & Jog Wheel Responsive Geometry */
-.deck-container {
-  container-type: size;
-}
-
-.jog-wheel-container {
-  container-type: normal;
-}
-
-.jog-wheel {
-  /* Fluid clamp: min 110px, scales with container and viewport height, max 260px */
-  width: clamp(110px, min(36cqh, 24vw, 250px), 260px);
-  height: clamp(110px, min(36cqh, 24vw, 250px), 260px);
-  aspect-ratio: 1 / 1;
-}
-
-@container (max-height: 480px) {
-  .jog-wheel {
-    width: clamp(100px, 32cqh, 170px);
-    height: clamp(100px, 32cqh, 170px);
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    user-select: none;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    transition: background-color 0.22s ease, color 0.22s ease;
   }
 }
 
+/* ==========================================================================
+   2. RESPONSIVE TYPOGRAPHY & READABILITY SCALING (NO MICRO-TEXT STRAIN)
+   ========================================================================== */
+/* Automatically scale up legacy micro utility classes across all decks, knobs, pads, and tables */
+.text-\[7px\],
+.text-\[8px\] {
+  font-size: clamp(0.78rem, 0.75rem + 0.15vw, 0.85rem) !important; /* ~12.5px - 13.6px */
+  line-height: 1.25 !important;
+  font-weight: 600;
+}
 
+.text-\[9px\],
+.text-\[10px\] {
+  font-size: clamp(0.8125rem, 0.78rem + 0.18vw, 0.9rem) !important; /* ~13px - 14.4px */
+  line-height: 1.3 !important;
+  font-weight: 600;
+}
+
+.text-\[11px\],
+.text-xs {
+  font-size: clamp(0.85rem, 0.81rem + 0.2vw, 0.95rem) !important; /* ~13.6px - 15.2px */
+  line-height: 1.35 !important;
+}
+
+.text-\[12px\],
+.text-\[13px\],
+.text-sm {
+  font-size: clamp(0.9375rem, 0.88rem + 0.24vw, 1.05rem) !important; /* ~15px - 16.8px */
+  line-height: 1.38 !important;
+}
+
+/* ==========================================================================
+   3. CINEMATIC CONSOLE SURFACES, NEON BACKLIGHTING & GLASSMORPHISM
+   ========================================================================== */
+.dj-console-surface {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-console);
+  backdrop-filter: blur(12px);
+}
+
+.dj-glass-panel {
+  background: var(--surface-glass);
+  backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-console);
+}
+
+.deck-card-a {
+  background: radial-gradient(120% 90% at 15% 0%, rgba(0, 242, 254, 0.09) 0%, transparent 65%), var(--surface);
+  box-shadow: var(--deck-glow-a), var(--shadow-console);
+}
+
+.deck-card-b {
+  background: radial-gradient(120% 90% at 85% 0%, rgba(255, 0, 127, 0.09) 0%, transparent 65%), var(--surface);
+  box-shadow: var(--deck-glow-b), var(--shadow-console);
+}
+
+[data-theme="light"] .deck-card-a {
+  background: radial-gradient(120% 90% at 15% 0%, rgba(2, 132, 199, 0.1) 0%, transparent 65%), var(--surface);
+}
+
+[data-theme="light"] .deck-card-b {
+  background: radial-gradient(120% 90% at 85% 0%, rgba(225, 29, 72, 0.1) 0%, transparent 65%), var(--surface);
+}
+
+/* ==========================================================================
+   4. STUDIO TITANIUM LIGHT MODE ADAPTATION LAYER
+   ========================================================================== */
+[data-theme="light"] .bg-dj-bg {
+  background-color: var(--bg-primary) !important;
+}
+
+[data-theme="light"] .bg-dj-panel {
+  background-color: var(--surface) !important;
+}
+
+[data-theme="light"] .bg-dj-surface,
+[data-theme="light"] .bg-dj-surface\/90,
+[data-theme="light"] .bg-dj-surface\/95,
+[data-theme="light"] .bg-dj-surface\/80,
+[data-theme="light"] .bg-dj-surface\/70 {
+  background-color: var(--surface-elevated) !important;
+}
+
+[data-theme="light"] .bg-slate-950,
+[data-theme="light"] .bg-slate-950\/95,
+[data-theme="light"] .bg-slate-950\/90,
+[data-theme="light"] .bg-slate-950\/80,
+[data-theme="light"] .bg-slate-950\/70,
+[data-theme="light"] .bg-slate-950\/60,
+[data-theme="light"] .bg-black\/60,
+[data-theme="light"] .bg-black\/40 {
+  background-color: #e2e8f0 !important;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .bg-slate-900,
+[data-theme="light"] .bg-slate-900\/95,
+[data-theme="light"] .bg-slate-900\/90,
+[data-theme="light"] .bg-slate-900\/80,
+[data-theme="light"] .bg-slate-900\/70,
+[data-theme="light"] .bg-slate-900\/60,
+[data-theme="light"] .bg-slate-900\/50 {
+  background-color: #edf1f7 !important;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .bg-slate-800,
+[data-theme="light"] .bg-slate-800\/90,
+[data-theme="light"] .bg-slate-800\/80,
+[data-theme="light"] .bg-slate-800\/60 {
+  background-color: #dde4ee !important;
+  color: var(--text-primary);
+}
+
+/* Preserve crisp white text on vibrant solid action buttons in light mode */
+[data-theme="light"] .text-white:not(.bg-rose-600):not(.bg-rose-500):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-amber-500):not([class*="from-pink-"]):not([class*="from-purple-"]):not([class*="from-cyan-"]) {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .bg-rose-600,
+[data-theme="light"] .bg-indigo-600,
+[data-theme="light"] .bg-purple-600,
+[data-theme="light"] .bg-emerald-600 {
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .text-slate-100,
+[data-theme="light"] .text-slate-200 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-slate-300 {
+  color: #1e293b !important;
+}
+
+[data-theme="light"] .text-slate-400,
+[data-theme="light"] .text-slate-500 {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .text-cyan-400,
+[data-theme="light"] .text-cyan-300 {
+  color: #0369a1 !important;
+}
+
+[data-theme="light"] .text-rose-400,
+[data-theme="light"] .text-rose-300,
+[data-theme="light"] .text-pink-400 {
+  color: #be123c !important;
+}
+
+[data-theme="light"] .text-amber-400,
+[data-theme="light"] .text-amber-300 {
+  color: #b45309 !important;
+}
+
+[data-theme="light"] .text-purple-400,
+[data-theme="light"] .text-purple-300 {
+  color: #6d28d9 !important;
+}
+
+[data-theme="light"] .text-emerald-400,
+[data-theme="light"] .text-emerald-300 {
+  color: #047857 !important;
+}
+
+[data-theme="light"] .border-dj-border,
+[data-theme="light"] .border-slate-800,
+[data-theme="light"] .border-slate-800\/80,
+[data-theme="light"] .border-slate-700,
+[data-theme="light"] .border-slate-700\/80,
+[data-theme="light"] .border-slate-600,
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/10 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Custom Scrollbar for Library */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ==========================================================================
+   5. PROPORTIONAL HARDWARE JOG WHEEL & FLUID DECK SCALING
+   ========================================================================== */
+.deck-hardware-viewport {
+  container-type: size;
+}
+
+.jog-wheel {
+  width: clamp(140px, min(46cqh, 25vw, 285px), 295px);
+  height: clamp(140px, min(46cqh, 25vw, 285px), 295px);
+  aspect-ratio: 1 / 1;
+}
+
+/* Custom Range Input Sliders */
+input[type="range"].dj-fader {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].dj-fader::-webkit-slider-runnable-track {
+  background: var(--border-subtle);
+  height: 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+input[type="range"].dj-fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  background-color: #f8fafc;
+  height: 18px;
+  width: 10px;
+  border-radius: 2px;
+  border: 1px solid #00f0ff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.65);
+}

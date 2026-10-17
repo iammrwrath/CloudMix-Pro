@@ -5,7 +5,9 @@
 
 import { AutomixMode, AutomixState, DeckId, DeckState, AutomixQueueItem, HistoryItem, TrackMetadata, NeuralTransitionMode } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
+import { youtubeDeckBridge } from './YouTubeDeckBridge';
 import { storageCache } from './StorageCacheService';
+import { sanitizeTrackMetadata } from '../utils/sanitize';
 
 type AutomixListener = (state: AutomixState) => void;
 
@@ -35,14 +37,14 @@ export class AutomixService {
   constructor() {
     storageCache.getQueue().then((q) => {
       if (q && q.length > 0 && this.queue.length === 0) {
-        this.queue = q;
+        this.queue = q.map((item) => ({ ...item, track: sanitizeTrackMetadata(item.track) }));
         this.queueListeners.forEach((l) => l([...this.queue]));
       }
     }).catch(() => {});
 
     storageCache.getHistory().then((h) => {
       if (h && h.length > 0 && this.history.length === 0) {
-        this.history = h;
+        this.history = h.map((item) => ({ ...item, track: sanitizeTrackMetadata(item.track) }));
         this.historyListeners.forEach((l) => l([...this.history]));
       }
     }).catch(() => {});
@@ -133,11 +135,19 @@ export class AutomixService {
 
     if (!deckA || !deckB) return;
 
-    // Use live audio engine playback status & time for 100% precision
-    const isPlayingA = audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying;
-    const isPlayingB = audioEngine.getDeck('B')?.isPlaying ?? deckB.isPlaying;
-    const timeA = audioEngine.getCurrentTime('A');
-    const timeB = audioEngine.getCurrentTime('B');
+    // Use live audio engine + YouTube bridge playback status & time for 100% precision
+    const isPlayingA = youtubeDeckBridge.isYouTubeDeck('A')
+      ? deckA.isPlaying
+      : (audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying);
+    const isPlayingB = youtubeDeckBridge.isYouTubeDeck('B')
+      ? deckB.isPlaying
+      : (audioEngine.getDeck('B')?.isPlaying ?? deckB.isPlaying);
+    const timeA = youtubeDeckBridge.isYouTubeDeck('A')
+      ? (youtubeDeckBridge.getCurrentTime('A') || deckA.currentTime)
+      : audioEngine.getCurrentTime('A');
+    const timeB = youtubeDeckBridge.isYouTubeDeck('B')
+      ? (youtubeDeckBridge.getCurrentTime('B') || deckB.currentTime)
+      : audioEngine.getCurrentTime('B');
 
     // Identify active playing deck
     const playingDeck = isPlayingA ? 'A' : isPlayingB ? 'B' : null;
@@ -163,7 +173,9 @@ export class AutomixService {
   }
 
   public triggerInstantTransition(deckA: DeckState, deckB: DeckState) {
-    const isPlayingA = audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying;
+    const isPlayingA = youtubeDeckBridge.isYouTubeDeck('A')
+      ? deckA.isPlaying
+      : (audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying);
     const currentPlaying = isPlayingA ? 'A' : 'B';
     const target: DeckId = currentPlaying === 'A' ? 'B' : 'A';
     this.executeTransition(currentPlaying, target, (currentPlaying === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || 126);
@@ -177,7 +189,9 @@ export class AutomixService {
     if (options?.mode) {
       audioEngine.setNeuralTransitionMode(options.mode);
     }
-    const isPlayingA = audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying;
+    const isPlayingA = youtubeDeckBridge.isYouTubeDeck('A')
+      ? deckA.isPlaying
+      : (audioEngine.getDeck('A')?.isPlaying ?? deckA.isPlaying);
     const currentPlaying = isPlayingA ? 'A' : 'B';
     const target: DeckId = currentPlaying === 'A' ? 'B' : 'A';
     const sourceBpm = (currentPlaying === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || 126;
@@ -229,6 +243,9 @@ export class AutomixService {
       if (doTempoBlend && Math.abs(targetRate - 1.0) > 0.001) {
         const curRate = startRate + (targetRate - startRate) * smoothProgress;
         try {
+          if (youtubeDeckBridge.isYouTubeDeck(toDeckId)) {
+            youtubeDeckBridge.setPlaybackRate(toDeckId, curRate);
+          }
           audioEngine.setPlaybackRate(toDeckId, curRate);
         } catch {}
       }

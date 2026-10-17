@@ -5,6 +5,7 @@ import { googleDriveService } from '../services/GoogleDriveService';
 import { youtubeMusicService } from '../services/YouTubeMusicService';
 import { automixService } from '../services/AutomixService';
 import { musicLibraryService } from '../services/MusicLibraryService';
+import { decodeEntities, sanitizeTrackMetadata } from '../utils/sanitize';
 import {
   Folder,
   Music,
@@ -86,6 +87,9 @@ const TrackRow = React.memo<TrackRowProps>(({
   onAddToQueue,
   currentMasterKey,
 }) => {
+  const cleanTitle = decodeEntities(track.title);
+  const cleanArtist = decodeEntities(track.artist);
+
   return (
     <tr
       draggable
@@ -98,7 +102,7 @@ const TrackRow = React.memo<TrackRowProps>(({
       onDoubleClick={() => onLoadTrack('A', track)}
       className="hover:bg-slate-800/80 transition-colors group cursor-pointer"
     >
-      <td className="py-2.5 px-3 font-mono text-slate-400 font-bold text-xs">{idx + 1}</td>
+      <td className="py-2.5 px-3 font-mono text-slate-400 font-semibold text-[13px]">{idx + 1}</td>
 
       {/* Artwork Thumbnail */}
       <td className="py-1 px-2 w-12 text-center">
@@ -114,39 +118,43 @@ const TrackRow = React.memo<TrackRowProps>(({
       </td>
 
       {/* Title */}
-      <td className="py-2.5 px-3 font-black text-white group-hover:text-cyan-300 text-xs sm:text-[13.5px] transition-colors">
+      <td className="py-2.5 px-3 font-semibold text-white group-hover:text-cyan-300 text-[15px] sm:text-[15.5px] transition-colors">
         <div className="flex items-center space-x-1.5">
-          <span className="truncate">{track.title}</span>
+          <span className="truncate" title={cleanTitle}>{cleanTitle}</span>
         </div>
       </td>
 
       {/* Artist */}
-      <td className="py-2.5 px-3 text-slate-300 font-medium text-xs sm:text-[12.5px] truncate">{track.artist}</td>
+      <td className="py-2.5 px-3 text-slate-300 font-medium text-[13.5px] sm:text-[14px] truncate" title={cleanArtist}>
+        {cleanArtist}
+      </td>
 
       {/* Genre */}
-      <td className="py-2.5 px-2.5 text-slate-400 text-xs truncate">
-        <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-800/80 border border-slate-700/60 text-slate-300">
-          {track.genre && track.genre !== 'Music' && track.genre !== 'Various'
-            ? track.genre
-            : musicLibraryService.detectGenre(track.title, track.artist, track.album, track.fileUrl, track.bpm)}
+      <td className="py-2.5 px-2.5 text-slate-400 text-[13px] truncate">
+        <span className="px-2 py-0.5 rounded text-[12px] font-medium bg-slate-800/80 border border-slate-700/60 text-slate-300">
+          {decodeEntities(
+            track.genre && track.genre !== 'Music' && track.genre !== 'Various'
+              ? track.genre
+              : musicLibraryService.detectGenre(cleanTitle, cleanArtist, track.album, track.fileUrl, track.bpm)
+          )}
         </span>
       </td>
 
       {/* Duration */}
-      <td className="py-2.5 px-2.5 text-center font-mono text-slate-300 font-bold text-xs">
+      <td className="py-2.5 px-2.5 text-center font-mono text-slate-300 font-semibold text-[13px]">
         {Math.floor(track.duration / 60)}:
         {Math.floor(track.duration % 60).toString().padStart(2, '0')}
       </td>
 
       {/* BPM */}
-      <td className="py-2.5 px-2.5 text-center font-mono font-black text-cyan-300 text-xs sm:text-[13px]">
+      <td className="py-2.5 px-2.5 text-center font-mono font-semibold text-[#00f2fe] text-[13.5px] sm:text-[14px]">
         {track.bpm.toFixed(1)}
       </td>
 
       {/* Camelot Key Badge & Harmonic Match */}
       <td className="py-2.5 px-2.5 text-center">
         <div className="flex items-center justify-center space-x-1">
-          <span className="font-mono text-xs font-black px-2 py-0.5 rounded-md bg-amber-950/90 text-amber-300 border border-amber-700/80 shadow-sm">
+          <span className="font-mono text-[13px] font-semibold px-2 py-0.5 rounded-md bg-amber-950/90 text-[#ffb703] border border-amber-700/80 shadow-sm">
             {track.camelotKey || track.key}
           </span>
           {(() => {
@@ -157,7 +165,7 @@ const TrackRow = React.memo<TrackRowProps>(({
               return (
                 <span
                   title="Harmonic Perfect Match"
-                  className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
+                  className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
                 >
                   MATCH
                 </span>
@@ -174,7 +182,7 @@ const TrackRow = React.memo<TrackRowProps>(({
                 return (
                   <span
                     title="Harmonic Shift"
-                    className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
+                    className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
                   >
                     {nK > nM ? '+1 E' : '-1 E'}
                   </span>
@@ -187,12 +195,12 @@ const TrackRow = React.memo<TrackRowProps>(({
       </td>
 
       {/* Year */}
-      <td className="py-2.5 px-2 text-center font-mono text-slate-400 text-xs hidden md:table-cell">
+      <td className="py-2.5 px-2 text-center font-mono text-slate-400 text-[13px] hidden md:table-cell">
         {track.year || 2026}
       </td>
 
       {/* Date Added */}
-      <td className="py-2.5 px-2.5 text-center font-mono text-slate-400 text-xs hidden lg:table-cell">
+      <td className="py-2.5 px-2.5 text-center font-mono text-slate-400 text-[13px] hidden lg:table-cell">
         {track.dateAdded ? track.dateAdded.substring(0, 10) : '6/15/26'}
       </td>
 
@@ -201,21 +209,21 @@ const TrackRow = React.memo<TrackRowProps>(({
         <button
           onClick={(e) => { e.stopPropagation(); onLoadTrack('A', track); }}
           title="Load Track to Deck A"
-          className="px-2.5 py-1.5 rounded-md bg-cyan-950/90 border border-cyan-400/80 text-cyan-300 hover:bg-cyan-400 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,240,255,0.3)]"
+          className="px-2.5 py-1.5 rounded-md bg-cyan-950/90 border border-[#00f2fe]/80 text-[#00f2fe] hover:bg-[#00f2fe] hover:text-black font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,242,254,0.3)]"
         >
           LOAD A
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onLoadTrack('B', track); }}
           title="Load Track to Deck B"
-          className="px-2.5 py-1.5 rounded-md bg-rose-950/90 border border-rose-400/80 text-rose-300 hover:bg-rose-500 hover:text-black font-mono font-black text-[11px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,46,136,0.3)]"
+          className="px-2.5 py-1.5 rounded-md bg-rose-950/90 border border-[#ff007f]/80 text-[#ff007f] hover:bg-[#ff007f] hover:text-black font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,0,127,0.3)]"
         >
           LOAD B
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onAddToQueue(track); }}
           title="Add to Automix Queue"
-          className="px-2 py-1.5 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-black text-[10.5px] transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+          className="px-2 py-1.5 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
         >
           +Q
         </button>
@@ -538,7 +546,7 @@ export const Library = React.memo<LibraryProps>(({
       }
       setTracks(initialTracks);
     } else {
-      setTracks(savedTracks);
+      setTracks(savedTracks.map((t) => sanitizeTrackMetadata(t)));
     }
 
     // Ingest real djay Pro playlists from MediaLibrary.db if present
@@ -550,7 +558,7 @@ export const Library = React.memo<LibraryProps>(({
           const now = new Date().toISOString();
           const mappedDjayPlaylists: Playlist[] = djayPlaylists.map((dp: any) => ({
             id: dp.id || `djay-pl-${Math.random()}`,
-            name: dp.name,
+            name: decodeEntities(dp.name),
             trackIds: dp.trackIds || [],
             dateCreated: now,
             dateUpdated: now,
@@ -562,7 +570,7 @@ export const Library = React.memo<LibraryProps>(({
           const existingIds = new Set(mappedDjayPlaylists.map((p) => p.name.toLowerCase()));
           for (const sp of savedPlaylists) {
             if (!existingIds.has(sp.name.toLowerCase()) && sp.name !== 'Music') {
-              mappedDjayPlaylists.push(sp);
+              mappedDjayPlaylists.push({ ...sp, name: decodeEntities(sp.name) });
             }
           }
           setPlaylists(mappedDjayPlaylists);
@@ -592,7 +600,7 @@ export const Library = React.memo<LibraryProps>(({
       }
       setPlaylists(initialPlaylists);
     } else {
-      setPlaylists(savedPlaylists);
+      setPlaylists(savedPlaylists.map((p) => ({ ...p, name: decodeEntities(p.name) })));
     }
   };
 
@@ -759,11 +767,11 @@ export const Library = React.memo<LibraryProps>(({
       className="flex w-full h-full flex-1 min-h-0 bg-dj-panel rounded-xl border border-dj-border shadow-2xl overflow-hidden select-none"
     >
       {/* 1. Crates & Playlists Sidebar (djay Pro Tree Layout) */}
-      <div className="w-56 bg-dj-surface/95 border-r border-dj-border p-2.5 flex flex-col justify-between shrink-0 overflow-y-auto">
+      <div className="w-60 bg-dj-surface/95 border-r border-dj-border p-3 flex flex-col justify-between shrink-0 overflow-y-auto">
         <div className="space-y-3">
           {/* Section: Main Sources */}
           <div>
-            <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+            <span className="text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">
               SOURCES
             </span>
             <nav className="space-y-0.5">
@@ -772,13 +780,13 @@ export const Library = React.memo<LibraryProps>(({
                   setSelectedCrate('all');
                   setSelectedPlaylistId(null);
                 }}
-                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
                   selectedCrate === 'all' && !selectedPlaylistId
-                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    ? 'bg-slate-700 text-white shadow-sm font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}
               >
-                <Music className="w-3.5 h-3.5 text-cyan-400" />
+                <Music className="w-4 h-4 text-[#00f2fe]" />
                 <span className="truncate">All Tracks ({tracks.length})</span>
               </button>
 
@@ -787,13 +795,13 @@ export const Library = React.memo<LibraryProps>(({
                   setSelectedCrate('gdrive');
                   setSelectedPlaylistId(null);
                 }}
-                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
                   selectedCrate === 'gdrive'
-                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    ? 'bg-slate-700 text-white shadow-sm font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}
               >
-                <Cloud className="w-3.5 h-3.5 text-blue-400" />
+                <Cloud className="w-4 h-4 text-blue-400" />
                 <span className="truncate">Google Drive</span>
               </button>
 
@@ -807,13 +815,13 @@ export const Library = React.memo<LibraryProps>(({
                   // Always trigger fresh playlist resolution in background
                   handleLoadYtPlaylists();
                 }}
-                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
                   selectedCrate === 'youtube'
-                    ? 'bg-rose-950/80 text-rose-300 border border-rose-600/60 shadow-sm font-bold'
+                    ? 'bg-rose-950/80 text-rose-300 border border-rose-600/60 shadow-sm font-semibold'
                     : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'
                 }`}
               >
-                <Radio className="w-3.5 h-3.5 text-rose-500" />
+                <Radio className="w-4 h-4 text-[#ff007f]" />
                 <span className="truncate">YouTube Music</span>
               </button>
 
@@ -821,23 +829,23 @@ export const Library = React.memo<LibraryProps>(({
               {selectedCrate === 'youtube' && (
                 <div className="ml-2 mt-1 space-y-1 max-h-56 overflow-y-auto pr-1">
                   <div className="flex items-center justify-between px-1">
-                    <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">Playlists</span>
+                    <span className="text-[11px] font-mono text-slate-400 font-semibold uppercase">Playlists</span>
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={handleLoadYtPlaylists}
                         disabled={isLoadingYtPlaylists}
                         title="Refresh Playlists from Google / YouTube"
-                        className="p-1 rounded hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer text-[10px]"
+                        className="p-1 rounded hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer text-[11px]"
                       >
-                        <RefreshCw className={`w-3 h-3 ${isLoadingYtPlaylists ? 'animate-spin text-rose-400' : ''}`} />
+                        <RefreshCw className={`w-3.5 h-3.5 ${isLoadingYtPlaylists ? 'animate-spin text-rose-400' : ''}`} />
                       </button>
                       <button
                         onClick={() => setIsImportingYtPlaylist((prev) => !prev)}
                         title="Import YouTube Playlist by URL or ID"
-                        className="p-1 rounded hover:bg-rose-900/40 text-rose-400 hover:text-white transition-colors cursor-pointer text-[10px] flex items-center space-x-1"
+                        className="p-1 rounded hover:bg-rose-900/40 text-rose-400 hover:text-white transition-colors cursor-pointer text-[11px] flex items-center space-x-1"
                       >
-                        <Plus className="w-3 h-3" />
-                        <span className="text-[9px] font-bold">Import</span>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span className="text-[10.5px] font-semibold">Import</span>
                       </button>
                     </div>
                   </div>
@@ -845,7 +853,7 @@ export const Library = React.memo<LibraryProps>(({
                   {/* Quick Playlist Import Input */}
                   {isImportingYtPlaylist && (
                     <div className="p-1.5 rounded bg-rose-950/70 border border-rose-600/50 space-y-1 text-left">
-                      <span className="text-[9px] font-mono text-rose-300 block">Paste Playlist URL / ID:</span>
+                      <span className="text-[10.5px] font-mono text-rose-300 block">Paste Playlist URL / ID:</span>
                       <input
                         type="text"
                         placeholder="https://...playlist?list=PL..."
@@ -854,19 +862,19 @@ export const Library = React.memo<LibraryProps>(({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleImportYtPlaylist();
                         }}
-                        className="w-full bg-slate-950 border border-rose-500/50 rounded px-1.5 py-0.5 text-[10px] text-white placeholder-slate-500 focus:outline-none focus:border-rose-400"
+                        className="w-full bg-slate-950 border border-rose-500/50 rounded px-1.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-400"
                         autoFocus
                       />
                       <div className="flex justify-end space-x-1 pt-0.5">
                         <button
                           onClick={() => setIsImportingYtPlaylist(false)}
-                          className="px-1.5 py-0.5 text-[9px] text-slate-400 hover:text-white"
+                          className="px-1.5 py-0.5 text-[10.5px] text-slate-400 hover:text-white"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleImportYtPlaylist}
-                          className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-[9px] shadow-sm"
+                          className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-[10.5px] shadow-sm"
                         >
                           Load
                         </button>
@@ -879,18 +887,18 @@ export const Library = React.memo<LibraryProps>(({
                       setSelectedYtPlaylistId(null);
                       setYtResults(youtubeMusicService.getFeaturedTracks());
                     }}
-                    className={`w-full flex items-center space-x-2 px-2 py-1 rounded text-[10px] transition-colors cursor-pointer ${
+                    className={`w-full flex items-center space-x-2 px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
                       selectedYtPlaylistId === null
-                        ? 'bg-rose-900/60 text-white font-bold'
+                        ? 'bg-rose-900/60 text-white font-semibold'
                         : 'text-slate-400 hover:text-rose-300 hover:bg-slate-800'
                     }`}
                   >
-                    <Radio className="w-3 h-3 text-rose-400 shrink-0" />
+                    <Radio className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                     <span className="truncate flex-1">Featured & Trending</span>
                   </button>
                   {isLoadingYtPlaylists ? (
-                    <div className="flex items-center space-x-2 px-2 py-1 text-[10px] text-slate-400">
-                      <Loader2 className="w-3 h-3 animate-spin" />
+                    <div className="flex items-center space-x-2 px-2 py-1 text-xs text-slate-400">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Loading playlists...</span>
                     </div>
                   ) : (
@@ -898,16 +906,16 @@ export const Library = React.memo<LibraryProps>(({
                       <button
                         key={pl.id}
                         onClick={() => handleLoadYtPlaylistTracks(pl.id)}
-                        className={`w-full flex items-center space-x-2 px-2 py-1 rounded text-[10px] transition-colors cursor-pointer ${
+                        className={`w-full flex items-center space-x-2 px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
                           selectedYtPlaylistId === pl.id
-                            ? 'bg-rose-900/60 text-white font-bold'
+                            ? 'bg-rose-900/60 text-white font-semibold'
                             : 'text-slate-400 hover:text-rose-300 hover:bg-slate-800'
                         }`}
                       >
-                        <Folder className="w-3 h-3 shrink-0 text-rose-400" />
-                        <span className="truncate flex-1">{pl.title}</span>
+                        <Folder className="w-3.5 h-3.5 shrink-0 text-rose-400" />
+                        <span className="truncate flex-1">{decodeEntities(pl.title)}</span>
                         {pl.trackCount && (
-                          <span className="text-[9px] text-slate-500 shrink-0">{pl.trackCount}</span>
+                          <span className="text-[11px] text-slate-500 shrink-0">{pl.trackCount}</span>
                         )}
                       </button>
                     ))
@@ -920,13 +928,13 @@ export const Library = React.memo<LibraryProps>(({
                   setSelectedCrate('prep');
                   setSelectedPlaylistId(null);
                 }}
-                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
                   selectedCrate === 'prep'
-                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    ? 'bg-slate-700 text-white shadow-sm font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}
               >
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
+                <Flame className="w-4 h-4 text-[#ffb703]" />
                 <span className="truncate">Prepare Crate</span>
               </button>
             </nav>
@@ -935,7 +943,7 @@ export const Library = React.memo<LibraryProps>(({
           {/* Section: Playlists / Folders (djay Pro Tree) */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider">
                 PLAYLISTS
               </span>
               <button
@@ -943,7 +951,7 @@ export const Library = React.memo<LibraryProps>(({
                 title="Create New Playlist"
                 className="text-slate-400 hover:text-cyan-400 p-0.5 rounded cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
 
@@ -956,12 +964,12 @@ export const Library = React.memo<LibraryProps>(({
                   value={newPlaylistName}
                   onChange={(e) => setNewPlaylistName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
-                  className="w-full bg-transparent text-[11px] text-white px-1 focus:outline-none"
+                  className="w-full bg-transparent text-xs text-white px-1 focus:outline-none"
                   autoFocus
                 />
                 <button
                   onClick={handleCreatePlaylist}
-                  className="px-1.5 py-0.5 rounded bg-cyan-600 text-black font-bold text-[10px]"
+                  className="px-1.5 py-0.5 rounded bg-cyan-600 text-black font-semibold text-xs"
                 >
                   OK
                 </button>
@@ -980,17 +988,17 @@ export const Library = React.memo<LibraryProps>(({
                       setSelectedCrate('playlist');
                       setSelectedPlaylistId(pl.id);
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-2.5 py-1 rounded-md text-[13px] transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-slate-700 text-white font-bold shadow-sm'
+                        ? 'bg-slate-700 text-white font-semibold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                     }`}
                   >
                     <div className="flex items-center space-x-2 truncate">
-                      <Folder className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
-                      <span className="truncate">{pl.name}</span>
+                      <Folder className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-[#ffb703]' : 'text-slate-500'}`} />
+                      <span className="truncate">{decodeEntities(pl.name)}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500 shrink-0 ml-1">
+                    <span className="text-xs font-mono text-slate-500 shrink-0 ml-1">
                       {count}
                     </span>
                   </button>
@@ -1005,7 +1013,7 @@ export const Library = React.memo<LibraryProps>(({
           <button
             onClick={onOpenDjayImport}
             title="Import libraries from djay Pro, Rekordbox, Serato, VirtualDJ, & Traktor"
-            className="w-full py-1.5 px-2 rounded bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border border-indigo-500/60 text-indigo-200 hover:text-white hover:border-indigo-400 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-sm"
+            className="w-full py-1.5 px-2 rounded bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border border-indigo-500/60 text-indigo-200 hover:text-white hover:border-indigo-400 text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-sm"
           >
             <Database className="w-3.5 h-3.5 text-indigo-400" />
             <span>Universal DJ Migration</span>
@@ -1013,9 +1021,9 @@ export const Library = React.memo<LibraryProps>(({
 
           <button
             onClick={onOpenGDriveSettings}
-            className="w-full py-1.5 px-2 rounded bg-blue-950/60 border border-blue-700/60 text-blue-300 hover:bg-blue-900/60 text-[11px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+            className="w-full py-1.5 px-2 rounded bg-blue-950/60 border border-blue-700/60 text-blue-300 hover:bg-blue-900/60 text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
           >
-            <Cloud className="w-3 h-3 text-blue-400" />
+            <Cloud className="w-3.5 h-3.5 text-blue-400" />
             <span>Drive Sync Config</span>
           </button>
         </div>
@@ -1024,13 +1032,13 @@ export const Library = React.memo<LibraryProps>(({
       {/* 2. Main Multi-Column Track Browser */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header Summary Banner (Matching djay Pro in Image 3) */}
-        <div className="flex items-center justify-between px-3 py-1.5 border-b border-dj-border bg-dj-surface/70 gap-2">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-dj-border bg-dj-surface/80 backdrop-blur-md gap-2">
           {/* Crate Title & Stats */}
-          <div className="flex items-center space-x-2 shrink-0">
-            <span className="text-xs font-bold text-white font-mono shrink-0 whitespace-nowrap">
-              {getActivePlaylistName()}
+          <div className="flex items-center space-x-2.5 shrink-0">
+            <span className="text-[15px] sm:text-base font-semibold text-white font-mono shrink-0 whitespace-nowrap">
+              {decodeEntities(getActivePlaylistName())}
             </span>
-            <span className="text-[10px] sm:text-[11px] font-mono text-slate-400 whitespace-nowrap shrink-0">
+            <span className="text-xs sm:text-[13px] font-mono text-slate-400 whitespace-nowrap shrink-0">
               {filteredTracks.length} Songs · {formattedDuration}
             </span>
           </div>
@@ -1038,22 +1046,22 @@ export const Library = React.memo<LibraryProps>(({
           {/* Search, Import, & Fullscreen Expand Toggle */}
           <div className="flex items-center space-x-2 min-w-0">
             {/* Search Input */}
-            <form onSubmit={(e) => { e.preventDefault(); if (selectedCrate === 'youtube') handleYouTubeSearch(); }} className="relative flex items-center space-x-1.5 w-44 sm:w-56 xl:w-72 min-w-0">
+            <form onSubmit={(e) => { e.preventDefault(); if (selectedCrate === 'youtube') handleYouTubeSearch(); }} className="relative flex items-center space-x-1.5 w-48 sm:w-64 xl:w-80 min-w-0">
               <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   placeholder={selectedCrate === 'youtube' ? 'Search YouTube...' : 'Search collection...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg pl-8 pr-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="w-full bg-slate-950/90 border border-slate-700/80 rounded-lg pl-8 pr-2.5 py-1.5 text-[13px] text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
                 />
               </div>
               {selectedCrate === 'youtube' && (
                 <button
                   type="submit"
                   disabled={isSearchingYt}
-                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold text-xs flex items-center space-x-1 cursor-pointer transition-colors shadow-sm disabled:opacity-50 shrink-0"
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-mono font-semibold text-xs flex items-center space-x-1 cursor-pointer transition-colors shadow-sm disabled:opacity-50 shrink-0"
                 >
                   {isSearchingYt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                   <span>Search</span>
@@ -1062,8 +1070,8 @@ export const Library = React.memo<LibraryProps>(({
             </form>
 
             {/* Local Import Button */}
-            <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-sm">
-              <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
+            <label className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-[13px] font-medium flex items-center space-x-1.5 transition-colors shadow-sm">
+              <UploadCloud className="w-4 h-4 text-emerald-400" />
               <span className="hidden lg:inline">Import Audio</span>
               <input
                 type="file"
@@ -1078,9 +1086,9 @@ export const Library = React.memo<LibraryProps>(({
             <button
               onClick={onOpenDjayImport}
               title="Migrate Cues, Loops & Playlists from djay Pro, Rekordbox, Serato, VirtualDJ, & Traktor"
-              className="cursor-pointer px-2.5 py-1 rounded-lg bg-indigo-950/90 hover:bg-indigo-900/90 text-indigo-300 hover:text-white border border-indigo-600/70 text-xs font-bold flex items-center space-x-1.5 transition-colors shadow-sm"
+              className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-indigo-950/90 hover:bg-indigo-900/90 text-indigo-300 hover:text-white border border-indigo-600/70 text-[13px] font-semibold flex items-center space-x-1.5 transition-colors shadow-sm"
             >
-              <Database className="w-3.5 h-3.5 text-indigo-400" />
+              <Database className="w-4 h-4 text-indigo-400" />
               <span className="hidden md:inline">Universal DJ Migration</span>
               <span className="md:hidden">Migrate</span>
             </button>
@@ -1090,7 +1098,7 @@ export const Library = React.memo<LibraryProps>(({
               <button
                 onClick={onToggleExpand}
                 title={isExpanded ? 'Exit Expanded Library (Split View)' : 'Expand to Full Library (djay Pro Mode)'}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-slate-300 hover:text-cyan-400 border border-slate-600 text-xs font-mono font-bold flex items-center space-x-1 transition-all cursor-pointer shadow-sm"
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-cyan-950 text-slate-300 hover:text-cyan-400 border border-slate-600 text-xs font-mono font-semibold flex items-center space-x-1 transition-all cursor-pointer shadow-sm"
               >
                 {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                 <span className="hidden xl:inline">{isExpanded ? 'SPLIT' : 'EXPAND'}</span>
@@ -1111,8 +1119,8 @@ export const Library = React.memo<LibraryProps>(({
             }
           }}
         >
-          <table className="w-full text-left border-collapse text-xs sm:text-[13px]">
-            <thead className="sticky top-0 bg-dj-surface text-slate-300 font-mono text-[11px] font-black uppercase tracking-wider border-b border-dj-border z-10 shadow-sm">
+          <table className="w-full text-left border-collapse text-[13px] sm:text-[14px]">
+            <thead className="sticky top-0 bg-dj-surface text-slate-300 font-mono text-[13px] font-semibold uppercase tracking-wider border-b border-dj-border z-10 shadow-sm">
               <tr>
                 <th className="py-2.5 px-3 w-10">#</th>
                 <th className="py-2.5 px-2 w-12 text-center">Art</th>
@@ -1144,7 +1152,7 @@ export const Library = React.memo<LibraryProps>(({
             </tbody>
           </table>
           {visibleCount < filteredTracks.length && (
-            <div className="py-3 text-center text-xs font-mono text-slate-500">
+            <div className="py-3 text-center text-[13px] font-mono text-slate-500">
               Showing {visibleCount} of {filteredTracks.length} tracks — scroll for more
             </div>
           )}
@@ -1159,7 +1167,7 @@ export const Library = React.memo<LibraryProps>(({
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => setRightSidebarTab('queue')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold transition-all cursor-pointer ${
                   rightSidebarTab === 'queue'
                     ? 'bg-purple-600 text-white shadow-[0_0_8px_rgba(168,85,247,0.5)]'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -1169,7 +1177,7 @@ export const Library = React.memo<LibraryProps>(({
               </button>
               <button
                 onClick={() => setRightSidebarTab('history')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold transition-all cursor-pointer ${
                   rightSidebarTab === 'history'
                     ? 'bg-purple-600 text-white shadow-[0_0_8px_rgba(168,85,247,0.5)]'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -1196,18 +1204,18 @@ export const Library = React.memo<LibraryProps>(({
                 <div className="flex items-center justify-between pb-1.5 border-b border-white/5">
                   <button
                     onClick={() => onStartAutomix?.()}
-                    className="flex-1 py-1 rounded-md bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-mono font-extrabold text-[10px] flex items-center justify-center space-x-1 shadow-[0_0_10px_rgba(236,72,153,0.4)] mr-1 cursor-pointer active:scale-95"
+                    className="flex-1 py-1.5 rounded-md bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-mono font-semibold text-xs flex items-center justify-center space-x-1.5 shadow-[0_0_10px_rgba(236,72,153,0.4)] mr-1 cursor-pointer active:scale-95"
                   >
-                    <Bot className="w-3 h-3" />
+                    <Bot className="w-3.5 h-3.5" />
                     <span>START AUTOMIX</span>
                   </button>
                   {queue.length > 0 && (
                     <button
                       onClick={() => automixService.clearQueue()}
                       title="Clear Queue"
-                      className="p-1 rounded bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
+                      className="p-1.5 rounded bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
@@ -1216,8 +1224,8 @@ export const Library = React.memo<LibraryProps>(({
                 {queue.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500 space-y-2">
                     <Bot className="w-8 h-8 opacity-40 text-purple-400" />
-                    <p className="text-[11px] font-sans">Automix Queue is empty</p>
-                    <p className="text-[9px] text-slate-600 max-w-[180px]">
+                    <p className="text-[13px] font-sans font-medium">Automix Queue is empty</p>
+                    <p className="text-xs text-slate-500 max-w-[190px]">
                       Click "+Q" on any track in the library to stage upcoming songs.
                     </p>
                   </div>
@@ -1225,18 +1233,18 @@ export const Library = React.memo<LibraryProps>(({
                   queue.map((item, idx) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/80 border border-white/5 hover:border-purple-500/40 transition-all group"
+                      className="flex items-center justify-between p-2 rounded-lg bg-slate-900/80 border border-white/5 hover:border-purple-500/40 transition-all group"
                     >
                       <div className="flex items-center space-x-2 overflow-hidden flex-1">
-                        <span className="font-mono text-[10px] text-slate-500 w-3">{idx + 1}</span>
+                        <span className="font-mono text-xs text-slate-500 w-4">{idx + 1}</span>
                         <div className="flex flex-col overflow-hidden">
-                          <span className="text-[11px] font-bold text-white truncate max-w-[140px]">
-                            {item.track.title}
+                          <span className="text-[13px] font-semibold text-white truncate max-w-[140px]">
+                            {decodeEntities(item.track.title)}
                           </span>
-                          <div className="flex items-center space-x-1 text-[9px] text-slate-400">
-                            <span className="truncate max-w-[80px]">{item.track.artist}</span>
+                          <div className="flex items-center space-x-1 text-xs text-slate-400">
+                            <span className="truncate max-w-[85px]">{decodeEntities(item.track.artist)}</span>
                             <span>•</span>
-                            <span className="text-cyan-400 font-mono">{item.track.bpm.toFixed(0)} BPM</span>
+                            <span className="text-[#00f2fe] font-mono">{item.track.bpm.toFixed(0)} BPM</span>
                           </div>
                         </div>
                       </div>
@@ -1245,14 +1253,14 @@ export const Library = React.memo<LibraryProps>(({
                         <button
                           onClick={() => onLoadTrack('A', item.track)}
                           title="Load to Deck A"
-                          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 hover:bg-cyan-500 hover:text-black border border-cyan-800/60 transition-colors cursor-pointer"
+                          className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-cyan-950 text-[#00f2fe] hover:bg-[#00f2fe] hover:text-black border border-cyan-800/60 transition-colors cursor-pointer"
                         >
                           A
                         </button>
                         <button
                           onClick={() => onLoadTrack('B', item.track)}
                           title="Load to Deck B"
-                          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-950 text-rose-300 hover:bg-rose-500 hover:text-black border border-rose-800/60 transition-colors cursor-pointer"
+                          className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-rose-950 text-[#ff007f] hover:bg-[#ff007f] hover:text-black border border-rose-800/60 transition-colors cursor-pointer"
                         >
                           B
                         </button>
@@ -1260,7 +1268,7 @@ export const Library = React.memo<LibraryProps>(({
                           onClick={() => automixService.removeFromQueue(item.id)}
                           className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1269,7 +1277,7 @@ export const Library = React.memo<LibraryProps>(({
               </>
             ) : (
               <>
-                <div className="flex items-center justify-between pb-1.5 border-b border-white/5 text-[10px] font-mono text-slate-400">
+                <div className="flex items-center justify-between pb-1.5 border-b border-white/5 text-xs font-mono text-slate-400">
                   <span>RECENTLY PLAYED</span>
                   <span>{history.length} TRACKS</span>
                 </div>
@@ -1277,8 +1285,8 @@ export const Library = React.memo<LibraryProps>(({
                 {history.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500 space-y-2">
                     <Clock className="w-8 h-8 opacity-40 text-purple-400" />
-                    <p className="text-[11px] font-sans">No tracks played yet</p>
-                    <p className="text-[9px] text-slate-600 max-w-[180px]">
+                    <p className="text-[13px] font-sans font-medium">No tracks played yet</p>
+                    <p className="text-xs text-slate-500 max-w-[190px]">
                       Tracks played during your DJ set will automatically be recorded here.
                     </p>
                   </div>
@@ -1286,13 +1294,13 @@ export const Library = React.memo<LibraryProps>(({
                   history.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/80 border border-white/5"
+                      className="flex items-center justify-between p-2 rounded-lg bg-slate-900/80 border border-white/5"
                     >
                       <div className="flex flex-col overflow-hidden flex-1">
-                        <span className="text-[11px] font-bold text-white truncate max-w-[170px]">
-                          {item.track.title}
+                        <span className="text-[13px] font-semibold text-white truncate max-w-[170px]">
+                          {decodeEntities(item.track.title)}
                         </span>
-                        <div className="flex items-center space-x-1.5 text-[9px] text-slate-400">
+                        <div className="flex items-center space-x-1.5 text-xs text-slate-400">
                           <span className="text-purple-400 font-mono">DECK {item.deckId}</span>
                           <span>•</span>
                           <span>{item.playedAt}</span>
@@ -1302,14 +1310,14 @@ export const Library = React.memo<LibraryProps>(({
                         <button
                           onClick={() => onLoadTrack('A', item.track)}
                           title="Reload to Deck A"
-                          className="px-1 py-0.5 rounded text-[8px] font-mono font-bold bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                          className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
                         >
                           A
                         </button>
                         <button
                           onClick={() => onLoadTrack('B', item.track)}
                           title="Reload to Deck B"
-                          className="px-1 py-0.5 rounded text-[8px] font-mono font-bold bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                          className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
                         >
                           B
                         </button>
@@ -1332,7 +1340,7 @@ export const Library = React.memo<LibraryProps>(({
             <ChevronLeft className="w-4 h-4" />
           </button>
           <div
-            className="mt-4 text-[10px] font-mono font-bold text-slate-400 tracking-wider flex items-center cursor-pointer hover:text-cyan-400"
+            className="mt-4 text-xs font-mono font-semibold text-slate-400 tracking-wider flex items-center cursor-pointer hover:text-cyan-400"
             style={{ writingMode: 'vertical-rl' }}
             onClick={() => setIsRightSidebarOpen(true)}
           >
@@ -1349,29 +1357,29 @@ export const Library = React.memo<LibraryProps>(({
             onClick={closeContextMenu}
           />
           <div
-            className="fixed z-50 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1 min-w-[180px]"
+            className="fixed z-50 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-lg shadow-2xl py-1 min-w-[190px]"
             style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
           >
             <div className="px-3 py-2 border-b border-slate-700">
-              <p className="text-xs font-bold text-white truncate max-w-[160px]">
-                {contextMenuTrack?.title}
+              <p className="text-[13px] font-semibold text-white truncate max-w-[170px]">
+                {decodeEntities(contextMenuTrack?.title || '')}
               </p>
-              <p className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                {contextMenuTrack?.artist}
+              <p className="text-xs text-slate-400 truncate max-w-[170px]">
+                {decodeEntities(contextMenuTrack?.artist || '')}
               </p>
             </div>
             <button
               onClick={() => handleContextMenuLoadTrack('A')}
-              className="w-full px-3 py-2 text-left text-xs font-semibold text-cyan-300 hover:bg-cyan-950/50 hover:text-cyan-200 transition-colors flex items-center space-x-2"
+              className="w-full px-3 py-2 text-left text-[13px] font-semibold text-cyan-300 hover:bg-cyan-950/50 hover:text-cyan-200 transition-colors flex items-center space-x-2"
             >
-              <span className="font-mono font-black text-cyan-400">A</span>
+              <span className="font-mono font-bold text-[#00f2fe]">A</span>
               <span>Load to Deck A</span>
             </button>
             <button
               onClick={() => handleContextMenuLoadTrack('B')}
-              className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-300 hover:bg-rose-950/50 hover:text-rose-200 transition-colors flex items-center space-x-2"
+              className="w-full px-3 py-2 text-left text-[13px] font-semibold text-rose-300 hover:bg-rose-950/50 hover:text-rose-200 transition-colors flex items-center space-x-2"
             >
-              <span className="font-mono font-black text-rose-400">B</span>
+              <span className="font-mono font-bold text-[#ff007f]">B</span>
               <span>Load to Deck B</span>
             </button>
             <button
@@ -1381,9 +1389,9 @@ export const Library = React.memo<LibraryProps>(({
                 }
                 closeContextMenu();
               }}
-              className="w-full px-3 py-2 text-left text-xs font-semibold text-purple-300 hover:bg-purple-950/50 hover:text-purple-200 transition-colors flex items-center space-x-2"
+              className="w-full px-3 py-2 text-left text-[13px] font-semibold text-purple-300 hover:bg-purple-950/50 hover:text-purple-200 transition-colors flex items-center space-x-2"
             >
-              <Plus className="w-3 h-3 text-purple-400" />
+              <Plus className="w-3.5 h-3.5 text-purple-400" />
               <span>Add to Queue</span>
             </button>
           </div>
