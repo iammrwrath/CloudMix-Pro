@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Database, FileCode, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles, FolderOpen, Disc, Music, Layers, HardDrive } from 'lucide-react';
 import { storageCache } from '../../services/StorageCacheService';
 import { HotCue, TrackMetadata } from '../../types/dj';
@@ -20,7 +20,7 @@ interface AppTabConfig {
   defaultPath: string;
 }
 
-const APP_CONFIGS: AppTabConfig[] = [
+const DEFAULT_APP_CONFIGS: AppTabConfig[] = [
   {
     id: 'djay',
     name: 'Algoriddim djay Pro',
@@ -28,7 +28,7 @@ const APP_CONFIGS: AppTabConfig[] = [
     format: '.db',
     color: '#6366f1',
     icon: 'Disc',
-    defaultPath: 'C:\\Users\\icell\\Music\\djay\\djay Media Library\\MediaLibrary.db',
+    defaultPath: '%USERPROFILE%\\Music\\djay\\djay Media Library\\MediaLibrary.db',
   },
   {
     id: 'rekordbox',
@@ -37,7 +37,7 @@ const APP_CONFIGS: AppTabConfig[] = [
     format: '.xml',
     color: '#00e5ff',
     icon: 'Layers',
-    defaultPath: 'C:\\Users\\icell\\AppData\\Roaming\\Pioneer\\rekordbox\\rekordbox.xml',
+    defaultPath: '%APPDATA%\\Pioneer\\rekordbox\\rekordbox.xml',
   },
   {
     id: 'serato',
@@ -46,7 +46,7 @@ const APP_CONFIGS: AppTabConfig[] = [
     format: '.crate',
     color: '#f59e0b',
     icon: 'Music',
-    defaultPath: 'C:\\Users\\icell\\Music\\_Serato_\\Subcrates',
+    defaultPath: '%USERPROFILE%\\Music\\_Serato_\\Subcrates',
   },
   {
     id: 'virtualdj',
@@ -55,7 +55,7 @@ const APP_CONFIGS: AppTabConfig[] = [
     format: '.xml',
     color: '#ff3366',
     icon: 'HardDrive',
-    defaultPath: 'C:\\Users\\icell\\Documents\\VirtualDJ\\VirtualDJ Database.xml',
+    defaultPath: '%USERPROFILE%\\Documents\\VirtualDJ\\VirtualDJ Database.xml',
   },
   {
     id: 'traktor',
@@ -64,7 +64,7 @@ const APP_CONFIGS: AppTabConfig[] = [
     format: '.nml',
     color: '#10b981',
     icon: 'FileCode',
-    defaultPath: 'C:\\Users\\icell\\Documents\\Native Instruments\\Traktor 3\\collection.nml',
+    defaultPath: '%USERPROFILE%\\Documents\\Native Instruments\\Traktor 3\\collection.nml',
   },
 ];
 
@@ -97,18 +97,38 @@ export const UniversalDjImportModal: React.FC<UniversalDjImportModalProps> = ({
   onClose,
   onImportSuccess,
 }) => {
+  const [appConfigs, setAppConfigs] = useState<AppTabConfig[]>(DEFAULT_APP_CONFIGS);
   const [activeApp, setActiveApp] = useState<SupportedApp>('djay');
-  const [filePath, setFilePath] = useState(APP_CONFIGS[0].defaultPath);
+  const [filePath, setFilePath] = useState(DEFAULT_APP_CONFIGS[0].defaultPath);
   const [importing, setImporting] = useState(false);
   const [importCount, setImportCount] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const selectedConfig = APP_CONFIGS.find((c) => c.id === activeApp)!;
+  useEffect(() => {
+    if ((window as any).desktopAPI?.getSystemPaths) {
+      (window as any).desktopAPI.getSystemPaths().then((paths: any) => {
+        if (!paths) return;
+        const resolved = DEFAULT_APP_CONFIGS.map((cfg) => {
+          if (cfg.id === 'djay' && paths.djayDb) return { ...cfg, defaultPath: paths.djayDb };
+          if (cfg.id === 'rekordbox' && paths.rekordboxXml) return { ...cfg, defaultPath: paths.rekordboxXml };
+          if (cfg.id === 'serato' && paths.seratoCrates) return { ...cfg, defaultPath: paths.seratoCrates };
+          if (cfg.id === 'virtualdj' && paths.virtualDjXml) return { ...cfg, defaultPath: paths.virtualDjXml };
+          if (cfg.id === 'traktor' && paths.traktorNml) return { ...cfg, defaultPath: paths.traktorNml };
+          return cfg;
+        });
+        setAppConfigs(resolved);
+        const currentCfg = resolved.find((c) => c.id === activeApp);
+        if (currentCfg) setFilePath(currentCfg.defaultPath);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const selectedConfig = appConfigs.find((c) => c.id === activeApp)!;
 
   const handleAppTabChange = (appId: SupportedApp) => {
     setActiveApp(appId);
-    const cfg = APP_CONFIGS.find((c) => c.id === appId)!;
+    const cfg = appConfigs.find((c) => c.id === appId)!;
     setFilePath(cfg.defaultPath);
     setImportCount(null);
     setErrorMessage(null);
@@ -284,7 +304,7 @@ export const UniversalDjImportModal: React.FC<UniversalDjImportModalProps> = ({
         // Native SQLite MediaLibrary.db Query via Electron IPC
         if (typeof window !== 'undefined' && (window as any).desktopAPI?.readDjayLibrary) {
           setStatusMessage('Querying djay Pro SQLite MediaLibrary.db...');
-          tracksToSave = await (window as any).desktopAPI.readDjayLibrary();
+          tracksToSave = await (window as any).desktopAPI.readDjayLibrary(filePath);
         }
 
         // If desktop API returned empty, fallback to rich bundled collection
@@ -472,7 +492,7 @@ export const UniversalDjImportModal: React.FC<UniversalDjImportModalProps> = ({
 
         {/* Multi-App Selector Tabs */}
         <div className="grid grid-cols-5 p-2 gap-1 bg-slate-950/80 border-b border-dj-border/80">
-          {APP_CONFIGS.map((cfg) => {
+          {appConfigs.map((cfg) => {
             const isActive = cfg.id === activeApp;
             return (
               <button

@@ -1,6 +1,6 @@
 $wscript = New-Object -ComObject WScript.Shell
 $desktop = [System.Environment]::GetFolderPath('Desktop')
-$targetExe = "C:\Users\icell\AppData\Local\cloudmix_build\dist-electron\win-unpacked\CloudMix Pro.exe"
+$targetExe = Join-Path $env:LOCALAPPDATA "Programs\CloudMix Pro\CloudMix Pro.exe"
 
 if (Test-Path $targetExe) {
     $shortcutPath = Join-Path $desktop "CloudMix Pro.lnk"

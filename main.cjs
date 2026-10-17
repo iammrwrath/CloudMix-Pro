@@ -696,13 +696,44 @@ async function openCortexCompanionWindow() {
 ipcMain.handle('open-cortex-companion', openCortexCompanionWindow);
 ipcMain.handle('open-pulsedj-companion', openCortexCompanionWindow);
 
+ipcMain.handle('get-system-paths', async () => {
+  const home = os.homedir();
+  let music = path.join(home, 'Music');
+  let documents = path.join(home, 'Documents');
+  let appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
+  let userData = path.join(appData, 'CloudMixPro');
+  try { music = app.getPath('music') || music; } catch {}
+  try { documents = app.getPath('documents') || documents; } catch {}
+  try { appData = app.getPath('appData') || appData; } catch {}
+  try { userData = app.getPath('userData') || userData; } catch {}
+
+  return {
+    home,
+    music,
+    documents,
+    appData,
+    userData,
+    djayDb: path.join(music, 'djay', 'djay Media Library', 'MediaLibrary.db'),
+    rekordboxXml: path.join(appData, 'Pioneer', 'rekordbox', 'rekordbox.xml'),
+    seratoCrates: path.join(music, '_Serato_', 'Subcrates'),
+    virtualDjXml: path.join(documents, 'VirtualDJ', 'VirtualDJ Database.xml'),
+    traktorNml: path.join(documents, 'Native Instruments', 'Traktor 3', 'collection.nml'),
+  };
+});
+
 ipcMain.handle('read-music-csv', async () => {
+  const musicDir = (() => {
+    try { return app.getPath('music'); } catch { return path.join(os.homedir(), 'Music'); }
+  })();
+  const userDataDir = (() => {
+    try { return app.getPath('userData'); } catch { return path.join(os.homedir(), 'AppData', 'Roaming', 'CloudMixPro'); }
+  })();
   const candidatePaths = [
     path.join(__dirname, 'Music.csv'),
     path.join(__dirname, 'public', 'Music.csv'),
     path.join(__dirname, '..', 'Music.csv'),
-    'G:\\My Drive\\Backup\\Antigravity\\djyapro\\Music.csv',
-    'C:\\Users\\icell\\AppData\\Local\\cloudmix_build\\Music.csv',
+    path.join(userDataDir, 'Music.csv'),
+    path.join(musicDir, 'Music.csv'),
   ];
 
   for (const p of candidatePaths) {
@@ -718,15 +749,31 @@ ipcMain.handle('read-music-csv', async () => {
   return '';
 });
 
-// Algoriddim djay Pro Database & Native Integration
-const djayDbPath = 'C:\\Users\\icell\\Music\\djay\\djay Media Library\\MediaLibrary.db';
-let djayDbInstance = null;
+// Algoriddim djay Pro Database & Native Integration (Dynamic Cross-User Resolution)
+function getDefaultDjayDbPath() {
+  const musicDir = (() => {
+    try { return app.getPath('music'); } catch { return path.join(os.homedir(), 'Music'); }
+  })();
+  return path.join(musicDir, 'djay', 'djay Media Library', 'MediaLibrary.db');
+}
 
-function getDjayDb() {
-  if (!djayDbInstance && fs.existsSync(djayDbPath)) {
+let djayDbInstance = null;
+let djayDbLoadedPath = null;
+
+function getDjayDb(customDbPath) {
+  const targetPath = (customDbPath && typeof customDbPath === 'string' && fs.existsSync(customDbPath))
+    ? customDbPath
+    : getDefaultDjayDbPath();
+
+  if (djayDbInstance && djayDbLoadedPath === targetPath) {
+    return djayDbInstance;
+  }
+
+  if (fs.existsSync(targetPath)) {
     try {
       const { DatabaseSync } = require('node:sqlite');
-      djayDbInstance = new DatabaseSync(djayDbPath, { readOnly: true });
+      djayDbInstance = new DatabaseSync(targetPath, { readOnly: true });
+      djayDbLoadedPath = targetPath;
     } catch (e) {
       log('[DJAY DB ERROR] ' + e.message);
     }
@@ -871,9 +918,9 @@ ipcMain.handle('read-djay-nowplaying', async () => {
 });
 
 // Full djay Pro Library Extraction (Loads 6,000+ tracks directly from MediaLibrary.db)
-ipcMain.handle('read-djay-library', async () => {
+ipcMain.handle('read-djay-library', async (event, customDbPath) => {
   try {
-    const db = getDjayDb();
+    const db = getDjayDb(customDbPath);
     if (!db) return [];
 
     log('[DJAY LIBRARY] Indexing tracks from djay MediaLibrary.db...');
@@ -963,9 +1010,9 @@ ipcMain.handle('read-djay-library', async () => {
 });
 
 // Full djay Pro Playlist Extraction (Loads all user crates/playlists directly from MediaLibrary.db)
-ipcMain.handle('read-djay-playlists', async () => {
+ipcMain.handle('read-djay-playlists', async (event, customDbPath) => {
   try {
-    const db = getDjayDb();
+    const db = getDjayDb(customDbPath);
     if (!db) return [];
 
     log('[DJAY PLAYLISTS] Reading playlists and items from MediaLibrary.db...');
@@ -1042,7 +1089,18 @@ ipcMain.on('start-native-drag', (event, payload) => {
     }
 
     if (!filePath || !fs.existsSync(filePath)) {
-      const musicDir = 'G:\\My Drive\\Music\\djayPro\\music';
+      let musicDir = path.join(os.homedir(), 'Music');
+      try {
+        const settingsFile = path.join(app.getPath('userData'), 'user_settings.json');
+        if (fs.existsSync(settingsFile)) {
+          const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+          if (settings && settings.local_music_path && fs.existsSync(settings.local_music_path)) {
+            musicDir = settings.local_music_path;
+          }
+        } else {
+          musicDir = app.getPath('music') || musicDir;
+        }
+      } catch {}
       if (payload && payload.title && fs.existsSync(musicDir)) {
         try {
           const files = fs.readdirSync(musicDir);
@@ -1472,63 +1530,100 @@ ipcMain.handle('check-github-releases', async () => {
   }
 });
 
+function sanitizePersonalPaths(str) {
+  if (!str || typeof str !== 'string') return str || '';
+  const home = os.homedir();
+  const escapedHome = home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedHomeForward = home.replace(/\\/g, '/').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str
+    .replace(new RegExp(escapedHome, 'gi'), '~')
+    .replace(new RegExp(escapedHomeForward, 'gi'), '~')
+    .replace(/[A-Za-z]:\\Users\\[^\\/]+/gi, '~')
+    .replace(/[A-Za-z]:\/Users\/[^\\/]+/gi, '~');
+}
+
+function submitGitHubIssuePayload(title, body, labels) {
+  const https = require('https');
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  const repo = 'iammrwrath/CloudMix-Pro';
+
+  if (!token) {
+    log('[GITHUB-TELEMETRY] Logged issue locally (set GITHUB_TOKEN or GH_TOKEN to enable automatic GitHub Issue creation).');
+    return Promise.resolve({ success: true, localOnly: true });
+  }
+
+  const postData = JSON.stringify({
+    title: sanitizePersonalPaths(title),
+    body: sanitizePersonalPaths(body),
+    labels: Array.isArray(labels) && labels.length > 0 ? labels : ['bug', 'automated-report', 'self-healing'],
+  });
+
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: `/repos/${repo}/issues`,
+      method: 'POST',
+      headers: {
+        'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
+        'Authorization': 'token ' + token,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', (d) => { data += d; });
+      res.on('end', () => {
+        log(`[GITHUB-TELEMETRY] GitHub Issue response code: ${res.statusCode}`);
+        resolve({ success: res.statusCode === 201, statusCode: res.statusCode });
+      });
+    });
+    req.on('error', (err) => {
+      log('[GITHUB-TELEMETRY] Failed to submit GitHub issue: ' + err.message);
+      resolve({ success: false, error: err.message });
+    });
+    req.write(postData);
+    req.end();
+  });
+}
+
 ipcMain.handle('submit-auto-issue-report', async (event, report) => {
   try {
-    log('[AUTO-ISSUE] Received autonomous error report: ' + (report?.title || 'Unknown Error'));
-    const https = require('https');
-    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-    const repo = 'iammrwrath/CloudMix-Pro';
-    const postData = JSON.stringify({
-      title: `[Auto-Crash/Bug]: ${report?.title || 'Runtime Error Detected'}`,
-      body: `### 🤖 Autonomous CloudMix Pro AI Issue Report\n\n**Error Message:**\n\`\`\`\n${report?.message || 'No message'}\n\`\`\`\n\n**Stack Trace:**\n\`\`\`\n${report?.stack || 'No stack trace'}\n\`\`\`\n\n**App Version:** \`${app.getVersion()}\`\n**Platform:** \`${process.platform} ${process.arch}\`\n**Timestamp:** \`${new Date().toISOString()}\`\n**Context Info:** \`${JSON.stringify(report?.context || {})}\`\n\n---\n*Reported automatically via CloudMix Pro Autonomous Error & Self-Healing Pipeline.*`,
-      labels: ['bug', 'automated-report', 'self-healing']
-    });
+    const safeTitle = sanitizePersonalPaths(report?.title || 'Runtime Error Detected');
+    log('[AUTO-ISSUE] Received autonomous error report: ' + safeTitle);
+    const isUIAudit = report?.context?.component === 'UILayoutAuditorService';
+    const prefix = isUIAudit ? '[Auto-UI/UX Audit]' : '[Auto-Crash/Bug]';
+    const labels = isUIAudit
+      ? ['ui-ux-audit', 'automated-report', 'self-healing']
+      : ['bug', 'automated-report', 'self-healing'];
 
-    if (token) {
-      return new Promise((resolve) => {
-        const req = https.request({
-          hostname: 'api.github.com',
-          path: `/repos/${repo}/issues`,
-          method: 'POST',
-          headers: {
-            'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
-            'Authorization': 'token ' + token,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData),
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        }, (res) => {
-          let data = '';
-          res.on('data', (d) => { data += d; });
-          res.on('end', () => {
-            log(`[AUTO-ISSUE] GitHub Issue response code: ${res.statusCode}`);
-            resolve({ success: res.statusCode === 201, statusCode: res.statusCode });
-          });
-        });
-        req.on('error', (err) => {
-          log('[AUTO-ISSUE] Failed to submit GitHub issue: ' + err.message);
-          resolve({ success: false, error: err.message });
-        });
-        req.write(postData);
-        req.end();
-      });
-    } else {
-      log('[AUTO-ISSUE] Logged local issue (no GITHUB_TOKEN configured in environment).');
-      return { success: true, localOnly: true };
-    }
+    const body = `### 🤖 Autonomous CloudMix Pro AI Issue Report\n\n**Error / Audit Summary:**\n\`\`\`\n${sanitizePersonalPaths(report?.message || 'No message')}\n\`\`\`\n\n**Stack Trace / Layout Metrics:**\n\`\`\`\n${sanitizePersonalPaths(report?.stack || 'No stack trace')}\n\`\`\`\n\n**App Version:** \`${app.getVersion()}\`\n**Platform:** \`${process.platform} ${process.arch}\`\n**Timestamp:** \`${new Date().toISOString()}\`\n**Context Info:** \`${sanitizePersonalPaths(JSON.stringify(report?.context || {}))}\`\n\n---\n*Reported automatically via CloudMix Pro Autonomous Error & UI/UX Self-Healing Pipeline.*`;
+
+    return await submitGitHubIssuePayload(`${prefix}: ${safeTitle}`, body, labels);
   } catch (err) {
     log('[AUTO-ISSUE] Error processing issue report: ' + err.message);
     return { success: false, error: err.message };
   }
 });
 
+const reportedUIViolationSignatures = new Set();
+
 ipcMain.handle('report-ui-telemetry', async (event, telemetry) => {
   latestUITelemetry = telemetry;
   try {
     const telemetryFile = path.join(os.tmpdir(), 'cloudmix_ui_telemetry.json');
     fs.writeFileSync(telemetryFile, JSON.stringify(telemetry, null, 2), 'utf8');
-    if (telemetry && telemetry.violationCount > 0) {
-      log(`[UI-AUDIT] ${telemetry.violationCount} violation(s) at ${telemetry.viewport?.innerWidth}x${telemetry.viewport?.innerHeight}: ${JSON.stringify(telemetry.violations.map((v) => v.message))}`);
+    if (telemetry && telemetry.violationCount > 0 && Array.isArray(telemetry.violations)) {
+      const summary = telemetry.violations.map((v) => `[${v.category}] ${v.element}: ${v.message}`).join('\n');
+      log(`[UI-AUDIT] ${telemetry.violationCount} violation(s) at ${telemetry.viewport?.innerWidth}x${telemetry.viewport?.innerHeight}`);
+
+      const sig = telemetry.violations.map((v) => v.id).sort().join('|');
+      if (sig && !reportedUIViolationSignatures.has(sig)) {
+        reportedUIViolationSignatures.add(sig);
+        const title = `[Auto-UI/UX Audit]: ${telemetry.violationCount} layout issue(s) at ${telemetry.viewport?.innerWidth}x${telemetry.viewport?.innerHeight}`;
+        const body = `### 🤖 Autonomous CloudMix Pro UI/UX Layout Audit Report\n\n**Viewport:** \`${telemetry.viewport?.innerWidth}x${telemetry.viewport?.innerHeight}\` (DPR: \`${telemetry.viewport?.devicePixelRatio}\`, Theme: \`${telemetry.viewport?.theme}\`)\n\n**Detected Violations (${telemetry.violationCount}):**\n\`\`\`\n${summary}\n\`\`\`\n\n**Bounding-Box Metrics:**\n\`\`\`json\n${JSON.stringify(telemetry.metrics || {}, null, 2)}\n\`\`\`\n\n**App Version:** \`${app.getVersion()}\`\n**Platform:** \`${process.platform} ${process.arch}\`\n**Timestamp:** \`${telemetry.timestamp || new Date().toISOString()}\`\n\n---\n*Reported automatically via CloudMix Pro UILayoutAuditorService -> GitHub Issues Integration.*`;
+        await submitGitHubIssuePayload(title, body, ['ui-ux-audit', 'automated-report', 'self-healing']);
+      }
     }
   } catch {}
   return { success: true };

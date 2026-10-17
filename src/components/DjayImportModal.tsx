@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Database, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles } from 'lucide-react';
 import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
@@ -11,10 +11,18 @@ interface DjayImportModalProps {
 
 export const DjayImportModal: React.FC<DjayImportModalProps> = ({ onClose, onImportSuccess }) => {
   const [dbPath, setDbPath] = useState(
-    'C:\\Users\\icell\\Music\\djay\\djay Media Library\\MediaLibrary.db'
+    '%USERPROFILE%\\Music\\djay\\djay Media Library\\MediaLibrary.db'
   );
   const [importing, setImporting] = useState(false);
   const [importCount, setImportCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if ((window as any).desktopAPI?.getSystemPaths) {
+      (window as any).desktopAPI.getSystemPaths().then((paths: any) => {
+        if (paths?.djayDb) setDbPath(paths.djayDb);
+      }).catch(() => {});
+    }
+  }, []);
 
   const handleImport = async () => {
     setImporting(true);
@@ -23,7 +31,7 @@ export const DjayImportModal: React.FC<DjayImportModalProps> = ({ onClose, onImp
       let importedTracks: TrackMetadata[] = [];
 
       if ((window as any).desktopAPI?.readDjayLibrary) {
-        const rawTracks = await (window as any).desktopAPI.readDjayLibrary();
+        const rawTracks = await (window as any).desktopAPI.readDjayLibrary(dbPath);
         if (Array.isArray(rawTracks) && rawTracks.length > 0) {
           importedTracks = rawTracks.map((t: any) => ({
             id: t.id || `djay_${Math.random()}`,

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopAPI', {
   // Local File Access & Native Persistent Storage
+  getSystemPaths: () => ipcRenderer.invoke('get-system-paths'),
   readLocalAudio: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
@@ -14,8 +15,8 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   // Universal DJ Bridge & NowPlaying Integration
   writeNowPlayingBroadcast: (payload) => ipcRenderer.invoke('write-now-playing-broadcast', payload),
   readDjayNowPlaying: () => ipcRenderer.invoke('read-djay-nowplaying'),
-  readDjayLibrary: () => ipcRenderer.invoke('read-djay-library'),
-  readDjayPlaylists: () => ipcRenderer.invoke('read-djay-playlists'),
+  readDjayLibrary: (customDbPath) => ipcRenderer.invoke('read-djay-library', customDbPath),
+  readDjayPlaylists: (customDbPath) => ipcRenderer.invoke('read-djay-playlists', customDbPath),
   readExternalNowPlayingFile: (filePath) => ipcRenderer.invoke('read-external-nowplaying-file', filePath),
   startNativeDrag: (payload) => ipcRenderer.send('start-native-drag', payload),
 

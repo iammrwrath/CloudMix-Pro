@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -47,7 +47,8 @@ app.whenReady().then(async () => {
   console.log('DOM CLICK RESULT:', JSON.stringify(result));
   await new Promise((r) => setTimeout(r, 1500));
   const image = await win.webContents.capturePage();
-  fs.writeFileSync('C:/Users/icell/.gemini/antigravity/brain/07f9b3c0-fdd2-47ec-b23f-aaf1b5cc9dc3/captured_render_stems.png', image.toPNG());
+  const os = require('os');
+  fs.writeFileSync(path.join(os.tmpdir(), 'captured_render_stems.png'), image.toPNG());
   console.log('CAPTURED_SUCCESSFULLY');
   app.quit();
 });

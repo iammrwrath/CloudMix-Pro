@@ -54,8 +54,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [apiKey, setApiKey] = useState('');
   const [clientId, setClientId] = useState('');
   const [folderId, setFolderId] = useState('');
-  const [localDrivePath, setLocalDrivePath] = useState('G:\\My Drive\\Music');
-  const initialPathRef = useRef('G:\\My Drive\\Music');
+  const [localDrivePath, setLocalDrivePath] = useState('~/Music');
+  const initialPathRef = useRef('~/Music');
   const [uiZoom, setUiZoom] = useState(propUiZoom || 1.0);
   const [saved, setSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -156,12 +156,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       setAutomixDurationSec(savedAutoDur);
       setAutomixSync(savedAutoSync);
 
-      // Load Appearance settings
+  // Load Appearance settings
       const savedTheme = await storageCache.getSetting<'pro_dark' | 'midnight' | 'neon'>('appearance_theme', 'pro_dark');
       setThemeMode(savedTheme);
 
-      // Load local path
-      const savedPath = await storageCache.getSetting<string>('local_music_path', 'G:\\My Drive\\Music');
+      // Load local path dynamically from OS Music folder if not customized
+      let defaultMusicPath = '~/Music';
+      try {
+        if ((window as any).desktopAPI?.getSystemPaths) {
+          const sysPaths = await (window as any).desktopAPI.getSystemPaths();
+          if (sysPaths?.music) defaultMusicPath = sysPaths.music;
+        }
+      } catch {}
+      const savedPath = await storageCache.getSetting<string>('local_music_path', defaultMusicPath);
       setLocalDrivePath(savedPath);
       initialPathRef.current = savedPath;
 

@@ -1,5 +1,6 @@
- = New-Object -ComObject WScript.Shell  
- = .CreateShortcut('C:\Users\icell\OneDrive\Desktop\CloudMix Pro.lnk')  
-.TargetPath = 'C:\Users\icell\AppData\Local\Programs\CloudMix Pro\CloudMix Pro.exe'  
-.WorkingDirectory = 'C:\Users\icell\AppData\Local\Programs\CloudMix Pro'  
-.Save()  
+$wscript = New-Object -ComObject WScript.Shell
+$desktop = [System.Environment]::GetFolderPath('Desktop')
+$shortcut = $wscript.CreateShortcut((Join-Path $desktop 'CloudMix Pro.lnk'))
+$shortcut.TargetPath = Join-Path $env:LOCALAPPDATA 'Programs\CloudMix Pro\CloudMix Pro.exe'
+$shortcut.WorkingDirectory = Join-Path $env:LOCALAPPDATA 'Programs\CloudMix Pro'
+$shortcut.Save()  

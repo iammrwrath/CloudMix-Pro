@@ -17,6 +17,7 @@
  */
 
 import { audioEngine } from '../audio/AudioEngine';
+import { autoErrorHealingService } from './AutoErrorHealingService';
 
 export interface UILayoutViolation {
   id: string;
@@ -69,6 +70,7 @@ class UILayoutAuditorService {
   private lastReport: UIDiagnosticReport | null = null;
   private auditTimer: number | null = null;
   private initialized = false;
+  private reportedSignatures = new Set<string>();
 
   public init() {
     if (this.initialized || typeof window === 'undefined') return;
@@ -232,6 +234,23 @@ class UILayoutAuditorService {
 
     if (violations.length > 0) {
       console.warn(`[UI-AUDIT] Detected ${violations.length} UI/UX layout issue(s):`, JSON.stringify(violations));
+
+      // Forward deduplicated UI/UX violations to AutoErrorHealingService -> GitHub Issues pipeline
+      const sig = violations.map((v) => v.id).sort().join('|');
+      if (sig && !this.reportedSignatures.has(sig)) {
+        this.reportedSignatures.add(sig);
+        autoErrorHealingService.report(
+          new Error(`UI/UX Layout Violation (${violations.length}): ${violations[0].message}`),
+          {
+            component: 'UILayoutAuditorService',
+            action: `${vw}x${vh} (${theme})`,
+            extra: {
+              viewport: report.viewport,
+              violations: report.violations,
+            },
+          }
+        );
+      }
     }
 
     // Send telemetry report to Electron Main Process & Streaming Diagnostics Hub
