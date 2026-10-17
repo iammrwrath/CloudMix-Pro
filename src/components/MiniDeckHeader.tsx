@@ -365,6 +365,11 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
 
   return (
     <div
+      onDoubleClick={(e) => {
+        if (e.target === e.currentTarget && typeof window !== 'undefined' && (window as any).desktopAPI?.maximizeWindow) {
+          (window as any).desktopAPI.maximizeWindow();
+        }
+      }}
       style={{ WebkitAppRegion: 'drag' } as any}
       className="w-full bg-slate-950/95 border-b border-dj-border px-3 py-2 flex items-center space-x-3 shadow-2xl relative z-30 select-none"
     >

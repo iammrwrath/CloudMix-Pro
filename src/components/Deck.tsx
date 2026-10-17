@@ -343,15 +343,15 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader (Hardware Cluster) */}
-      <div className="flex items-center justify-center flex-1 my-0.5 py-0.5 gap-2.5 sm:gap-4 min-h-0">
+      <div className="flex items-center justify-between flex-1 my-0.5 py-0.5 gap-2 sm:gap-3 min-h-[125px] overflow-hidden">
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
-        <div className="flex flex-col justify-between h-full max-h-full min-h-0 bg-slate-950/80 rounded-xl p-2 border border-white/10 w-24 sm:w-28 xl:w-32 shrink-0 shadow-inner">
-          <div className="flex items-center justify-between border-b border-white/10 pb-1">
-            <span className="text-xs font-mono font-bold text-slate-200">STEMS</span>
-            <span className="text-[11px] font-mono text-purple-400 font-bold">4-WAY</span>
+        <div className="flex flex-col justify-between h-full max-h-full min-h-0 bg-slate-950/80 rounded-xl p-1.5 border border-white/10 w-24 sm:w-28 xl:w-32 shrink-0 shadow-inner overflow-hidden">
+          <div className="flex items-center justify-between border-b border-white/10 pb-0.5 shrink-0">
+            <span className="text-[11px] font-mono font-bold text-slate-200 leading-none">STEMS</span>
+            <span className="text-[10px] font-mono text-purple-400 font-bold leading-none">4-WAY</span>
           </div>
 
-          <div className="flex flex-col space-y-1.5 my-auto">
+          <div className="flex flex-col justify-evenly flex-1 min-h-0 py-0.5">
             {stemList.map((stem) => {
               const isMuted = deckState.stems[`${stem.id}Muted` as keyof typeof deckState.stems];
               const isSolo = deckState.stems[`${stem.id}Solo` as keyof typeof deckState.stems];
@@ -359,16 +359,16 @@ export const Deck = React.memo<DeckProps>(({
               return (
                 <div key={stem.id} className="flex items-center justify-between">
                   {/* Stem Label / Color Dot */}
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-1">
                     <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      className="w-2 h-2 rounded-full shrink-0"
                       style={{
                         backgroundColor: isMuted ? '#64748b' : stem.color,
                         boxShadow: isMuted ? 'none' : `0 0 8px ${stem.color}`,
                       }}
                     />
                     <span
-                      className={`text-xs font-mono font-bold leading-none ${
+                      className={`text-[11px] font-mono font-bold leading-none ${
                         isMuted ? 'text-slate-500 line-through' : 'text-slate-100'
                       }`}
                     >
@@ -377,11 +377,11 @@ export const Deck = React.memo<DeckProps>(({
                   </div>
 
                   {/* Solo & Mute Buttons */}
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-0.5">
                     <button
                       onClick={() => onStemMuteToggle?.(stem.id)}
                       title={`Mute ${stem.label}`}
-                      className={`w-5 h-5 rounded text-[11px] font-mono font-black border uppercase transition-colors flex items-center justify-center cursor-pointer ${
+                      className={`w-4 h-4 rounded text-[9px] font-mono font-black border uppercase transition-colors flex items-center justify-center cursor-pointer ${
                         isMuted
                           ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_8px_rgba(244,63,94,0.8)]'
                           : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
@@ -392,7 +392,7 @@ export const Deck = React.memo<DeckProps>(({
                     <button
                       onClick={() => onStemSoloToggle?.(stem.id)}
                       title={`Solo ${stem.label}`}
-                      className={`w-5 h-5 rounded text-[11px] font-mono font-black border uppercase transition-colors flex items-center justify-center cursor-pointer ${
+                      className={`w-4 h-4 rounded text-[9px] font-mono font-black border uppercase transition-colors flex items-center justify-center cursor-pointer ${
                         isSolo
                           ? 'bg-amber-400 border-amber-300 text-black shadow-[0_0_8px_rgba(251,191,36,0.8)]'
                           : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
@@ -407,11 +407,11 @@ export const Deck = React.memo<DeckProps>(({
           </div>
 
           {/* Quick Acapella / Instrumental 1-Tap Buttons */}
-          <div className="grid grid-cols-2 gap-1 pt-1 border-t border-white/10">
+          <div className="grid grid-cols-2 gap-1 pt-0.5 border-t border-white/10 shrink-0">
             <button
               onClick={() => onIsolateAcapella?.()}
               title="1-Tap Acapella: Pure vocals isolation with 0% instrument bleed"
-              className={`py-1 rounded text-[11px] font-mono font-extrabold transition-all cursor-pointer ${
+              className={`py-0.5 rounded text-[10px] font-mono font-extrabold transition-all cursor-pointer ${
                 deckState.stems.vocalsSolo && !deckState.stems.vocalsMuted
                   ? 'bg-pink-500 text-white shadow-[0_0_10px_rgba(236,72,153,0.9)]'
                   : 'bg-slate-800 text-pink-400 hover:bg-slate-700'
@@ -422,7 +422,7 @@ export const Deck = React.memo<DeckProps>(({
             <button
               onClick={() => onIsolateInstrumental?.()}
               title="1-Tap Instrumental: Pure instruments with 0% vocals"
-              className={`py-1 rounded text-[11px] font-mono font-extrabold transition-all cursor-pointer ${
+              className={`py-0.5 rounded text-[10px] font-mono font-extrabold transition-all cursor-pointer ${
                 deckState.stems.vocalsMuted && !deckState.stems.drumsMuted
                   ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.9)]'
                   : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
@@ -434,7 +434,7 @@ export const Deck = React.memo<DeckProps>(({
         </div>
 
         {/* Tactile Grooved Vinyl Jog Wheel with Mechanical Tonearm */}
-        <div className="flex-1 flex justify-center items-center min-h-0 min-w-0 overflow-hidden">
+        <div className="jog-platter-slot flex-1 h-full flex justify-center items-center min-h-0 min-w-0 overflow-hidden">
           <JogWheel
             deckId={deckId}
             currentTime={deckState.currentTime}

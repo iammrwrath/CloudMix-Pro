@@ -118,20 +118,18 @@ const TrackRow = React.memo<TrackRowProps>(({
       </td>
 
       {/* Title */}
-      <td className="py-2.5 px-3 font-semibold text-white group-hover:text-cyan-300 text-[15px] sm:text-[15.5px] transition-colors">
-        <div className="flex items-center space-x-1.5">
-          <span className="truncate" title={cleanTitle}>{cleanTitle}</span>
-        </div>
+      <td className="py-2 px-2.5 font-semibold text-white group-hover:text-cyan-300 text-[14.5px] sm:text-[15px] transition-colors max-w-[180px] xl:max-w-[260px] truncate">
+        <span className="truncate block" title={cleanTitle}>{cleanTitle}</span>
       </td>
 
       {/* Artist */}
-      <td className="py-2.5 px-3 text-slate-300 font-medium text-[13.5px] sm:text-[14px] truncate" title={cleanArtist}>
+      <td className="py-2 px-2.5 text-slate-300 font-medium text-[13.5px] sm:text-[14px] max-w-[140px] xl:max-w-[200px] truncate" title={cleanArtist}>
         {cleanArtist}
       </td>
 
       {/* Genre */}
-      <td className="py-2.5 px-2.5 text-slate-400 text-[13px] truncate">
-        <span className="px-2 py-0.5 rounded text-[12px] font-medium bg-slate-800/80 border border-slate-700/60 text-slate-300">
+      <td className="py-2 px-2 text-slate-400 text-[13px] truncate hidden md:table-cell">
+        <span className="px-2 py-0.5 rounded text-[12px] font-medium bg-slate-800/80 border border-slate-700/60 text-slate-300 whitespace-nowrap">
           {decodeEntities(
             track.genre && track.genre !== 'Music' && track.genre !== 'Various'
               ? track.genre
@@ -141,20 +139,20 @@ const TrackRow = React.memo<TrackRowProps>(({
       </td>
 
       {/* Duration */}
-      <td className="py-2.5 px-2.5 text-center font-mono text-slate-300 font-semibold text-[13px]">
+      <td className="py-2 px-2 text-center font-mono text-slate-300 font-semibold text-[13px] whitespace-nowrap">
         {Math.floor(track.duration / 60)}:
         {Math.floor(track.duration % 60).toString().padStart(2, '0')}
       </td>
 
       {/* BPM */}
-      <td className="py-2.5 px-2.5 text-center font-mono font-semibold text-[#00f2fe] text-[13.5px] sm:text-[14px]">
+      <td className="py-2 px-2 text-center font-mono font-semibold text-[#00f2fe] text-[13.5px] sm:text-[14px] whitespace-nowrap">
         {track.bpm.toFixed(1)}
       </td>
 
       {/* Camelot Key Badge & Harmonic Match */}
-      <td className="py-2.5 px-2.5 text-center">
+      <td className="py-2 px-2 text-center whitespace-nowrap">
         <div className="flex items-center justify-center space-x-1">
-          <span className="font-mono text-[13px] font-semibold px-2 py-0.5 rounded-md bg-amber-950/90 text-[#ffb703] border border-amber-700/80 shadow-sm">
+          <span className="font-mono text-[12.5px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-950/90 text-[#ffb703] border border-amber-700/80 shadow-sm">
             {track.camelotKey || track.key}
           </span>
           {(() => {
@@ -165,7 +163,7 @@ const TrackRow = React.memo<TrackRowProps>(({
               return (
                 <span
                   title="Harmonic Perfect Match"
-                  className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
+                  className="text-[10.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"
                 >
                   MATCH
                 </span>
@@ -182,7 +180,7 @@ const TrackRow = React.memo<TrackRowProps>(({
                 return (
                   <span
                     title="Harmonic Shift"
-                    className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
+                    className="text-[10.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-500/60"
                   >
                     {nK > nM ? '+1 E' : '-1 E'}
                   </span>
@@ -195,35 +193,35 @@ const TrackRow = React.memo<TrackRowProps>(({
       </td>
 
       {/* Year */}
-      <td className="py-2.5 px-2 text-center font-mono text-slate-400 text-[13px] hidden md:table-cell">
+      <td className="py-2 px-2 text-center font-mono text-slate-400 text-[13px] hidden xl:table-cell whitespace-nowrap">
         {track.year || 2026}
       </td>
 
       {/* Date Added */}
-      <td className="py-2.5 px-2.5 text-center font-mono text-slate-400 text-[13px] hidden lg:table-cell">
+      <td className="py-2 px-2 text-center font-mono text-slate-400 text-[13px] hidden 2xl:table-cell whitespace-nowrap">
         {track.dateAdded ? track.dateAdded.substring(0, 10) : '6/15/26'}
       </td>
 
       {/* Actions: LOAD A, LOAD B, +Q */}
-      <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
+      <td className="py-2 px-2.5 text-right space-x-1 whitespace-nowrap">
         <button
           onClick={(e) => { e.stopPropagation(); onLoadTrack('A', track); }}
           title="Load Track to Deck A"
-          className="px-2.5 py-1.5 rounded-md bg-cyan-950/90 border border-[#00f2fe]/80 text-[#00f2fe] hover:bg-[#00f2fe] hover:text-black font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,242,254,0.3)]"
+          className="px-2 py-1 rounded-md bg-cyan-950/90 border border-[#00f2fe]/80 text-[#00f2fe] hover:bg-[#00f2fe] hover:text-black font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,242,254,0.3)]"
         >
           LOAD A
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onLoadTrack('B', track); }}
           title="Load Track to Deck B"
-          className="px-2.5 py-1.5 rounded-md bg-rose-950/90 border border-[#ff007f]/80 text-[#ff007f] hover:bg-[#ff007f] hover:text-black font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,0,127,0.3)]"
+          className="px-2 py-1 rounded-md bg-rose-950/90 border border-[#ff007f]/80 text-[#ff007f] hover:bg-[#ff007f] hover:text-black font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(255,0,127,0.3)]"
         >
           LOAD B
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onAddToQueue(track); }}
           title="Add to Automix Queue"
-          className="px-2 py-1.5 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+          className="px-2 py-1 rounded-md bg-purple-950/90 border border-purple-400/80 text-purple-300 hover:bg-purple-500 hover:text-white font-mono font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
         >
           +Q
         </button>
@@ -1122,17 +1120,17 @@ export const Library = React.memo<LibraryProps>(({
           <table className="w-full text-left border-collapse text-[13px] sm:text-[14px]">
             <thead className="sticky top-0 bg-dj-surface text-slate-300 font-mono text-[13px] font-semibold uppercase tracking-wider border-b border-dj-border z-10 shadow-sm">
               <tr>
-                <th className="py-2.5 px-3 w-10">#</th>
-                <th className="py-2.5 px-2 w-12 text-center">Art</th>
-                <th className="py-2.5 px-3">Title</th>
-                <th className="py-2.5 px-3">Artist</th>
-                <th className="py-2.5 px-2.5">Genre</th>
-                <th className="py-2.5 px-2.5 text-center w-18">Time</th>
-                <th className="py-2.5 px-2.5 text-center w-20">BPM</th>
-                <th className="py-2.5 px-2.5 text-center w-20">Key</th>
-                <th className="py-2.5 px-2 text-center w-14 hidden md:table-cell">Year</th>
-                <th className="py-2.5 px-2.5 text-center w-24 hidden lg:table-cell">Date Added</th>
-                <th className="py-2.5 px-3 text-right w-52">Actions</th>
+                <th className="py-2 px-3 w-10">#</th>
+                <th className="py-2 px-2 w-12 text-center">Art</th>
+                <th className="py-2 px-2.5">Title</th>
+                <th className="py-2 px-2.5">Artist</th>
+                <th className="py-2 px-2 hidden md:table-cell">Genre</th>
+                <th className="py-2 px-2 text-center w-16">Time</th>
+                <th className="py-2 px-2 text-center w-18">BPM</th>
+                <th className="py-2 px-2 text-center w-20">Key</th>
+                <th className="py-2 px-2 text-center w-14 hidden xl:table-cell">Year</th>
+                <th className="py-2 px-2 text-center w-24 hidden 2xl:table-cell">Date Added</th>
+                <th className="py-2 px-2.5 text-right w-48">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dj-border/50 font-sans">

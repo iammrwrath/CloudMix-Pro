@@ -150,7 +150,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#ec4899"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('A', 'vocals')}
                     title="Mute Vocals"
@@ -184,7 +184,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#a855f7"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('A', 'harmonics')}
                     title="Mute Melody"
@@ -218,7 +218,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#3b82f6"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('A', 'bass')}
                     title="Mute Bass"
@@ -252,7 +252,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#f59e0b"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('A', 'drums')}
                     title="Mute Drums"
@@ -292,7 +292,7 @@ export const Mixer = React.memo<MixerProps>(({
                 <button
                   onClick={() => onEQKillToggle('A', 'high')}
                   title="Kill High EQ (-inf)"
-                  className={`absolute -right-3 top-0.5 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
+                  className={`absolute -right-4 top-0 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
                     deckA.eqHighKill ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]' : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -315,7 +315,7 @@ export const Mixer = React.memo<MixerProps>(({
                 <button
                   onClick={() => onEQKillToggle('A', 'mid')}
                   title="Kill Mid EQ (-inf)"
-                  className={`absolute -right-3 top-0.5 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
+                  className={`absolute -right-4 top-0 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
                     deckA.eqMidKill ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]' : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -338,7 +338,7 @@ export const Mixer = React.memo<MixerProps>(({
                 <button
                   onClick={() => onEQKillToggle('A', 'low')}
                   title="Kill Low EQ (-inf)"
-                  className={`absolute -right-3 top-0.5 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
+                  className={`absolute -right-4 top-0 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
                     deckA.eqLowKill ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]' : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -365,7 +365,7 @@ export const Mixer = React.memo<MixerProps>(({
           {/* Headphone CUE button */}
           <button
             onClick={() => onCueToggle('A')}
-            className={`w-full py-1 rounded-md text-[11px] sm:text-xs font-mono font-semibold tracking-wider my-0.5 border transition-all flex items-center justify-center space-x-1 cursor-pointer active:scale-95 shrink-0 ${
+            className={`w-full py-0.5 rounded-md text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider my-0.5 border transition-all flex items-center justify-center space-x-1 cursor-pointer active:scale-95 shrink-0 ${
               mixer.headphoneCueA
                 ? 'bg-[#ffb703] text-black border-amber-300 shadow-[0_0_12px_rgba(255,183,3,0.75)]'
                 : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
@@ -378,7 +378,7 @@ export const Mixer = React.memo<MixerProps>(({
           {/* Channel Fader & Meter with Calibrated Scale */}
           <div className="flex items-end justify-center space-x-1 sm:space-x-1.5 mt-auto pt-0.5 w-full px-0.5 shrink-0">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-[clamp(3.5rem,10cqh,6rem)] text-[8px] sm:text-[9px] font-mono font-semibold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0">
+            <div className="flex flex-col justify-between h-[clamp(2.85rem,8.5cqh,5rem)] text-[8px] sm:text-[9px] font-mono font-semibold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0 leading-none">
               <span className="text-emerald-400 font-bold">+6</span>
               <span className="text-white font-bold">0</span>
               <span>-6</span>
@@ -387,7 +387,7 @@ export const Mixer = React.memo<MixerProps>(({
             </div>
 
             {/* Tactile Pro Vertical Fader */}
-            <div className="relative flex items-center justify-center h-[clamp(3.5rem,10cqh,6rem)] w-6 sm:w-7">
+            <div className="relative flex items-center justify-center h-[clamp(2.85rem,8.5cqh,5rem)] w-6 sm:w-7">
               <ChannelFader
                 volume={deckA.volume}
                 onChange={(v) => onFaderChange('A', v)}
@@ -444,7 +444,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#ec4899"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('B', 'vocals')}
                     title="Mute Vocals"
@@ -478,7 +478,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#a855f7"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('B', 'harmonics')}
                     title="Mute Melody"
@@ -512,7 +512,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#3b82f6"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('B', 'bass')}
                     title="Mute Bass"
@@ -546,7 +546,7 @@ export const Mixer = React.memo<MixerProps>(({
                   accentColor="#f59e0b"
                   size={18}
                 />
-                <div className="absolute -right-3 top-0.5 flex flex-col space-y-0.5">
+                <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
                     onClick={() => onStemMuteToggle?.('B', 'drums')}
                     title="Mute Drums"
@@ -586,7 +586,7 @@ export const Mixer = React.memo<MixerProps>(({
                 <button
                   onClick={() => onEQKillToggle('B', 'high')}
                   title="Kill High EQ (-inf)"
-                  className={`absolute -right-3 top-0.5 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
+                  className={`absolute -right-4 top-0 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
                     deckB.eqHighKill ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]' : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -609,7 +609,7 @@ export const Mixer = React.memo<MixerProps>(({
                 <button
                   onClick={() => onEQKillToggle('B', 'mid')}
                   title="Kill Mid EQ (-inf)"
-                  className={`absolute -right-3 top-0.5 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
+                  className={`absolute -right-4 top-0 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
                     deckB.eqMidKill ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]' : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -632,7 +632,7 @@ export const Mixer = React.memo<MixerProps>(({
                 <button
                   onClick={() => onEQKillToggle('B', 'low')}
                   title="Kill Low EQ (-inf)"
-                  className={`absolute -right-3 top-0.5 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
+                  className={`absolute -right-4 top-0 text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded uppercase border ${
                     deckB.eqLowKill ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_6px_rgba(244,63,94,0.7)]' : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -659,7 +659,7 @@ export const Mixer = React.memo<MixerProps>(({
           {/* Headphone CUE button */}
           <button
             onClick={() => onCueToggle('B')}
-            className={`w-full py-1 rounded-md text-[11px] sm:text-xs font-mono font-semibold tracking-wider my-0.5 border transition-all flex items-center justify-center space-x-1 cursor-pointer active:scale-95 shrink-0 ${
+            className={`w-full py-0.5 rounded-md text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider my-0.5 border transition-all flex items-center justify-center space-x-1 cursor-pointer active:scale-95 shrink-0 ${
               mixer.headphoneCueB
                 ? 'bg-[#ffb703] text-black border-amber-300 shadow-[0_0_12px_rgba(255,183,3,0.75)]'
                 : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
@@ -672,7 +672,7 @@ export const Mixer = React.memo<MixerProps>(({
           {/* Channel Fader & Meter with Calibrated Scale */}
           <div className="flex items-end justify-center space-x-1 sm:space-x-1.5 mt-auto pt-0.5 w-full px-0.5 shrink-0">
             {/* dB scale labels */}
-            <div className="flex flex-col justify-between h-[clamp(3.5rem,10cqh,6rem)] text-[8px] sm:text-[9px] font-mono font-semibold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0">
+            <div className="flex flex-col justify-between h-[clamp(2.85rem,8.5cqh,5rem)] text-[8px] sm:text-[9px] font-mono font-semibold text-slate-400 text-right pr-0.5 pointer-events-none select-none shrink-0 leading-none">
               <span className="text-emerald-400 font-bold">+6</span>
               <span className="text-white font-bold">0</span>
               <span>-6</span>
@@ -681,7 +681,7 @@ export const Mixer = React.memo<MixerProps>(({
             </div>
 
             {/* Tactile Pro Vertical Fader */}
-            <div className="relative flex items-center justify-center h-[clamp(3.5rem,10cqh,6rem)] w-6 sm:w-7">
+            <div className="relative flex items-center justify-center h-[clamp(2.85rem,8.5cqh,5rem)] w-6 sm:w-7">
               <ChannelFader
                 volume={deckB.volume}
                 onChange={(v) => onFaderChange('B', v)}
@@ -698,30 +698,30 @@ export const Mixer = React.memo<MixerProps>(({
       {/* 3. Crossfader Section (Studio Magvel Well) */}
       <div className="bg-dj-surface/90 backdrop-blur-md rounded-lg p-1.5 mt-0.5 border border-dj-border shadow-[0_4px_12px_rgba(0,0,0,0.6)] shrink-0">
         {/* Unified Neural FX & Curve Selector Row */}
-        <div className="relative flex items-center justify-between mb-1 pb-0.5 border-b border-dj-border/50 text-[10px] font-mono">
-          <div className="flex items-center space-x-1">
+        <div className="relative flex items-center justify-between mb-1 pb-0.5 border-b border-dj-border/50 text-[10px] font-mono gap-1">
+          <div className="flex items-center space-x-1 min-w-0">
             {/* djay Pro style Neural Auto-Transition Selector Trigger */}
             <button
               onClick={() => setShowTransitionMenu((v) => !v)}
-              className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:bg-purple-900/80 transition-all cursor-pointer shadow-sm active:scale-95"
+              className="flex items-center space-x-0.5 px-1.5 py-0.5 rounded bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:bg-purple-900/80 transition-all cursor-pointer shadow-sm active:scale-95 truncate"
               title="Configure & Trigger Neural Auto-Transition"
             >
-              <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />
-              <span className="font-semibold text-[10px] uppercase tracking-wide">
+              <Sparkles className="w-3 h-3 text-purple-400 animate-pulse shrink-0" />
+              <span className="font-semibold text-[9px] uppercase tracking-tight truncate max-w-[68px]">
                 {mixer.neuralTransitionMode.replace('_', ' ')}
               </span>
-              <ChevronDown className="w-3 h-3 text-purple-400" />
+              <ChevronDown className="w-2.5 h-2.5 text-purple-400 shrink-0" />
             </button>
 
             {/* Quick 1-tap Transition button */}
             <button
               onClick={handleStartTransition}
               disabled={!deckA.track && !deckB.track}
-              className="flex items-center space-x-0.5 px-1.5 py-0.5 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-[9.5px] tracking-wider uppercase transition-all shadow-[0_0_8px_rgba(168,85,247,0.5)] active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              className="flex items-center space-x-0.5 px-1.5 py-0.5 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-[9px] tracking-tight uppercase transition-all shadow-[0_0_8px_rgba(168,85,247,0.5)] active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
               title="Execute Neural Transition now"
             >
               <Play className="w-2.5 h-2.5 fill-current" />
-              <span>TRANSITION</span>
+              <span>AUTO</span>
             </button>
           </div>
 
@@ -812,13 +812,13 @@ export const Mixer = React.memo<MixerProps>(({
             </div>
           )}
 
-          <div className="flex items-center space-x-1">
-            <span className="text-slate-400 font-semibold text-[9.5px]">CURVE</span>
+          <div className="flex items-center space-x-0.5 shrink-0">
             <div className="flex space-x-0.5 bg-slate-950/80 p-0.5 rounded border border-slate-700">
               {(['smooth', 'linear', 'scratch'] as const).map((curve) => (
                 <button
                   key={curve}
                   onClick={() => onCrossfaderCurveChange(curve)}
+                  title={`Crossfader Curve: ${curve.toUpperCase()}`}
                   className={`px-1 py-0.2 text-[9px] font-mono font-semibold rounded uppercase transition-all cursor-pointer ${
                     mixer.crossfaderCurve === curve
                       ? 'bg-slate-700 text-white shadow-[0_0_6px_rgba(255,255,255,0.2)] border border-slate-500'

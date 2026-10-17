@@ -1,3 +1,12 @@
+## v2.0.10
+- **Window Controls, Native Maximize/Resize & Responsive Header Fix**:
+  - **Pinned Window Controls**: Fixed top header horizontal overflow at 100% zoom so the Fullscreen, Minimize, Maximize/Restore, Close, Theme Toggle, Settings, and Patch buttons are permanently pinned on the far right and never clipped off-screen.
+  - **Native Windows Maximize & Edge Resize**: Explicitly enabled `resizable`, `maximizable`, `minimizable`, and `fullscreenable` on the frameless `BrowserWindow` (removing conflicting `titleBarStyle: 'hidden'`) and added double-click-to-maximize on the top header bar.
+- **Deck Jog Wheel, Pitch Fader & Mixer Layout Containment Fix**:
+  - **Eliminated Platter Overlap**: Scoped `.jog-wheel` sizing to its dedicated `.jog-platter-slot` container (`min(100cqh, 100cqw, clamp(96px, 32cqh, 235px))`) so the turntables never overflow into the scrolling waveform above or the Hot Cue pads below.
+  - **Fixed Pitch Fader & 4-Stem Strip Fit**: Compacted vertical spacing in `PitchFader.tsx` and the 4-Stem strip in `Deck.tsx` so the `-` nudge button and `ACAP`/`INST` buttons never clip.
+  - **Fixed Mixer & Library Table Alignment**: Repositioned EQ Kill (`K`) and Stem `M`/`S` buttons clear of knob labels, prevented crossfader curve button clipping, removed the `600px` max-height cap on maximized screens, and made Library table columns responsive so `LOAD A` / `LOAD B` / `+Q` buttons are always visible.
+
 ## v2.0.9
 - **Typography & Readability Overhaul**:
   - Scaled up base font sizes across decks, transport controls, stem toggles, performance pads, and track library tables (`13px–14px` labels/controls, `15px–16px` track titles/headers) with responsive `clamp()` scaling and enhanced `font-medium` / `font-semibold` hierarchy.

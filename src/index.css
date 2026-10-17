@@ -67,7 +67,7 @@
 
 @layer base {
   html {
-    font-size: clamp(15px, 0.92vw + 6px, 18px);
+    font-size: clamp(14px, 0.78vw + 4.5px, 16px);
   }
 
   body {
@@ -81,34 +81,34 @@
 }
 
 /* ==========================================================================
-   2. RESPONSIVE TYPOGRAPHY & READABILITY SCALING (NO MICRO-TEXT STRAIN)
+   2. RESPONSIVE TYPOGRAPHY & READABILITY SCALING (CRISP, NO OVERFLOW)
    ========================================================================== */
-/* Automatically scale up legacy micro utility classes across all decks, knobs, pads, and tables */
+/* Scale up micro utility classes cleanly so labels are crisp without overflowing hardware panels */
 .text-\[7px\],
 .text-\[8px\] {
-  font-size: clamp(0.78rem, 0.75rem + 0.15vw, 0.85rem) !important; /* ~12.5px - 13.6px */
-  line-height: 1.25 !important;
+  font-size: clamp(0.6875rem, 0.65rem + 0.1vw, 0.75rem) !important; /* ~11px - 12px */
+  line-height: 1.2 !important;
   font-weight: 600;
 }
 
 .text-\[9px\],
 .text-\[10px\] {
-  font-size: clamp(0.8125rem, 0.78rem + 0.18vw, 0.9rem) !important; /* ~13px - 14.4px */
-  line-height: 1.3 !important;
+  font-size: clamp(0.75rem, 0.7rem + 0.12vw, 0.8125rem) !important; /* ~12px - 13px */
+  line-height: 1.25 !important;
   font-weight: 600;
 }
 
 .text-\[11px\],
 .text-xs {
-  font-size: clamp(0.85rem, 0.81rem + 0.2vw, 0.95rem) !important; /* ~13.6px - 15.2px */
-  line-height: 1.35 !important;
+  font-size: clamp(0.8125rem, 0.76rem + 0.14vw, 0.875rem) !important; /* ~13px - 14px */
+  line-height: 1.3 !important;
 }
 
 .text-\[12px\],
 .text-\[13px\],
 .text-sm {
-  font-size: clamp(0.9375rem, 0.88rem + 0.24vw, 1.05rem) !important; /* ~15px - 16.8px */
-  line-height: 1.38 !important;
+  font-size: clamp(0.875rem, 0.82rem + 0.18vw, 0.96875rem) !important; /* ~14px - 15.5px */
+  line-height: 1.35 !important;
 }
 
 /* ==========================================================================
@@ -285,9 +285,15 @@
   container-type: size;
 }
 
+.jog-platter-slot {
+  container-type: size;
+}
+
 .jog-wheel {
-  width: clamp(140px, min(46cqh, 25vw, 285px), 295px);
-  height: clamp(140px, min(46cqh, 25vw, 285px), 295px);
+  width: min(100cqh, 100cqw, clamp(96px, 32cqh, 235px));
+  height: min(100cqh, 100cqw, clamp(96px, 32cqh, 235px));
+  max-width: 100%;
+  max-height: 100%;
   aspect-ratio: 1 / 1;
 }
 

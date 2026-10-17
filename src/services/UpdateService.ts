@@ -25,7 +25,7 @@ function isNewerVersion(latest: string, current: string): boolean {
 }
 
 class UpdateService {
-  private currentStatus: UpdateStatus = { status: 'idle', version: '2.0.9' };
+  private currentStatus: UpdateStatus = { status: 'idle', version: '2.0.10' };
   private listeners: Set<UpdateListener> = new Set();
   private initialized = false;
 

@@ -151,7 +151,10 @@ function createWindow() {
     title: 'CloudMix Pro — Next-Gen Cloud DJ',
     autoHideMenuBar: true,
     frame: false,
-    titleBarStyle: 'hidden',
+    resizable: true,
+    maximizable: true,
+    minimizable: true,
+    fullscreenable: true,
     icon: getAppIconPath(),
     show: true,
     webPreferences: {
@@ -1088,6 +1091,9 @@ ipcMain.handle('minimize-window', (event) => {
 ipcMain.handle('maximize-window', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) {
+    if (win.isFullScreen()) {
+      win.setFullScreen(false);
+    }
     if (win.isMaximized()) {
       win.unmaximize();
     } else {
@@ -1096,6 +1102,14 @@ ipcMain.handle('maximize-window', (event) => {
     return { success: true, isMaximized: win.isMaximized() };
   }
   return { success: false };
+});
+
+ipcMain.handle('is-maximized', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    return win.isMaximized();
+  }
+  return false;
 });
 
 ipcMain.handle('toggle-fullscreen', (event) => {

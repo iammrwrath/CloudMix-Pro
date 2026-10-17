@@ -164,7 +164,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
       </div>
 
       {/* 8 Performance Pads Grid (Tactile RGB Backlit Silicone Pads) */}
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-4 gap-1">
         {padMode === 'HOT CUE' && (
           Array.from({ length: 8 }).map((_, i) => {
             const cue = hotCues.find((c) => c.id === i && c.active);
@@ -174,7 +174,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <button
                 key={i}
                 onClick={() => handleCueClick(i)}
-                className={`relative h-[clamp(1.75rem,3.6cqh,2.65rem)] min-h-0 rounded-lg flex flex-col items-center justify-center font-mono font-bold text-xs sm:text-[13px] transition-all cursor-pointer select-none active:scale-[0.95] ${
+                className={`relative h-[clamp(1.5rem,3cqh,2.25rem)] min-h-0 rounded-lg flex flex-col items-center justify-center font-mono font-bold text-xs transition-all cursor-pointer select-none active:scale-[0.95] ${
                   cue
                     ? 'text-black font-extrabold shadow-lg'
                     : 'bg-slate-900/90 text-slate-200 hover:text-white hover:border-slate-400'
@@ -194,7 +194,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               >
                 <div className="flex items-center space-x-1">
                   <span>{i + 1}</span>
-                  {cue && <span className="text-[11px] font-semibold opacity-90">{cue.position.toFixed(1)}s</span>}
+                  {cue && <span className="text-[10px] font-semibold opacity-90">{cue.position.toFixed(1)}s</span>}
                 </div>
                 {deleteMode && cue && (
                   <span className="absolute top-0 right-1 text-xs text-black font-extrabold">
@@ -213,7 +213,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               <button
                 key={i}
                 onClick={() => handleLoopClick(beats)}
-                className={`h-[clamp(1.75rem,3.6cqh,2.65rem)] min-h-0 rounded-lg flex items-center justify-center space-x-1 font-mono font-bold text-xs sm:text-[13px] transition-all cursor-pointer active:scale-[0.95] ${
+                className={`h-[clamp(1.5rem,3cqh,2.25rem)] min-h-0 rounded-lg flex items-center justify-center space-x-1 font-mono font-bold text-xs transition-all cursor-pointer active:scale-[0.95] ${
                   isCurrentActive
                     ? 'bg-emerald-500 text-black border border-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.8)] font-extrabold'
                     : 'bg-slate-900/90 border border-emerald-500/40 text-emerald-400 hover:bg-slate-800 hover:border-emerald-300'
@@ -233,7 +233,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
             <button
               key={i}
               onClick={() => onBeatJump(beats)}
-              className="h-[clamp(1.75rem,3.6cqh,2.65rem)] min-h-0 rounded-lg flex items-center justify-center font-mono font-bold text-xs sm:text-[13px] bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-slate-800 hover:border-cyan-300 active:scale-[0.95] transition-all cursor-pointer shadow-inner"
+              className="h-[clamp(1.5rem,3cqh,2.25rem)] min-h-0 rounded-lg flex items-center justify-center font-mono font-bold text-xs bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-slate-800 hover:border-cyan-300 active:scale-[0.95] transition-all cursor-pointer shadow-inner"
               style={{
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
               }}

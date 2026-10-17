@@ -1697,7 +1697,7 @@ export const App: React.FC = () => {
       {drawerMode !== 'expanded' && (
         <div
           className={`flex flex-col p-1 sm:p-1.5 space-y-1 sm:space-y-1.5 overflow-hidden relative z-10 min-h-0 ${
-            drawerMode === 'collapsed' ? 'flex-1' : 'h-[57vh] min-h-[360px] max-h-[600px] shrink-0'
+            drawerMode === 'collapsed' ? 'flex-1' : 'h-[58vh] min-h-[385px] shrink-0'
           }`}
         >
           {/* Stacked Vertical Waveforms (Rekordbox / Serato Pro mode) */}
