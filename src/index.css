@@ -248,9 +248,24 @@
   color: #047857 !important;
 }
 
+[data-theme="light"] .bg-\[\#0b0e14\],
+[data-theme="light"] .bg-\[\#0b0e14\]\/90,
+[data-theme="light"] .bg-\[\#080a0f\],
+[data-theme="light"] .bg-\[\#080a0f\]\/90 {
+  background-color: var(--surface) !important;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .bg-black\/80,
+[data-theme="light"] .bg-black\/70,
+[data-theme="light"] .bg-black\/50 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+}
+
 [data-theme="light"] .border-dj-border,
 [data-theme="light"] .border-slate-800,
 [data-theme="light"] .border-slate-800\/80,
+[data-theme="light"] .border-slate-800\/60,
 [data-theme="light"] .border-slate-700,
 [data-theme="light"] .border-slate-700\/80,
 [data-theme="light"] .border-slate-600,

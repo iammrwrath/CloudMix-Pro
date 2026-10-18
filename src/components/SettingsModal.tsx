@@ -395,8 +395,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
-      <div className="bg-[#0b0e14] border border-dj-border rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col h-[85vh] max-h-[820px]">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+      <div className="bg-dj-panel border border-dj-border rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col h-[85vh] max-h-[820px]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-dj-border bg-dj-surface/90 shrink-0">
           <div className="flex items-center space-x-2.5">
@@ -414,7 +414,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
         {/* 2-Column djay Pro Layout: Sidebar + Main Content */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Left Navigation Sidebar */}
-          <div className="w-48 sm:w-56 bg-[#080a0f] border-r border-dj-border/80 p-2 sm:p-3 space-y-1 overflow-y-auto shrink-0 select-none">
+          <div className="w-48 sm:w-56 bg-dj-bg border-r border-dj-border p-2 sm:p-3 space-y-1 overflow-y-auto shrink-0 select-none">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1230,7 +1230,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
             </div>
 
             {/* Bottom Footer Save Buttons (Sticky at bottom) */}
-            <div className="flex items-center justify-between px-6 py-3.5 border-t border-dj-border bg-[#0b0e14]/90 shrink-0">
+            <div className="flex items-center justify-between px-6 py-3.5 border-t border-dj-border bg-dj-surface/90 shrink-0">
               <span className="text-[11px] font-mono text-slate-500">CloudMix Pro {appVersion} • Production Grade</span>
               <div className="flex space-x-2">
                 <button

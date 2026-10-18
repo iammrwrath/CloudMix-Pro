@@ -47,6 +47,11 @@ class AutoErrorHealingService {
 
     // 1. Capture unhandled synchronous exceptions
     window.addEventListener('error', (event) => {
+      const msg = event.message || '';
+      // Filter out benign browser warnings emitted when embedded third-party iframe (YouTube) performs postMessage handshake
+      if (msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") || msg.includes('postMessage')) {
+        return;
+      }
       this.handleError(
         event.error || new Error(event.message || 'Unknown window error'),
         { component: 'window.onerror', action: `${event.filename}:${event.lineno}:${event.colno}` }
@@ -56,6 +61,10 @@ class AutoErrorHealingService {
     // 2. Capture unhandled asynchronous promise rejections
     window.addEventListener('unhandledrejection', (event) => {
       const reason = event.reason;
+      const msg = String(reason?.message || reason || '');
+      if (msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") || msg.includes('postMessage')) {
+        return;
+      }
       const err = reason instanceof Error ? reason : new Error(String(reason || 'Unhandled Promise Rejection'));
       this.handleError(err, { component: 'window.unhandledrejection' });
     });

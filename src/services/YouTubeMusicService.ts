@@ -189,14 +189,13 @@ class YouTubeMusicService {
       'https://www.googleapis.com/auth/userinfo.email',
     ].join(' ');
 
-    // Request authorization code with access_type=offline for persistent refresh token
+    // Use implicit grant token response so public clients can authenticate directly without server client_secret
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth` +
       `?client_id=${encodeURIComponent(CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=code` +
-      `&access_type=offline` +
-      `&prompt=consent` +
+      `&response_type=token` +
+      `&prompt=select_account` +
       `&scope=${encodeURIComponent(SCOPES)}`;
 
     const desktopAPI = (window as any).desktopAPI;
