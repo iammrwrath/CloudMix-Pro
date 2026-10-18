@@ -8,6 +8,34 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        // Intercept benign third-party iframe errors and browser engine warnings in DevTools console
+        const origError = console.error;
+        console.error = function(...args) {
+          const first = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].message ? args[0].message : '');
+          if (
+            first.includes("Failed to execute 'postMessage' on 'DOMWindow'") ||
+            first.includes("The target origin provided") ||
+            first.includes("Unrecognized feature: 'web-share'")
+          ) {
+            return;
+          }
+          origError.apply(console, args);
+        };
+        const origWarn = console.warn;
+        console.warn = function(...args) {
+          const first = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].message ? args[0].message : '');
+          if (
+            first.includes("Unrecognized feature: 'web-share'") ||
+            first.includes("powerPreference option is currently ignored")
+          ) {
+            return;
+          }
+          origWarn.apply(console, args);
+        };
+      })();
+    </script>
   </head>
   <body class="bg-dj-bg text-slate-100 antialiased select-none overflow-hidden h-screen w-screen">
     <div id="root" class="h-full w-full"></div>

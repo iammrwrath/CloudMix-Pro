@@ -105,6 +105,14 @@ function createWindow() {
       ln = args[1];
       src = args[2];
     }
+    const strMsg = String(msg || '');
+    if (
+      strMsg.includes("Failed to execute 'postMessage' on 'DOMWindow'") ||
+      strMsg.includes("The target origin provided") ||
+      strMsg.includes("Unrecognized feature: 'web-share'")
+    ) {
+      return;
+    }
     log(`[RENDERER ${lvl}] ${msg} (${src}:${ln})`);
   });
 

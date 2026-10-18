@@ -219,7 +219,11 @@ function createWindow() {
     }
     // Filter out benign browser warnings emitted when embedded third-party iframe (YouTube www-widgetapi)
     // performs postMessage origin verification across frames
-    if (typeof msg === 'string' && (msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") || msg.includes('postMessage'))) {
+    if (typeof msg === 'string' && (
+      msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") ||
+      msg.includes('postMessage') ||
+      msg.includes("Unrecognized feature: 'web-share'")
+    )) {
       return;
     }
     log(`[RENDERER ${lvl}] ${msg} (${src}:${ln})`);

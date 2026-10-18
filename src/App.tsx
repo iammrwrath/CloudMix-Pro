@@ -259,6 +259,7 @@ export const App: React.FC = () => {
   // Real decoded audio (via server-side yt-dlp) for YouTube-sourced decks, enabling true stems + real waveforms
   const ytRealAudioRef = useRef<Record<string, { videoId: string; buffer?: AudioBuffer; failed?: boolean } | undefined>>({});
   const stemPrepRef = useRef<Record<string, boolean>>({});
+  const stemRetryRef = useRef<Record<string, number>>({});
 
   const applyZoom = (factor: number) => {
     lastAppliedZoomRef.current = factor;
@@ -929,10 +930,19 @@ export const App: React.FC = () => {
       }
       buffer = audioState?.buffer || null;
       if (!buffer) {
-        console.warn(`[Stems] Deck ${deckId}: real audio still downloading — stems will activate when ready.`);
-        setTimeout(() => { void prepareStems(deckId); }, 1500);
+        // Track retry attempts per deck to prevent infinite setTimeout loops
+        if (!stemRetryRef.current) stemRetryRef.current = { A: 0, B: 0 };
+        const retries = stemRetryRef.current[deckId] || 0;
+        if (retries < 3) {
+          stemRetryRef.current[deckId] = retries + 1;
+          if (retries === 0) {
+            console.log(`[Stems] Deck ${deckId}: real audio downloading — stems will activate when ready.`);
+          }
+          setTimeout(() => { void prepareStems(deckId); }, 2000);
+        }
         return;
       }
+      if (stemRetryRef.current) stemRetryRef.current[deckId] = 0;
     } else {
       buffer = audioEngine.getDeckBuffer(deckId);
     }
