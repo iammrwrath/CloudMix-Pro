@@ -378,11 +378,15 @@ class YouTubeDeckBridge {
     const failedSet = this.failedVideoIds.get(deckId) ?? new Set<string>();
     if (currentVid) failedSet.add(currentVid);
 
-    // Prioritize clean audio, lyrics, or topic streams to circumvent official VEVO/music video embed restrictions
+    // Clean artist and title (e.g. remove " - Topic" so search queries find embeddable uploads)
+    const cleanArtist = info?.artist ? info.artist.replace(/\s*-\s*Topic$/i, '').trim() : '';
+    const cleanTitle = info?.title ? info.title.replace(/\s*\([^)]*Edit\)/i, '').replace(/\s*\([^)]*Radio\)/i, '').trim() : '';
+
+    // Prioritize clean audio, remix, or live streams to circumvent official VEVO/music video embed restrictions
     const queries = [
-      info && (info.title || info.artist) ? `${info.artist} ${info.title} audio`.trim() : 'music audio',
-      info && (info.title || info.artist) ? `${info.artist} ${info.title} lyrics`.trim() : 'music lyrics',
-      info && (info.title || info.artist) ? `${info.title} ${info.artist}`.trim() : 'music track',
+      cleanArtist && cleanTitle ? `${cleanArtist} ${cleanTitle} remix`.trim() : 'music remix',
+      cleanArtist && cleanTitle ? `${cleanArtist} ${cleanTitle} audio`.trim() : 'music audio',
+      cleanArtist && cleanTitle ? `${cleanArtist} ${cleanTitle} lyrics`.trim() : 'music lyrics',
     ];
 
     try {

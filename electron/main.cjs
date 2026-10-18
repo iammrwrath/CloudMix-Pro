@@ -26,6 +26,7 @@ app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('allow-file-access-from-files');
 app.commandLine.appendSwitch('disable-web-security');
+app.commandLine.appendSwitch('force-high-performance-gpu');
 
 let mainWindow = null;
 

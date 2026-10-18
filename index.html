@@ -10,7 +10,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
       (function() {
-        // Intercept benign third-party iframe errors and browser engine warnings in DevTools console
+        // 1. Intercept Window.prototype.postMessage to gracefully catch cross-origin mismatch DOMExceptions from YouTube iframes
+        try {
+          const originalPostMessage = Window.prototype.postMessage;
+          Window.prototype.postMessage = function(...args) {
+            try {
+              return Reflect.apply(originalPostMessage, this, args);
+            } catch (err) {
+              const msg = err && err.message ? err.message : String(err || '');
+              if (
+                msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") ||
+                msg.includes("The target origin provided")
+              ) {
+                // Harmless cross-origin handshake mismatch from embedded YouTube widgetapi — suppress
+                return;
+              }
+              throw err;
+            }
+          };
+        } catch {}
+
+        // 2. Intercept benign third-party iframe errors and browser engine warnings in DevTools console
         const origError = console.error;
         console.error = function(...args) {
           const first = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].message ? args[0].message : '');
