@@ -304,7 +304,9 @@ class YouTubeMusicService {
             { headers: { Authorization: `Bearer ${this._accessToken}` } }
           );
           if (chanRes.status === 401) {
-            console.warn('[YouTube Music] OAuth token needs refresh (401). Retaining user profile and cached playlists across patch.');
+            console.warn('[YouTube Music] OAuth token expired or invalid (401). Resetting active session and retaining cached/curated playlists.');
+            this._accessToken = null;
+            await storageCache.setSetting('yt_oauth_token', null);
             // Do NOT wipe playlists across patches; return cached playlists + curated
             const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
             const seen = new Set<string>();
@@ -334,6 +336,8 @@ class YouTubeMusicService {
 
         if (mineRes.status === 401) {
           console.warn('[YouTube Music] OAuth token expired (401). Retaining cached playlists for seamless reconnection.');
+          this._accessToken = null;
+          await storageCache.setSetting('yt_oauth_token', null);
           const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
           const seen = new Set<string>();
           return fallback.filter((p) => {

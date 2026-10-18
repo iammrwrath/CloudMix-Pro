@@ -88,8 +88,14 @@ class UILayoutAuditorService {
 
     // Run initial audit after first render settles
     scheduleAudit();
-    // Periodic background check every 15s
-    window.setInterval(() => this.runAudit(), 15000);
+    // Periodic background check every 20s scheduled during browser idle time to prevent main-thread timer violations
+    window.setInterval(() => {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => this.runAudit(), { timeout: 2000 });
+      } else {
+        requestAnimationFrame(() => this.runAudit());
+      }
+    }, 20000);
 
     // Expose global trigger for DevTools / Antigravity instant inspection
     (window as any).__cloudmixRunUIAudit = () => this.runAudit();
