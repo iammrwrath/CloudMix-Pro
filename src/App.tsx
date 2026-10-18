@@ -683,7 +683,13 @@ export const App: React.FC = () => {
           (async () => {
             try {
               const resp = await fetch(`http://127.0.0.1:8088/api/youtube/audio?id=${yid}`);
-              if (!resp.ok) throw new Error('audio http ' + resp.status);
+              if (!resp.ok || resp.status === 204) {
+                // Audio extraction deferred or unavailable (204 No Content), seamlessly keep synthetic waveform & filter DSP
+                if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
+                  ytRealAudioRef.current[deckId] = { videoId: yid, failed: true };
+                }
+                return;
+              }
               const real = await audioEngine.decodeAudioData(await resp.arrayBuffer());
               if (youtubeDeckBridge.getActiveVideoId(deckId) !== yid) return; // deck changed meanwhile
               ytRealAudioRef.current[deckId] = { videoId: yid, buffer: real };

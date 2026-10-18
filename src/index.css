@@ -251,15 +251,54 @@
 [data-theme="light"] .bg-\[\#0b0e14\],
 [data-theme="light"] .bg-\[\#0b0e14\]\/90,
 [data-theme="light"] .bg-\[\#080a0f\],
-[data-theme="light"] .bg-\[\#080a0f\]\/90 {
+[data-theme="light"] .bg-\[\#080a0f\]\/90,
+[data-theme="light"] .bg-\[\#07090e\],
+[data-theme="light"] .bg-\[\#090d16\],
+[data-theme="light"] .bg-\[\#0b0e17\] {
   background-color: var(--surface) !important;
   color: var(--text-primary);
 }
 
+[data-theme="light"] .bg-black\/85,
 [data-theme="light"] .bg-black\/80,
 [data-theme="light"] .bg-black\/70,
-[data-theme="light"] .bg-black\/50 {
-  background-color: rgba(15, 23, 42, 0.45) !important;
+[data-theme="light"] .bg-black\/50,
+[data-theme="light"] .bg-black\/30,
+[data-theme="light"] .bg-black\/25 {
+  background-color: rgba(226, 232, 240, 0.75) !important;
+}
+
+[data-theme="light"] .bg-cyan-950,
+[data-theme="light"] .bg-cyan-950\/90,
+[data-theme="light"] .bg-cyan-950\/80 {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #7dd3fc !important;
+}
+
+[data-theme="light"] .bg-rose-950,
+[data-theme="light"] .bg-rose-950\/90,
+[data-theme="light"] .bg-rose-950\/80 {
+  background-color: #ffe4e6 !important;
+  color: #be123c !important;
+  border-color: #fda4af !important;
+}
+
+[data-theme="light"] .bg-purple-950,
+[data-theme="light"] .bg-purple-950\/90,
+[data-theme="light"] .bg-purple-950\/80,
+[data-theme="light"] .bg-purple-900\/80 {
+  background-color: #f3e8ff !important;
+  color: #6d28d9 !important;
+  border-color: #d8b4fe !important;
+}
+
+[data-theme="light"] .bg-amber-950,
+[data-theme="light"] .bg-amber-950\/90,
+[data-theme="light"] .bg-amber-950\/80 {
+  background-color: #fef3c7 !important;
+  color: #b45309 !important;
+  border-color: #fcd34d !important;
 }
 
 [data-theme="light"] .border-dj-border,
@@ -268,6 +307,7 @@
 [data-theme="light"] .border-slate-800\/60,
 [data-theme="light"] .border-slate-700,
 [data-theme="light"] .border-slate-700\/80,
+[data-theme="light"] .border-slate-700\/60,
 [data-theme="light"] .border-slate-600,
 [data-theme="light"] .border-white\/5,
 [data-theme="light"] .border-white\/10 {

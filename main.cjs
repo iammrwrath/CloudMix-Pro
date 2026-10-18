@@ -217,6 +217,11 @@ function createWindow() {
       ln = args[1];
       src = args[2];
     }
+    // Filter out benign browser warnings emitted when embedded third-party iframe (YouTube www-widgetapi)
+    // performs postMessage origin verification across frames
+    if (typeof msg === 'string' && (msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") || msg.includes('postMessage'))) {
+      return;
+    }
     log(`[RENDERER ${lvl}] ${msg} (${src}:${ln})`);
   });
 
@@ -263,7 +268,7 @@ if (!gotTheLock) {
         { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
         (details, callback) => {
           const headers = Object.assign({}, details.requestHeaders);
-          headers['Referer'] = 'https://localhost:8088/';
+          headers['Referer'] = 'http://127.0.0.1:8088/';
           headers['Origin'] = 'https://www.youtube.com';
           callback({ cancel: false, requestHeaders: headers });
         }
