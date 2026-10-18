@@ -186,8 +186,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
       // Load YouTube Music auth state
       const ytToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
+      const ytRefreshToken = await storageCache.getSetting<string | null>('yt_refresh_token', null);
       const ytEmailSaved = await storageCache.getSetting<string | null>('yt_email', null);
-      if (ytToken) {
+      if (ytToken || ytRefreshToken) {
         setYtConnected(true);
         setYtEmail(ytEmailSaved);
       } else {
@@ -356,10 +357,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
     setYtError(null);
     try {
       await youtubeMusicService.signIn();
-      // After sign-in, check if token was stored
+      // After sign-in, check if token or refresh token was stored
       const token = await storageCache.getSetting<string | null>('yt_oauth_token', null);
+      const refreshToken = await storageCache.getSetting<string | null>('yt_refresh_token', null);
       const email = await storageCache.getSetting<string | null>('yt_email', null);
-      if (token) {
+      if (token || refreshToken) {
         setYtConnected(true);
         setYtEmail(email);
       }
@@ -373,6 +375,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
   const handleYtDisconnect = async () => {
     await storageCache.setSetting('yt_oauth_token', null);
+    await storageCache.setSetting('yt_refresh_token', null);
     await storageCache.setSetting('yt_email', null);
     youtubeMusicService.signOut();
     setYtConnected(false);

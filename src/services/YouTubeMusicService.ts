@@ -81,22 +81,104 @@ class YouTubeMusicService {
     },
   ];
 
+  private _refreshToken: string | null = null;
+  private _refreshPromise: Promise<string | null> | null = null;
+
   constructor() {
-    // Restore saved token on init
-    storageCache.getSetting<string | null>('yt_oauth_token', null).then((token) => {
+    // Restore saved tokens on init
+    Promise.all([
+      storageCache.getSetting<string | null>('yt_oauth_token', null),
+      storageCache.getSetting<string | null>('yt_refresh_token', null),
+    ]).then(([token, refreshToken]) => {
       if (token) this._accessToken = token;
+      if (refreshToken) this._refreshToken = refreshToken;
     });
   }
 
   public isSignedIn(): boolean {
-    return !!this._accessToken;
+    return !!(this._accessToken || this._refreshToken);
   }
 
   /**
-   * Opens a Google OAuth 2.0 popup to sign the user into YouTube Music.
-   * Uses implicit grant (token in hash fragment).
-   * In Electron, opens a modal BrowserWindow via IPC that intercepts the
-   * http://localhost redirect and returns the token directly.
+   * Retrieves a guaranteed fresh access token, silently refreshing using the
+   * stored refresh_token if the access_token has expired or is missing.
+   */
+  public async getValidAccessToken(): Promise<string | null> {
+    if (!this._accessToken) {
+      this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
+    }
+    if (!this._refreshToken) {
+      this._refreshToken = await storageCache.getSetting<string | null>('yt_refresh_token', null);
+    }
+
+    if (this._accessToken) {
+      return this._accessToken;
+    }
+
+    if (this._refreshToken) {
+      return await this.refreshAccessToken();
+    }
+
+    return null;
+  }
+
+  /**
+   * Silently exchanges the refresh token with Google OAuth for a fresh access token.
+   */
+  public async refreshAccessToken(): Promise<string | null> {
+    if (this._refreshPromise) return this._refreshPromise;
+
+    this._refreshPromise = (async () => {
+      try {
+        if (!this._refreshToken) {
+          this._refreshToken = await storageCache.getSetting<string | null>('yt_refresh_token', null);
+        }
+        if (!this._refreshToken) return null;
+
+        const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
+        const CLIENT_ID = userClientId.trim() || DEFAULT_GOOGLE_CLIENT_ID;
+
+        console.log('[YouTube Music] Silently refreshing access token with Google OAuth...');
+        const res = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: CLIENT_ID,
+            grant_type: 'refresh_token',
+            refresh_token: this._refreshToken,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.access_token) {
+            console.log('[YouTube Music] Access token successfully refreshed silently.');
+            this._accessToken = data.access_token;
+            await storageCache.setSetting('yt_oauth_token', data.access_token);
+            if (data.refresh_token) {
+              this._refreshToken = data.refresh_token;
+              await storageCache.setSetting('yt_refresh_token', data.refresh_token);
+            }
+            return data.access_token;
+          }
+        } else {
+          const errText = await res.text();
+          console.warn('[YouTube Music] Refresh token request rejected by Google:', errText);
+        }
+      } catch (err) {
+        console.warn('[YouTube Music] Failed to refresh token silently:', err);
+      } finally {
+        this._refreshPromise = null;
+      }
+      return null;
+    })();
+
+    return this._refreshPromise;
+  }
+
+  /**
+   * Opens Google OAuth 2.0 loopback flow to sign the user into YouTube Music.
+   * Requests offline access (code flow) to obtain a permanent refresh_token alongside the access_token.
    */
   public async signIn(): Promise<void> {
     const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
@@ -107,22 +189,64 @@ class YouTubeMusicService {
       'https://www.googleapis.com/auth/userinfo.email',
     ].join(' ');
 
+    // Request authorization code with access_type=offline for persistent refresh token
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth` +
       `?client_id=${encodeURIComponent(CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=token` +
-      `&scope=${encodeURIComponent(SCOPES)}` +
-      `&prompt=select_account`;
+      `&response_type=code` +
+      `&access_type=offline` +
+      `&prompt=consent` +
+      `&scope=${encodeURIComponent(SCOPES)}`;
 
-    // Use Electron's IPC-backed OAuth window (intercepts redirect, no 404)
     const desktopAPI = (window as any).desktopAPI;
     if (desktopAPI?.openOAuthWindow) {
-      const token: string | null = await desktopAPI.openOAuthWindow(authUrl);
-      if (token) {
-        this._accessToken = token;
-        await storageCache.setSetting('yt_oauth_token', token);
-        this._fetchUserEmail(token);
+      const result: any = await desktopAPI.openOAuthWindow(authUrl);
+      if (result) {
+        let accessToken: string | null = null;
+        let refreshToken: string | null = null;
+
+        if (typeof result === 'string') {
+          accessToken = result;
+        } else if (result.token) {
+          accessToken = result.token;
+        }
+
+        // If authorization code was returned, exchange it for tokens
+        if (result.code) {
+          try {
+            console.log('[YouTube Music] Exchanging authorization code for permanent refresh token...');
+            const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                code: result.code,
+                client_id: CLIENT_ID,
+                redirect_uri: REDIRECT_URI,
+                grant_type: 'authorization_code',
+              }),
+            });
+            if (tokenRes.ok) {
+              const tokenData = await tokenRes.json();
+              accessToken = tokenData.access_token || accessToken;
+              refreshToken = tokenData.refresh_token || null;
+            } else {
+              console.warn('[YouTube Music] Code exchange notice:', await tokenRes.text());
+            }
+          } catch (exErr) {
+            console.warn('[YouTube Music] Code exchange fetch error:', exErr);
+          }
+        }
+
+        if (accessToken) {
+          this._accessToken = accessToken;
+          await storageCache.setSetting('yt_oauth_token', accessToken);
+          this._fetchUserEmail(accessToken);
+        }
+        if (refreshToken) {
+          this._refreshToken = refreshToken;
+          await storageCache.setSetting('yt_refresh_token', refreshToken);
+        }
       }
       return;
     }
@@ -133,7 +257,9 @@ class YouTubeMusicService {
 
   public signOut(): void {
     this._accessToken = null;
+    this._refreshToken = null;
     storageCache.setSetting('yt_oauth_token', null);
+    storageCache.setSetting('yt_refresh_token', null);
     storageCache.setSetting('yt_email', null);
   }
 
@@ -282,16 +408,14 @@ class YouTubeMusicService {
    * Fetch saved and user YouTube playlists, merged with curated DJ charts.
    */
   public async getUserPlaylists(): Promise<YouTubePlaylist[]> {
-    if (!this._accessToken) {
-      this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
-    }
+    const token = await this.getValidAccessToken();
 
     const curatedOnly = this.curatedPlaylists.map((c) => c.playlist);
     const savedPlaylists: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_user_saved_playlists', [])) || [];
     const cachedOauthPlaylists: YouTubePlaylist[] = (await storageCache.getSetting<YouTubePlaylist[]>('yt_cached_oauth_playlists', [])) || [];
 
     let oauthPlaylists: YouTubePlaylist[] = [...cachedOauthPlaylists];
-    if (this._accessToken) {
+    if (token) {
       try {
         console.log('[YouTube Music] Fetching user playlists with OAuth token...');
         
@@ -299,10 +423,20 @@ class YouTubeMusicService {
         let channelId: string | null = null;
         let likedPlaylistId: string | null = null;
         try {
-          const chanRes = await fetch(
+          let chanRes = await fetch(
             'https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&mine=true',
-            { headers: { Authorization: `Bearer ${this._accessToken}` } }
+            { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (chanRes.status === 401 && this._refreshToken) {
+            console.log('[YouTube Music] 401 received on channel fetch — auto-refreshing token...');
+            const fresh = await this.refreshAccessToken();
+            if (fresh) {
+              chanRes = await fetch(
+                'https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&mine=true',
+                { headers: { Authorization: `Bearer ${fresh}` } }
+              );
+            }
+          }
           if (chanRes.status === 401) {
             console.warn('[YouTube Music] OAuth token expired or invalid (401). Resetting active session and retaining cached/curated playlists.');
             this._accessToken = null;
@@ -329,10 +463,23 @@ class YouTubeMusicService {
         }
 
         // 2. Fetch playlists using mine=true
-        const mineRes = await fetch(
+        let currentToken = this._accessToken || token;
+        let mineRes = await fetch(
           'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
-          { headers: { Authorization: `Bearer ${this._accessToken}` } }
+          { headers: { Authorization: `Bearer ${currentToken}` } }
         );
+
+        if (mineRes.status === 401 && this._refreshToken) {
+          console.log('[YouTube Music] 401 received on playlists fetch — auto-refreshing token...');
+          const fresh = await this.refreshAccessToken();
+          if (fresh) {
+            currentToken = fresh;
+            mineRes = await fetch(
+              'https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50',
+              { headers: { Authorization: `Bearer ${fresh}` } }
+            );
+          }
+        }
 
         if (mineRes.status === 401) {
           console.warn('[YouTube Music] OAuth token expired (401). Retaining cached playlists for seamless reconnection.');
@@ -361,7 +508,7 @@ class YouTubeMusicService {
           try {
             const chPlRes = await fetch(
               `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=50`,
-              { headers: { Authorization: `Bearer ${this._accessToken}` } }
+              { headers: { Authorization: `Bearer ${currentToken}` } }
             );
             if (chPlRes.ok) {
               const chPlData = await chPlRes.json();
@@ -621,15 +768,24 @@ class YouTubeMusicService {
     } catch {}
 
     // 5. Try OAuth if token present
-    if (!this._accessToken) {
-      this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
-    }
-    if (this._accessToken) {
+    let oauthToken = await this.getValidAccessToken();
+    if (oauthToken) {
       try {
-        const res = await fetch(
+        let res = await fetch(
           `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
-          { headers: { Authorization: `Bearer ${this._accessToken}` } }
+          { headers: { Authorization: `Bearer ${oauthToken}` } }
         );
+        if (res.status === 401 && this._refreshToken) {
+          console.log('[YouTube Music] 401 on playlist tracks fetch — auto-refreshing token...');
+          const fresh = await this.refreshAccessToken();
+          if (fresh) {
+            oauthToken = fresh;
+            res = await fetch(
+              `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
+              { headers: { Authorization: `Bearer ${fresh}` } }
+            );
+          }
+        }
         if (res.status === 401) {
           console.warn('[YouTube Music] OAuth token needs refresh on playlist tracks fetch. Retaining user profile.');
         } else if (res.ok) {
@@ -736,16 +892,25 @@ class YouTubeMusicService {
     }
 
     // 2. If signed in, query Google YouTube Data API v3 with OAuth token
-    if (!this._accessToken) {
-      this._accessToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
-    }
+    let searchToken = await this.getValidAccessToken();
 
-    if (this._accessToken) {
+    if (searchToken) {
       try {
-        const res = await fetch(
+        let res = await fetch(
           `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=20&q=${encodeURIComponent(trimmed)}`,
-          { headers: { Authorization: `Bearer ${this._accessToken}` } }
+          { headers: { Authorization: `Bearer ${searchToken}` } }
         );
+        if (res.status === 401 && this._refreshToken) {
+          console.log('[YouTube Music] 401 on search — auto-refreshing token...');
+          const fresh = await this.refreshAccessToken();
+          if (fresh) {
+            searchToken = fresh;
+            res = await fetch(
+              `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=20&q=${encodeURIComponent(trimmed)}`,
+              { headers: { Authorization: `Bearer ${fresh}` } }
+            );
+          }
+        }
         if (res.ok) {
           const data = await res.json();
           if (data.items && data.items.length > 0) {

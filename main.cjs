@@ -526,7 +526,7 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
         log(`OAuth loopback request received: ${reqUrl}`);
 
         if (reqUrl.startsWith('/callback')) {
-          // Serve an HTML page that extracts hash fragments (#access_token=...) and sends them back via POST
+          // Serve an HTML page that extracts hash fragments (#access_token=...) or query params (?code=...)
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(`<!DOCTYPE html>
 <html>
@@ -549,13 +549,18 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
     (function() {
       var hash = window.location.hash.substring(1);
       var search = window.location.search.substring(1);
-      var params = new URLSearchParams(hash || search);
-      var token = params.get('access_token');
-      if (token) {
+      var hashParams = new URLSearchParams(hash);
+      var searchParams = new URLSearchParams(search);
+      var accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+      var code = searchParams.get('code') || hashParams.get('code');
+      var payload = {};
+      if (code) payload.code = code;
+      if (accessToken) payload.token = accessToken;
+      if (code || accessToken) {
         fetch('/token-received', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: token })
+          body: JSON.stringify(payload)
         }).then(function() {
           setTimeout(function() { window.close(); }, 1500);
         });
@@ -570,15 +575,23 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
         if (reqUrl.startsWith('/token-received') && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
-          req.on('end', () => {
+          req.on('end', async () => {
             try {
               const data = JSON.parse(body);
-              if (data && data.token) {
-                log('OAuth access token received via loopback POST');
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: 'ok' }));
-                cleanupAndResolve(data.token);
-                return;
+              if (data) {
+                if (data.code) {
+                  log('OAuth authorization code received via loopback POST');
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ status: 'ok' }));
+                  cleanupAndResolve({ code: data.code, token: data.token || null });
+                  return;
+                } else if (data.token) {
+                  log('OAuth access token received via loopback POST');
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ status: 'ok' }));
+                  cleanupAndResolve({ token: data.token, code: null });
+                  return;
+                }
               }
             } catch {}
             res.writeHead(400);
