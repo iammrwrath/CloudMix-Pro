@@ -44,13 +44,20 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
     startValRef.current = value;
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      e.preventDefault();
+      setIsDragging(true);
+      startYRef.current = e.touches[0].clientY;
+      startValRef.current = value;
+    }
+  };
+
   const handleDoubleClick = () => {
     onChange(defaultValue);
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
-    const deltaY = startYRef.current - e.clientY;
+  const applyDeltaY = useCallback((deltaY: number) => {
     const range = max - min;
     const deltaVal = (deltaY / 140) * range;
     let newVal = startValRef.current + deltaVal;
@@ -62,22 +69,39 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
 
     newVal = Math.max(min, Math.min(newVal, max));
     onChange(Math.round(newVal / step) * step);
-  }, [isDragging, min, max, defaultValue, centerDetent, step, onChange]);
+  }, [min, max, defaultValue, centerDetent, step, onChange]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    applyDeltaY(startYRef.current - e.clientY);
+  }, [isDragging, applyDeltaY]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isDragging || e.touches.length === 0) return;
+    e.preventDefault();
+    applyDeltaY(startYRef.current - e.touches[0].clientY);
+  }, [isDragging, applyDeltaY]);
+
+  const handleDragEnd = useCallback(() => {
     setIsDragging(false);
   }, []);
 
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleDragEnd);
+      window.addEventListener('touchcancel', handleDragEnd);
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mouseup', handleDragEnd);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleDragEnd);
+        window.removeEventListener('touchcancel', handleDragEnd);
       };
     }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging, handleMouseMove, handleTouchMove, handleDragEnd]);
 
   // SVG Arc calculation
   const isCompact = size <= 20;
@@ -118,6 +142,7 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
     <div className="flex flex-col items-center select-none group relative shrink-0">
       <div
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         onDoubleClick={handleDoubleClick}
         title={`${label}: ${displayVal} (Double-click to reset)`}
         style={{ width: svgSize, height: svgSize }}

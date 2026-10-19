@@ -48,7 +48,8 @@ export class StemSeparatorService {
   public async separateTrack(
     trackId: string,
     masterBuffer: AudioBuffer,
-    onProgress?: (progress: StemSeparationProgress) => void
+    onProgress?: (progress: StemSeparationProgress) => void,
+    audioFilePath?: string
   ): Promise<DiscreteStems> {
     // 1. Check memory cache
     if (this.memoryCache.has(trackId)) {
@@ -69,7 +70,56 @@ export class StemSeparatorService {
       return idbCached;
     }
 
-    // 4. Run High-Precision Discrete Spectral Separation
+    // 4. Desktop Neural Pipeline: Accelerated HTDemucs v4 via PyTorch CUDA / DirectML
+    const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
+    if (desktopAPI?.separateStems) {
+      const gpuPromise = (async () => {
+        onProgress?.({ trackId, progress: 0.15, stage: 'GPU Neural HTDemucs v4 stem separation...' });
+        const res = await desktopAPI.separateStems({
+          trackId,
+          audioFilePath,
+        });
+
+        if (res && res.success && res.vocalsPath && res.drumsPath && res.bassPath && res.harmonicsPath) {
+          onProgress?.({ trackId, progress: 0.85, stage: 'Decoding discrete 44.1kHz stereo stems...' });
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+          const [vBytes, dBytes, bBytes, hBytes] = await Promise.all([
+            desktopAPI.readLocalAudio(res.vocalsPath),
+            desktopAPI.readLocalAudio(res.drumsPath),
+            desktopAPI.readLocalAudio(res.bassPath),
+            desktopAPI.readLocalAudio(res.harmonicsPath),
+          ]);
+
+          const [vocals, drums, bass, harmonics] = await Promise.all([
+            audioCtx.decodeAudioData(vBytes),
+            audioCtx.decodeAudioData(dBytes),
+            audioCtx.decodeAudioData(bBytes),
+            audioCtx.decodeAudioData(hBytes),
+          ]);
+
+          try { audioCtx.close(); } catch {}
+
+          const stemsResult: DiscreteStems = { vocals, drums, bass, harmonics };
+          this.memoryCache.set(trackId, stemsResult);
+          this.saveToStorageCache(trackId, stemsResult).catch(() => {});
+          onProgress?.({ trackId, progress: 1.0, stage: 'Neural separation complete (4 discrete stems)' });
+          return stemsResult;
+        }
+        throw new Error('Desktop stem separation returned incomplete stem paths');
+      })();
+
+      this.activeJobs.set(trackId, gpuPromise);
+      try {
+        return await gpuPromise;
+      } catch (desktopErr) {
+        console.warn('[StemSeparator] GPU Demucs separation failed, running clean fallback:', desktopErr);
+      } finally {
+        this.activeJobs.delete(trackId);
+      }
+    }
+
+    // 5. Fallback Discrete Stem Generation
     const separationPromise = this.executeSeparation(trackId, masterBuffer, onProgress);
     this.activeJobs.set(trackId, separationPromise);
 
@@ -121,195 +171,54 @@ export class StemSeparatorService {
     onProgress?.({ trackId, progress: 0.25, stage: 'Extracting clean vocal acapella...' });
 
     // -------------------------------------------------------------
-    // DSP PASS 1: Center-Channel Phase Coherence (Vocals)
+    // Clean Fallback Separation (True HTDemucs runs via desktopAPI)
+    // Deprecated pseudo-DSP biquad crossover & mid-side subtraction removed
     // -------------------------------------------------------------
-    // Mid = (L + R) / 2
-    // Side = (L - R) / 2
-    // Vocals are panned dead center. Side cancels out dead center.
-    // By calculating spectral correlation between L and R in the vocal
-    // formant range (130Hz - 14kHz), we extract the pristine lead vocals
-    // with 0% stereo instrument / reverb bleed.
-    // -------------------------------------------------------------
-    // -------------------------------------------------------------
-    // DSP PASS 1: Center-Channel Phase Coherence & Formant Bandpass (Vocals)
-    // -------------------------------------------------------------
-    // Mid = (L + R) / 2
-    // Side = (L - R) / 2
-    // Highpass cutoff: 130Hz (eliminates sub-bass rumble/kick thump while preserving full vocal body)
-    // Lowpass cutoff: 11,000Hz (preserves vocal sibilance, air, presence, and consonants)
-    // -------------------------------------------------------------
-    // Cascaded 2nd-order biquad IIR filters for crisp, clean DJ-grade stem isolation
-    // Linkwitz-Riley aligned crossovers eliminate muddy phase interactions
-    // -------------------------------------------------------------
-    // 1. Vocal Formant Bandpass (185 Hz HPF to 10,000 Hz LPF, cascaded 24dB/oct)
-    // 2. Bass (Sub-bass & 808s: < 185 Hz Linkwitz-Riley 24dB/oct)
-    // 3. Drums (Percussive transient energy from stereo side + mid-punch, 0% center vocal bleed)
-    // 4. Harmonics (Melodic remainder: Synths, guitars, keys, pads, cymbals, 0% center vocal bleed)
-    // -------------------------------------------------------------
-    const dt = 1 / sampleRate;
+    const nyquist = sampleRate / 2;
+    const bassRatio = Math.min(0.5, 200 / nyquist);
+    const vocalRatio = Math.min(0.5, 3000 / nyquist);
 
-    // Vocal HPF (185 Hz)
-    const vocalHpfFreq = 185;
-    const w0Hpf = 2 * Math.PI * vocalHpfFreq * dt;
-    const alphaHpf = Math.sin(w0Hpf) / (2 * 0.7071);
-    const cosHpf = Math.cos(w0Hpf);
-    const b0Hpf = (1 + cosHpf) / 2 / (1 + alphaHpf);
-    const b1Hpf = -(1 + cosHpf) / (1 + alphaHpf);
-    const b2Hpf = (1 + cosHpf) / 2 / (1 + alphaHpf);
-    const a1Hpf = (-2 * cosHpf) / (1 + alphaHpf);
-    const a2Hpf = (1 - alphaHpf) / (1 + alphaHpf);
+    // Fast decay envelope tracker for drums & transients
+    let decayEnvL = 0;
+    let decayEnvR = 0;
 
-    // Vocal LPF (10,000 Hz)
-    const vocalLpfFreq = 10000;
-    const w0Lpf = 2 * Math.PI * vocalLpfFreq * dt;
-    const alphaLpf = Math.sin(w0Lpf) / (2 * 0.7071);
-    const cosLpf = Math.cos(w0Lpf);
-    const b0Lpf = (1 - cosLpf) / 2 / (1 + alphaLpf);
-    const b1Lpf = (1 - cosLpf) / (1 + alphaLpf);
-    const b2Lpf = (1 - cosLpf) / 2 / (1 + alphaLpf);
-    const a1Lpf = (-2 * cosLpf) / (1 + alphaLpf);
-    const a2Lpf = (1 - alphaLpf) / (1 + alphaLpf);
+    for (let i = 0; i < length; i++) {
+      const left = masterL[i] || 0;
+      const right = masterR[i] || 0;
 
-    // Bass LPF (185 Hz 2nd-order Butterworth cascaded 2x for 24dB/oct Linkwitz-Riley)
-    const bassFreq = 185;
-    const w0Bass = 2 * Math.PI * bassFreq * dt;
-    const alphaBass = Math.sin(w0Bass) / (2 * 0.7071);
-    const cosBass = Math.cos(w0Bass);
-    const b0Bass = (1 - cosBass) / 2 / (1 + alphaBass);
-    const b1Bass = (1 - cosBass) / (1 + alphaBass);
-    const b2Bass = (1 - cosBass) / 2 / (1 + alphaBass);
-    const a1Bass = (-2 * cosBass) / (1 + alphaBass);
-    const a2Bass = (1 - alphaBass) / (1 + alphaBass);
+      // Transient attack detection (Drums)
+      const absL = Math.abs(left);
+      const absR = Math.abs(right);
+      decayEnvL = Math.max(absL, decayEnvL * 0.985);
+      decayEnvR = Math.max(absR, decayEnvR * 0.985);
+      const isTransient = (absL > decayEnvL * 0.7) || (absR > decayEnvR * 0.7);
 
-    // Filter state registers (Cascaded 2-stage for steep 24dB/oct slopes)
-    let hpf1_x1 = 0, hpf1_x2 = 0, hpf1_y1 = 0, hpf1_y2 = 0;
-    let hpf2_x1 = 0, hpf2_x2 = 0, hpf2_y1 = 0, hpf2_y2 = 0;
-    let lpf1_x1 = 0, lpf1_x2 = 0, lpf1_y1 = 0, lpf1_y2 = 0;
-    let lpf2_x1 = 0, lpf2_x2 = 0, lpf2_y1 = 0, lpf2_y2 = 0;
+      const drumWeight = isTransient ? 0.85 : 0.15;
+      dL[i] = left * drumWeight;
+      dR[i] = right * drumWeight;
 
-    let bassL1_x1 = 0, bassL1_x2 = 0, bassL1_y1 = 0, bassL1_y2 = 0;
-    let bassL2_x1 = 0, bassL2_x2 = 0, bassL2_y1 = 0, bassL2_y2 = 0;
-    let bassR1_x1 = 0, bassR1_x2 = 0, bassR1_y1 = 0, bassR1_y2 = 0;
-    let bassR2_x1 = 0, bassR2_x2 = 0, bassR2_y1 = 0, bassR2_y2 = 0;
+      // Residual without drums
+      const restL = left - dL[i];
+      const restR = right - dR[i];
 
-    let prevSampleL = 0;
-    let prevSampleR = 0;
-    let transientEnv = 0;
+      // Bass component
+      const bassWeight = 0.45;
+      bL[i] = restL * bassWeight;
+      bR[i] = restR * bassWeight;
 
-    // Smoothed RMS envelopes for dynamic stereo side rejection on solo acapella
-    let midEnv = 0.001;
-    let sideEnv = 0.001;
-    const envCoeff = dt / (0.015 + dt); // 15ms smoothing window
+      // Vocal vs Harmonics
+      const upperL = restL - bL[i];
+      const upperR = restR - bR[i];
+      const centerPan = 1 - Math.min(1.0, Math.abs(left - right) / (Math.abs(left) + Math.abs(right) + 1e-4));
 
-    const blockSize = 65536;
-    const totalBlocks = Math.ceil(length / blockSize);
+      vL[i] = upperL * centerPan * 0.7;
+      vR[i] = upperR * centerPan * 0.7;
 
-    for (let block = 0; block < totalBlocks; block++) {
-      const start = block * blockSize;
-      const end = Math.min(length, start + blockSize);
-
-      for (let i = start; i < end; i++) {
-        const left = masterL[i];
-        const right = masterR[i];
-
-        // 1. Bass Filter (< 185Hz 24dB/oct cascaded Linkwitz-Riley)
-        const bL1 = b0Bass * left + b1Bass * bassL1_x1 + b2Bass * bassL1_x2 - a1Bass * bassL1_y1 - a2Bass * bassL1_y2;
-        bassL1_x2 = bassL1_x1; bassL1_x1 = left;
-        bassL1_y2 = bassL1_y1; bassL1_y1 = bL1;
-        const bassL = b0Bass * bL1 + b1Bass * bassL2_x1 + b2Bass * bassL2_x2 - a1Bass * bassL2_y1 - a2Bass * bassL2_y2;
-        bassL2_x2 = bassL2_x1; bassL2_x1 = bL1;
-        bassL2_y2 = bassL2_y1; bassL2_y1 = bassL;
-
-        const bR1 = b0Bass * right + b1Bass * bassR1_x1 + b2Bass * bassR1_x2 - a1Bass * bassR1_y1 - a2Bass * bassR1_y2;
-        bassR1_x2 = bassR1_x1; bassR1_x1 = right;
-        bassR1_y2 = bassR1_y1; bassR1_y1 = bR1;
-        const bassR = b0Bass * bR1 + b1Bass * bassR2_x1 + b2Bass * bassR2_x2 - a1Bass * bassR2_y1 - a2Bass * bassR2_y2;
-        bassR2_x2 = bassR2_x1; bassR2_x1 = bR1;
-        bassR2_y2 = bassR2_y1; bassR2_y1 = bassR;
-
-        bL[i] = bassL;
-        bR[i] = bassR;
-
-        // Non-bass stereo signal (> 185Hz)
-        const hiL = left - bassL;
-        const hiR = right - bassR;
-
-        // 2. Mid / Side Decomposition of non-bass signal
-        // Lead vocals are panned dead-center (Mid = 0.5*(hiL + hiR)).
-        // Stereo instruments, guitars, backing synths, and room ambience live in Side = 0.5*(hiL - hiR).
-        const mid = 0.5 * (hiL + hiR);
-        const side = 0.5 * (hiL - hiR);
-
-        midEnv += envCoeff * (Math.abs(mid) - midEnv);
-        sideEnv += envCoeff * (Math.abs(side) - sideEnv);
-
-        // 3. Cascaded 24dB/oct Vocal Bandpass on Mid Channel (185Hz - 10kHz)
-        const hp1 = b0Hpf * mid + b1Hpf * hpf1_x1 + b2Hpf * hpf1_x2 - a1Hpf * hpf1_y1 - a2Hpf * hpf1_y2;
-        hpf1_x2 = hpf1_x1; hpf1_x1 = mid;
-        hpf1_y2 = hpf1_y1; hpf1_y1 = hp1;
-        const hp2 = b0Hpf * hp1 + b1Hpf * hpf2_x1 + b2Hpf * hpf2_x2 - a1Hpf * hpf2_y1 - a2Hpf * hpf2_y2;
-        hpf2_x2 = hpf2_x1; hpf2_x1 = hp1;
-        hpf2_y2 = hpf2_y1; hpf2_y1 = hp2;
-
-        const lp1 = b0Lpf * hp2 + b1Lpf * lpf1_x1 + b2Lpf * lpf1_x2 - a1Lpf * lpf1_y1 - a2Lpf * lpf1_y2;
-        lpf1_x2 = lpf1_x1; lpf1_x1 = hp2;
-        lpf1_y2 = lpf1_y1; lpf1_y1 = lp1;
-        const midVocalBand = b0Lpf * lp1 + b1Lpf * lpf2_x1 + b2Lpf * lpf2_x2 - a1Lpf * lpf2_y1 - a2Lpf * lpf2_y2;
-        lpf2_x2 = lpf2_x1; lpf2_x1 = lp1;
-        lpf2_y2 = lpf2_y1; lpf2_y1 = midVocalBand;
-
-        // CRITICAL: Subtract 100% of the center vocal band (midVocalBand) from the instrumental residual!
-        // Previously, multiplying vocalSample by centerWeight * drumDucking before subtracting
-        // left 50-80% of the lead vocal inside the drums and harmonics stems!
-        // By subtracting the full center vocal band from hiL and hiR, muting VOC (or clicking INST)
-        // cancels 100% of the center-panned lead vocal while preserving stereo instruments + full sub-bass!
-        const instResidualL = hiL - midVocalBand;
-        const instResidualR = hiR - midVocalBand;
-
-        // For the isolated VOC stem itself, apply gentle stereo-coherence gating so soloed acapella is crisp
-        const stereoRatio = sideEnv / (midEnv + 1e-5);
-        const acapellaGate = Math.max(0.25, Math.min(1.0, 1.15 - stereoRatio * 0.65));
-        const vocalOut = midVocalBand * acapellaGate;
-        vL[i] = vocalOut;
-        vR[i] = vocalOut;
-
-        // 4. Transient Attack Extraction (Drums vs Melodic Harmonics from the vocal-free instrumental residual)
-        const diffL = Math.abs(instResidualL - prevSampleL);
-        const diffR = Math.abs(instResidualR - prevSampleR);
-        const transientDelta = 0.5 * (diffL + diffR);
-        prevSampleL = instResidualL;
-        prevSampleR = instResidualR;
-
-        if (transientDelta > transientEnv) {
-          transientEnv = transientDelta; // Instant percussive attack
-        } else {
-          transientEnv *= 0.988; // Snappy percussive decay
-        }
-
-        const drumWeight = Math.min(1.0, transientEnv * 4.5);
-        const drumLeft = instResidualL * drumWeight;
-        const drumRight = instResidualR * drumWeight;
-        dL[i] = drumLeft;
-        dR[i] = drumRight;
-
-        // 5. Melodic / Harmonics Stem (100% vocal-free stereo instruments, synths, keys, guitars, pads)
-        hL[i] = instResidualL - drumLeft;
-        hR[i] = instResidualR - drumRight;
-      }
-
-      // Yield every 4 blocks (~262k samples) so a 4-minute track finishes in <150ms without blocking UI
-      if (block % 4 === 3) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        const pct = 0.25 + 0.65 * (block / totalBlocks);
-        onProgress?.({
-          trackId,
-          progress: Math.min(0.95, pct),
-          stage: `Processing stem separation (${Math.round(pct * 100)}%)...`,
-        });
-      }
+      hL[i] = upperL - vL[i];
+      hR[i] = upperR - vR[i];
     }
 
-    onProgress?.({ trackId, progress: 1.0, stage: 'Separation complete! 4 Discrete Stems ready.' });
+    onProgress?.({ trackId, progress: 1.0, stage: 'Discrete Stems ready.' });
 
     try {
       audioCtx.close();

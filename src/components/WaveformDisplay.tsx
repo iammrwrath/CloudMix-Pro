@@ -491,14 +491,24 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
     onSeek(targetSec);
   };
 
-  // Zoom on mouse wheel over scrolling waveform
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoomSeconds((prev) => {
-      const factor = e.deltaY > 0 ? 1.2 : 0.83;
-      return Math.max(1.5, Math.min(18.0, prev * factor));
-    });
-  };
+  // Zoom on mouse wheel over scrolling waveform with explicit non-passive listener
+  useEffect(() => {
+    const canvas = scrollingCanvasRef.current;
+    if (!canvas) return;
+
+    const onWheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoomSeconds((prev) => {
+        const factor = e.deltaY > 0 ? 1.2 : 0.83;
+        return Math.max(1.5, Math.min(18.0, prev * factor));
+      });
+    };
+
+    canvas.addEventListener('wheel', onWheelHandler, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheelHandler);
+    };
+  }, []);
 
   // Handle waveform scrub drag
   const handleWaveformMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -530,7 +540,6 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
           width={960}
           height={140}
           className="w-full h-full block"
-          onWheel={handleWheel}
           onMouseDown={handleWaveformMouseDown}
           onMouseMove={handleWaveformMouseMove}
           onMouseUp={handleWaveformMouseUp}

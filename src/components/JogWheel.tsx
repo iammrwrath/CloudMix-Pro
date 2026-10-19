@@ -71,28 +71,39 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
     return () => cancelAnimationFrame(animId);
   }, [isPlaying, playbackRate, isScratching, applyRotation]);
 
-  const getAngle = (e: React.MouseEvent | MouseEvent): number => {
+  const getAngle = (clientX: number, clientY: number): number => {
     if (!wheelRef.current) return 0;
     const rect = wheelRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    const rad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+    const rad = Math.atan2(clientY - centerY, clientX - centerX);
     let deg = rad * (180 / Math.PI);
     if (deg < 0) deg += 360;
     return deg;
   };
 
-  const handleMouseDownPlatter = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const startScratch = (clientX: number, clientY: number) => {
     setIsScratching(true);
-    const angle = getAngle(e);
+    const angle = getAngle(clientX, clientY);
     setLastAngle(angle);
     onScratchStart?.();
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
+  const handleMouseDownPlatter = (e: React.MouseEvent) => {
+    e.preventDefault();
+    startScratch(e.clientX, e.clientY);
+  };
+
+  const handleTouchStartPlatter = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      e.preventDefault();
+      startScratch(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  };
+
+  const updateScratchAngle = useCallback((clientX: number, clientY: number) => {
     if (!isScratching) return;
-    const currentAngle = getAngle(e);
+    const currentAngle = getAngle(clientX, clientY);
     let delta = currentAngle - lastAngle;
 
     // Handle 0/360 wrap-around
@@ -108,7 +119,18 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
     onScratch(deltaSec);
   }, [isScratching, lastAngle, onScratch, applyRotation]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    updateScratchAngle(e.clientX, e.clientY);
+  }, [updateScratchAngle]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (e.touches.length > 0) {
+      e.preventDefault();
+      updateScratchAngle(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, [updateScratchAngle]);
+
+  const handleEnd = useCallback(() => {
     if (isScratching) {
       setIsScratching(false);
       onScratchEnd?.();
@@ -119,13 +141,19 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   useEffect(() => {
     if (isScratching) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleEnd);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleEnd);
+      window.addEventListener('touchcancel', handleEnd);
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mouseup', handleEnd);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleEnd);
+        window.removeEventListener('touchcancel', handleEnd);
       };
     }
-  }, [isScratching, handleMouseMove, handleMouseUp]);
+  }, [isScratching, handleMouseMove, handleTouchMove, handleEnd]);
 
   // Format seconds to mm:ss.ms
   const formatTime = (sec: number) => {
@@ -141,7 +169,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const liveRpm = (33.33 * playbackRate).toFixed(1);
 
   return (
-    <div className="jog-wheel relative flex items-center justify-center p-0.5 select-none group aspect-square mx-auto min-h-0 min-w-0 shrink-0">
+    <div className="jog-wheel relative flex items-center justify-center p-0.5 select-none group aspect-square mx-auto h-full max-h-full max-w-full min-h-0 min-w-0">
       {/* Ambient Platter Glow */}
       <div
         className="absolute inset-2 rounded-full opacity-20 blur-xl pointer-events-none transition-opacity duration-300 group-hover:opacity-40"
@@ -160,6 +188,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
         {/* Inner Touch Platter (Grooved Vinyl with Anisotropic Sheen) */}
         <div
           onMouseDown={handleMouseDownPlatter}
+          onTouchStart={handleTouchStartPlatter}
           className="relative w-full h-full rounded-full bg-[#07090e] flex items-center justify-center shadow-inner overflow-hidden"
           style={{
             backgroundImage: `radial-gradient(circle, #101624 0%, #080b12 55%, #030407 100%)`,

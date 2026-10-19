@@ -215,10 +215,10 @@ class YouTubeDeckBridge {
       }
 
       try {
-        // Set playerVars origin to match recipient window's actual origin to eliminate postMessage origin mismatch errors
-        const appOrigin = typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file:')
-          ? window.location.origin
-          : 'http://127.0.0.1:8088';
+        // Set playerVars origin and widget_referrer to match recipient window's actual origin to eliminate postMessage origin mismatch errors
+        const appOrigin = typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin.replace(/\/+$/, '')
+          : '';
 
         console.log(`[YouTubeDeckBridge] Instantiating YT.Player for Deck ${deckId} (el.id=${el.id}, origin=${appOrigin})`);
         const player = new window.YT.Player(el.id, {
@@ -234,6 +234,7 @@ class YouTubeDeckBridge {
             playsinline: 1,
             enablejsapi: 1,
             origin: appOrigin,
+            widget_referrer: appOrigin,
           },
           events: {
             onReady: (event: any) => {
@@ -393,8 +394,10 @@ class YouTubeDeckBridge {
       const attempts = this.failoverAttempts.get(deckId) ?? 1;
       const searchQuery = queries[Math.min(attempts - 1, queries.length - 1)];
 
-      console.log(`[YouTubeDeckBridge] Searching alternative stream #${attempts} for Deck ${deckId}: "${searchQuery}"`);
-      const searchRes = await fetch(`http://127.0.0.1:8088/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
+      const apiHost = typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file:')
+        ? window.location.origin.replace(/\/+$/, '')
+        : (typeof window !== 'undefined' && window.location.host === '127.0.0.1:8088' ? 'http://127.0.0.1:8088' : '');
+      const searchRes = await fetch(`${apiHost}/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
       if (searchRes.ok) {
         const data = await searchRes.json();
         // Filter out ALL videos that have already failed on this deck

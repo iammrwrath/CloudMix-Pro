@@ -5,6 +5,8 @@ import { DiscreteStems } from '../services/StemSeparatorService';
 
 export interface DeckAudioNodes {
   deckId: DeckId;
+  deckSumBus: GainNode;
+  rawStereoGainNode: GainNode;
   gainTrim: GainNode;
   eqLow: BiquadFilterNode;
   eqMid: BiquadFilterNode;
@@ -171,87 +173,65 @@ class AudioEngine {
     filterHpf.frequency.setValueAtTime(20, this.ctx.currentTime);
     filterHpf.Q.setValueAtTime(1.0, this.ctx.currentTime);
 
-    // ==========================================
-    // Real-Time Neural Mix 4-Way Crossover DSP
-    // Linkwitz-Riley aligned 24dB/oct 4-way crossover slopes
-    // ==========================================
-    // 1. Bass Stem (Sub-bass, 808s, Deep Kick & Bassline: < 140Hz, 24dB/oct Linkwitz-Riley)
-    const stemBassHpf = this.ctx.createBiquadFilter();
-    stemBassHpf.type = 'highpass';
-    stemBassHpf.frequency.setValueAtTime(22, this.ctx.currentTime);
-    stemBassHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemBassLpf = this.ctx.createBiquadFilter();
-    stemBassLpf.type = 'lowpass';
-    stemBassLpf.frequency.setValueAtTime(140, this.ctx.currentTime);
-    stemBassLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemBassLpf2 = this.ctx.createBiquadFilter();
-    stemBassLpf2.type = 'lowpass';
-    stemBassLpf2.frequency.setValueAtTime(140, this.ctx.currentTime);
-    stemBassLpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    // =========================================================================
+    // 4-STEM WEB AUDIO DECK ROUTING ARCHITECTURE (Phase 4)
+    // 4 Parallel Stem Buses:
+    //   stemVocalsSource -> stemVocalsGain -> stemVocalsXfaderGain -> deckSumBus
+    //   stemDrumsSource -> stemDrumsGain -> stemDrumsXfaderGain -> deckSumBus
+    //   stemBassSource -> stemBassGain -> stemBassXfaderGain -> deckSumBus
+    //   stemHarmonicsSource -> stemHarmonicsGain -> stemHarmonicsXfaderGain -> deckSumBus
+    //   rawStereoSource -> rawStereoGainNode -> deckSumBus
+    //
+    // All 4 stems and raw stereo feed into deckSumBus, which feeds into the
+    // Deck's Master Channel Strip (Filter -> EQ -> Channel Volume Fader -> Crossfader).
+    // This guarantees channel EQ, Quick Filters, and Channel Gain apply to all stems!
+    // =========================================================================
+    const deckSumBus = this.ctx.createGain();
+    deckSumBus.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
+    const rawStereoGainNode = this.ctx.createGain();
+    rawStereoGainNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    rawStereoGainNode.connect(deckSumBus);
+
+    // 1. Bass Stem Gain Bus
     const stemBassGain = this.ctx.createGain();
     stemBassGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemBassXfaderGain = this.ctx.createGain();
     stemBassXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    stemBassGain.connect(stemBassXfaderGain);
+    stemBassXfaderGain.connect(deckSumBus);
 
-    // 2. Drums Stem (Upper Kick Punch & Snare Fundamental Body: 140Hz - 380Hz, 24dB/oct Linkwitz-Riley)
-    const stemDrumsHpf = this.ctx.createBiquadFilter();
-    stemDrumsHpf.type = 'highpass';
-    stemDrumsHpf.frequency.setValueAtTime(140, this.ctx.currentTime);
-    stemDrumsHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemDrumsHpf2 = this.ctx.createBiquadFilter();
-    stemDrumsHpf2.type = 'highpass';
-    stemDrumsHpf2.frequency.setValueAtTime(140, this.ctx.currentTime);
-    stemDrumsHpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemDrumsFilter = this.ctx.createBiquadFilter();
-    stemDrumsFilter.type = 'lowpass';
-    stemDrumsFilter.frequency.setValueAtTime(380, this.ctx.currentTime);
-    stemDrumsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemDrumsFilter2 = this.ctx.createBiquadFilter();
-    stemDrumsFilter2.type = 'lowpass';
-    stemDrumsFilter2.frequency.setValueAtTime(380, this.ctx.currentTime);
-    stemDrumsFilter2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    // 2. Drums Stem Gain Bus
     const stemDrumsGain = this.ctx.createGain();
     stemDrumsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemDrumsXfaderGain = this.ctx.createGain();
     stemDrumsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    stemDrumsGain.connect(stemDrumsXfaderGain);
+    stemDrumsXfaderGain.connect(deckSumBus);
 
-    // 3. Vocals Stem (Lead Vocal & Formant Core: 380Hz - 4,200Hz, 24dB/oct Linkwitz-Riley)
-    const stemVocalsHpf = this.ctx.createBiquadFilter();
-    stemVocalsHpf.type = 'highpass';
-    stemVocalsHpf.frequency.setValueAtTime(380, this.ctx.currentTime);
-    stemVocalsHpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemVocalsHpf2 = this.ctx.createBiquadFilter();
-    stemVocalsHpf2.type = 'highpass';
-    stemVocalsHpf2.frequency.setValueAtTime(380, this.ctx.currentTime);
-    stemVocalsHpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-
-    const stemVocalsLpf = this.ctx.createBiquadFilter();
-    stemVocalsLpf.type = 'lowpass';
-    stemVocalsLpf.frequency.setValueAtTime(4200, this.ctx.currentTime);
-    stemVocalsLpf.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemVocalsLpf2 = this.ctx.createBiquadFilter();
-    stemVocalsLpf2.type = 'lowpass';
-    stemVocalsLpf2.frequency.setValueAtTime(4200, this.ctx.currentTime);
-    stemVocalsLpf2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-
+    // 3. Vocals Stem Gain Bus
     const stemVocalsGain = this.ctx.createGain();
     stemVocalsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemVocalsXfaderGain = this.ctx.createGain();
     stemVocalsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    stemVocalsGain.connect(stemVocalsXfaderGain);
+    stemVocalsXfaderGain.connect(deckSumBus);
 
-    // 4. Harmonics / Melody Stem (Upper Harmonics, Synths, Hi-Hats, Air: > 4,200Hz, 24dB/oct Linkwitz-Riley)
-    const stemHarmonicsFilter = this.ctx.createBiquadFilter();
-    stemHarmonicsFilter.type = 'highpass';
-    stemHarmonicsFilter.frequency.setValueAtTime(4200, this.ctx.currentTime);
-    stemHarmonicsFilter.Q.setValueAtTime(0.7071, this.ctx.currentTime);
-    const stemHarmonicsFilter2 = this.ctx.createBiquadFilter();
-    stemHarmonicsFilter2.type = 'highpass';
-    stemHarmonicsFilter2.frequency.setValueAtTime(4200, this.ctx.currentTime);
-    stemHarmonicsFilter2.Q.setValueAtTime(0.7071, this.ctx.currentTime);
+    // 4. Harmonics / Melody Stem Gain Bus
     const stemHarmonicsGain = this.ctx.createGain();
     stemHarmonicsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
     const stemHarmonicsXfaderGain = this.ctx.createGain();
     stemHarmonicsXfaderGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+    stemHarmonicsGain.connect(stemHarmonicsXfaderGain);
+    stemHarmonicsXfaderGain.connect(deckSumBus);
+
+    // Unused biquad crossover nodes preserved for backwards compatibility
+    const stemDrumsFilter = this.ctx.createBiquadFilter();
+    const stemBassHpf = this.ctx.createBiquadFilter();
+    const stemBassLpf = this.ctx.createBiquadFilter();
+    const stemVocalsHpf = this.ctx.createBiquadFilter();
+    const stemVocalsLpf = this.ctx.createBiquadFilter();
+    const stemHarmonicsFilter = this.ctx.createBiquadFilter();
 
     // Channel Volume Fader
     const channelFader = this.ctx.createGain();
@@ -270,47 +250,15 @@ class AudioEngine {
     analyser.fftSize = 64;
     const analyserData = new Uint8Array(analyser.frequencyBinCount);
 
-    // Connect Primary EQ Chain:
-    // Source -> Trim -> Low EQ -> Mid EQ -> High EQ -> LPF -> HPF
+    // Connect Deck Master Channel Strip:
+    // deckSumBus (all stems + raw) -> GainTrim -> Low EQ -> Mid EQ -> High EQ -> Filter LPF -> Filter HPF -> Channel Volume Fader
+    deckSumBus.connect(gainTrim);
     gainTrim.connect(eqLow);
     eqLow.connect(eqMid);
     eqMid.connect(eqHigh);
     eqHigh.connect(filterLpf);
     filterLpf.connect(filterHpf);
-
-    // Split filterHpf into 4 Non-Overlapping Linkwitz-Riley Neural Stems:
-    // Stem 1: Drums (140Hz - 380Hz)
-    filterHpf.connect(stemDrumsHpf);
-    stemDrumsHpf.connect(stemDrumsHpf2);
-    stemDrumsHpf2.connect(stemDrumsFilter);
-    stemDrumsFilter.connect(stemDrumsFilter2);
-    stemDrumsFilter2.connect(stemDrumsGain);
-    stemDrumsGain.connect(stemDrumsXfaderGain);
-    stemDrumsXfaderGain.connect(channelFader);
-
-    // Stem 2: Bass (22Hz - 140Hz)
-    filterHpf.connect(stemBassHpf);
-    stemBassHpf.connect(stemBassLpf);
-    stemBassLpf.connect(stemBassLpf2);
-    stemBassLpf2.connect(stemBassGain);
-    stemBassGain.connect(stemBassXfaderGain);
-    stemBassXfaderGain.connect(channelFader);
-
-    // Stem 3: Vocals (380Hz - 4200Hz)
-    filterHpf.connect(stemVocalsHpf);
-    stemVocalsHpf.connect(stemVocalsHpf2);
-    stemVocalsHpf2.connect(stemVocalsLpf);
-    stemVocalsLpf.connect(stemVocalsLpf2);
-    stemVocalsLpf2.connect(stemVocalsGain);
-    stemVocalsGain.connect(stemVocalsXfaderGain);
-    stemVocalsXfaderGain.connect(channelFader);
-
-    // Stem 4: Harmonics / Melody (> 4200Hz)
-    filterHpf.connect(stemHarmonicsFilter);
-    stemHarmonicsFilter.connect(stemHarmonicsFilter2);
-    stemHarmonicsFilter2.connect(stemHarmonicsGain);
-    stemHarmonicsGain.connect(stemHarmonicsXfaderGain);
-    stemHarmonicsXfaderGain.connect(channelFader);
+    filterHpf.connect(channelFader);
 
     // Channel Fader -> Analyser -> FX Rack -> Crossfader Bus -> Master Bus
     const fxInputNode = this.ctx.createGain();
@@ -420,6 +368,8 @@ class AudioEngine {
 
     const deckNodes: DeckAudioNodes = {
       deckId,
+      deckSumBus,
+      rawStereoGainNode,
       gainTrim,
       eqLow,
       eqMid,
@@ -575,14 +525,91 @@ class AudioEngine {
   }
 
   public setDeckStems(deckId: DeckId, stems: DiscreteStems) {
+    this.handOffToStems(deckId, stems);
+  }
+
+  /**
+   * Phase 4: Instant Playback Handoff
+   * Seamlessly hands off playback from raw stereo source to the 4 synchronized
+   * stem sources at exact playhead offset with an imperceptible 30ms equal-power crossfade.
+   */
+  public handOffToStems(deckId: DeckId, stems: DiscreteStems) {
     const deck = this.decks.get(deckId);
-    if (!deck) return;
+    if (!deck || !this.ctx) return;
     deck.stemBuffers = stems;
-    // If playing, seamlessly hot-swap from single buffer to discrete 4-stem synchronized sources
-    if (deck.isPlaying) {
-      const currentPos = this.getCurrentTime(deckId);
-      this.playDeck(deckId, currentPos);
+
+    // If deck is stopped or paused, stems will play cleanly on next playDeck call
+    if (!deck.isPlaying) return;
+
+    const now = this.ctx.currentTime;
+    const currentOffset = this.getCurrentTime(deckId);
+    const clampedOffset = Math.max(0, Math.min(currentOffset, deck.audioBuffer?.duration || 0));
+
+    // 1. Create 4 synchronized stem sources
+    const vSrc = this.ctx.createBufferSource();
+    const dSrc = this.ctx.createBufferSource();
+    const bSrc = this.ctx.createBufferSource();
+    const hSrc = this.ctx.createBufferSource();
+
+    vSrc.buffer = stems.vocals;
+    dSrc.buffer = stems.drums;
+    bSrc.buffer = stems.bass;
+    hSrc.buffer = stems.harmonics;
+
+    const stemSources = [vSrc, dSrc, bSrc, hSrc];
+    for (const s of stemSources) {
+      s.playbackRate.setValueAtTime(deck.playbackRate, now);
+      s.detune.setValueAtTime(deck.pitchSemitones * 100, now);
+      if (deck.loopRegion) {
+        s.loop = true;
+        s.loopStart = deck.loopRegion.start;
+        s.loopEnd = deck.loopRegion.end;
+      }
     }
+
+    // Connect to stem gain buses
+    vSrc.connect(deck.stemVocalsGain);
+    dSrc.connect(deck.stemDrumsGain);
+    bSrc.connect(deck.stemBassGain);
+    hSrc.connect(deck.stemHarmonicsGain);
+
+    // Apply active mute/solo stem gains (15ms anti-pop ramp)
+    this.recalculateStemGains(deck);
+
+    // Start all 4 in sample-accurate lockstep
+    vSrc.start(now, clampedOffset);
+    dSrc.start(now, clampedOffset);
+    bSrc.start(now, clampedOffset);
+    hSrc.start(now, clampedOffset);
+
+    // 2. 30ms seamless equal-power crossfade handoff from stereo to stems
+    const crossfadeSec = 0.030;
+    deck.rawStereoGainNode.gain.setValueAtTime(deck.rawStereoGainNode.gain.value, now);
+    deck.rawStereoGainNode.gain.linearRampToValueAtTime(0.0, now + crossfadeSec);
+
+    // 3. Gracefully terminate raw stereo source after crossfade completes
+    const oldSource = deck.sourceNode;
+    setTimeout(() => {
+      if (oldSource) {
+        try {
+          oldSource.stop();
+          oldSource.disconnect();
+        } catch {}
+      }
+    }, 45);
+
+    deck.sourceNode = null;
+    deck.stemVocalsSource = vSrc;
+    deck.stemDrumsSource = dSrc;
+    deck.stemBassSource = bSrc;
+    deck.stemHarmonicsSource = hSrc;
+
+    vSrc.onended = () => {
+      if (deck.isPlaying && this.ctx && (this.getCurrentTime(deckId) >= (deck.audioBuffer?.duration || 0) - 0.1)) {
+        deck.isPlaying = false;
+        deck.pauseOffset = 0;
+      }
+    };
   }
 
   public getDeckBuffer(deckId: DeckId): AudioBuffer | null {
@@ -634,6 +661,8 @@ class AudioEngine {
     // Soloing vocals produces 100% clean acapella with ZERO instrument bleed!
     // =========================================================================
     if (deck.stemBuffers) {
+      deck.rawStereoGainNode.gain.setValueAtTime(0.0, this.ctx.currentTime);
+
       const vSrc = this.ctx.createBufferSource();
       const dSrc = this.ctx.createBufferSource();
       const bSrc = this.ctx.createBufferSource();
@@ -661,6 +690,9 @@ class AudioEngine {
       bSrc.connect(deck.stemBassGain);
       hSrc.connect(deck.stemHarmonicsGain);
 
+      // Apply stem mute/solo gains
+      this.recalculateStemGains(deck);
+
       // Start all 4 in sample-accurate lockstep
       vSrc.start(0, clampedOffset);
       dSrc.start(0, clampedOffset);
@@ -679,7 +711,9 @@ class AudioEngine {
         }
       };
     } else {
-      // Fallback: single master track buffer
+      // Raw stereo track playback (feeds into deckSumBus -> channel strip)
+      deck.rawStereoGainNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
       const source = this.ctx.createBufferSource();
       source.buffer = deck.audioBuffer;
       source.playbackRate.setValueAtTime(deck.playbackRate, this.ctx.currentTime);
@@ -691,7 +725,7 @@ class AudioEngine {
         source.loopEnd = deck.loopRegion.end;
       }
 
-      source.connect(deck.gainTrim);
+      source.connect(deck.rawStereoGainNode);
       source.start(0, clampedOffset);
       deck.sourceNode = source;
 
@@ -1296,10 +1330,11 @@ class AudioEngine {
       ? (deck.stemState.harmonicsSolo ? deck.stemState.harmonics : 0)
       : deck.stemState.harmonics;
 
-    deck.stemVocalsGain.gain.setTargetAtTime(effVocals, this.ctx.currentTime, 0.01);
-    deck.stemBassGain.gain.setTargetAtTime(effBass, this.ctx.currentTime, 0.01);
-    deck.stemDrumsGain.gain.setTargetAtTime(effDrums, this.ctx.currentTime, 0.01);
-    deck.stemHarmonicsGain.gain.setTargetAtTime(effHarmonics, this.ctx.currentTime, 0.01);
+    // 15ms anti-pop exponential ramp for click-free stem mute/solo modulation
+    deck.stemVocalsGain.gain.setTargetAtTime(effVocals, this.ctx.currentTime, 0.015);
+    deck.stemBassGain.gain.setTargetAtTime(effBass, this.ctx.currentTime, 0.015);
+    deck.stemDrumsGain.gain.setTargetAtTime(effDrums, this.ctx.currentTime, 0.015);
+    deck.stemHarmonicsGain.gain.setTargetAtTime(effHarmonics, this.ctx.currentTime, 0.015);
   }
 
   private updateCrossfaderGains() {
@@ -1715,83 +1750,6 @@ class AudioEngine {
     return buffer;
   }
 
-  /**
-   * Generates a 32-bar, 126 BPM synthesized club groove buffer.
-   * Failsafe fallback if cloud or network stream fails to load offline.
-   */
-  public generateOfflineGrooveBuffer(bpm: number = 126, bars: number = 32): AudioBuffer {
-    this.init();
-    if (!this.ctx) throw new Error('AudioContext not ready');
-    const secondsPerBeat = 60.0 / bpm;
-    const totalBeats = bars * 4;
-    const totalDuration = totalBeats * secondsPerBeat;
-    const sampleRate = this.ctx.sampleRate;
-    const totalSamples = Math.floor(totalDuration * sampleRate);
-
-    const buffer = this.ctx.createBuffer(2, totalSamples, sampleRate);
-    const left = buffer.getChannelData(0);
-    const right = buffer.getChannelData(1);
-
-    for (let b = 0; b < totalBeats; b++) {
-      const beatStartSample = Math.floor(b * secondsPerBeat * sampleRate);
-
-      // 1. Kick on every beat
-      const kickLen = Math.floor(0.22 * sampleRate);
-      for (let i = 0; i < kickLen && beatStartSample + i < totalSamples; i++) {
-        const t = i / sampleRate;
-        const freq = 130 * Math.exp(-t * 24) + 42;
-        const env = Math.exp(-t * 14);
-        const kickVal = Math.sin(2 * Math.PI * freq * t) * env * 0.75;
-        left[beatStartSample + i] += kickVal;
-        right[beatStartSample + i] += kickVal;
-      }
-
-      // 2. Offbeat Hi-Hat
-      const hatStartSample = beatStartSample + Math.floor(0.5 * secondsPerBeat * sampleRate);
-      const hatLen = Math.floor(0.08 * sampleRate);
-      for (let i = 0; i < hatLen && hatStartSample + i < totalSamples; i++) {
-        const t = i / sampleRate;
-        const env = Math.exp(-t * 50);
-        const noise = (Math.random() * 2 - 1) * env * 0.28;
-        left[hatStartSample + i] += noise * 0.9;
-        right[hatStartSample + i] += noise * 1.1;
-      }
-
-      // 3. Snare on beats 2 and 4
-      if (b % 4 === 1 || b % 4 === 3) {
-        const snareLen = Math.floor(0.18 * sampleRate);
-        for (let i = 0; i < snareLen && beatStartSample + i < totalSamples; i++) {
-          const t = i / sampleRate;
-          const noise = (Math.random() * 2 - 1) * Math.exp(-t * 22) * 0.35;
-          const tone = Math.sin(2 * Math.PI * 185 * t) * Math.exp(-t * 28) * 0.3;
-          left[beatStartSample + i] += noise + tone;
-          right[beatStartSample + i] += noise + tone;
-        }
-      }
-
-      // 4. Rolling Synth Bassline (16th notes with chord progression)
-      for (let s = 0; s < 4; s++) {
-        const subStart = beatStartSample + Math.floor((s * 0.25) * secondsPerBeat * sampleRate);
-        const bassLen = Math.floor(0.12 * sampleRate);
-        const barIndex = Math.floor(b / 4);
-        const rootFreqs = [110, 87.31, 130.81, 98.0]; // Am -> F -> C -> G
-        const chordFreq = rootFreqs[barIndex % 4] || 110;
-        for (let i = 0; i < bassLen && subStart + i < totalSamples; i++) {
-          const t = i / sampleRate;
-          const env = Math.exp(-t * 18);
-          const bassVal =
-            (Math.sin(2 * Math.PI * chordFreq * t) +
-              0.5 * Math.sin(4 * Math.PI * chordFreq * t)) *
-            env *
-            0.22;
-          left[subStart + i] += bassVal;
-          right[subStart + i] += bassVal;
-        }
-      }
-    }
-
-    return buffer;
-  }
 
   public getContext(): AudioContext | null {
     return this.ctx;

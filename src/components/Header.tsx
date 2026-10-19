@@ -49,8 +49,6 @@ interface HeaderProps {
   onToggleSettingsModal: () => void;
   isStreamerHudOpen: boolean;
   requestCount?: number;
-  isPulseDjOpen?: boolean;
-  onTogglePulseDj?: () => void;
   isCortexOpen?: boolean;
   onToggleCortex?: () => void;
   onOpenPatchModal?: () => void;
@@ -78,9 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSettingsModal,
   isStreamerHudOpen,
   requestCount = 0,
-  isPulseDjOpen = false,
-  onTogglePulseDj,
-  isCortexOpen,
+  isCortexOpen = false,
   onToggleCortex,
   onOpenPatchModal,
   drawerMode = 'split',
@@ -368,24 +364,18 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* MixCortex AI Co-Pilot Quick Toggle */}
-          {(() => {
-            const isCortexActive = isCortexOpen ?? isPulseDjOpen;
-            const handleToggle = onToggleCortex || onTogglePulseDj;
-            return (
-              <button
-                onClick={handleToggle}
-                title="Toggle MixCortex AI Co-Pilot (Real-time Harmonic & Vibe Next Track Ideas)"
-                className={`flex items-center space-x-1 px-1.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer border shrink-0 ${
-                  isCortexActive
-                    ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.8)] font-black'
-                    : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
-                }`}
-              >
-                <Brain className={`w-3.5 h-3.5 ${isCortexActive ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
-                <span className="font-extrabold tracking-wide text-[11px] hidden lg:inline">CORTEX</span>
-              </button>
-            );
-          })()}
+          <button
+            onClick={onToggleCortex}
+            title="Toggle MixCortex AI Co-Pilot (Real-time Harmonic & Vibe Next Track Ideas)"
+            className={`flex items-center space-x-1 px-1.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer border shrink-0 ${
+              isCortexOpen
+                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.8)] font-black'
+                : 'bg-slate-900/90 hover:bg-slate-800 text-purple-400 border-purple-500/40 hover:border-purple-400'
+            }`}
+          >
+            <Brain className={`w-3.5 h-3.5 ${isCortexOpen ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
+            <span className="font-extrabold tracking-wide text-[11px] hidden lg:inline">CORTEX</span>
+          </button>
 
           {/* MIDI Hardware Button */}
           <button

@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   // Local File Access & Native Persistent Storage
   getSystemPaths: () => ipcRenderer.invoke('get-system-paths'),
   readLocalAudio: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
+  getTrackStreamUrl: (videoId) => ipcRenderer.invoke('get-track-stream-url', videoId),
+  separateStems: (params) => ipcRenderer.invoke('separate-stems', params),
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   saveUserSetting: (key, value) => ipcRenderer.invoke('save-user-setting', key, value),

@@ -5,7 +5,7 @@
  */
 
 import { CortexTrack, PulseTrack } from '../types/cortex';
-import { cortexAiService, pulseAiService } from './CortexAiService';
+import { cortexAiService } from './CortexAiService';
 import { storageCache } from './StorageCacheService';
 import { TrackMetadata } from '../types/dj';
 import { decodeHtmlEntities } from '../utils/decodeHtml';
@@ -325,7 +325,7 @@ export class MusicLibraryService {
       }
 
       const bpm = isNaN(bpmRaw) || bpmRaw <= 0 ? 124.0 : Math.round(bpmRaw * 10) / 10;
-      const camelotKey = pulseAiService.normalizeCamelotKey(keyRaw);
+      const camelotKey = cortexAiService.normalizeCamelotKey(keyRaw);
 
       // Estimate energy level from BPM and genre
       let energy = 5;
@@ -406,7 +406,7 @@ export class MusicLibraryService {
       duration: track.duration,
       bpm: track.bpm,
       key: track.key,
-      camelotKey: track.camelotKey || pulseAiService.normalizeCamelotKey(track.key),
+      camelotKey: track.camelotKey || cortexAiService.normalizeCamelotKey(track.key),
       energyLevel: track.bpm >= 128 ? 8 : track.bpm >= 120 ? 7 : 5,
       fileUrl: track.fileUrl,
       fileSource: track.fileSource,

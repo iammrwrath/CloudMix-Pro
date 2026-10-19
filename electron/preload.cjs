@@ -54,7 +54,10 @@ try {
 
 contextBridge.exposeInMainWorld('desktopAPI', {
   isDesktopApp: true,
+  readLocalAudio: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
   readLocalAudioFile: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
+  getTrackStreamUrl: (videoId) => ipcRenderer.invoke('get-track-stream-url', videoId),
+  separateStems: (params) => ipcRenderer.invoke('separate-stems', params),
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   writeNowPlayingBroadcast: (info) => ipcRenderer.invoke('write-now-playing-broadcast', info),

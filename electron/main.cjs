@@ -171,6 +171,14 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Native Audio Stream & HTDemucs Stems Pipeline
+try {
+  const { registerNativeAudioHandlers } = require('./nativeAudioPipeline.cjs');
+  registerNativeAudioHandlers(ipcMain);
+} catch (audioPipeErr) {
+  log('[AUDIO PIPELINE] Could not register nativeAudioPipeline: ' + audioPipeErr.message);
+}
+
 // IPC Handlers for Native Desktop Capabilities
 ipcMain.handle('read-local-audio', async (event, filePath) => {
   try {
