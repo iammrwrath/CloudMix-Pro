@@ -63,9 +63,7 @@ export const App: React.FC = () => {
   if (
     typeof window !== 'undefined' &&
     (window.location.search.includes('view=cortex-companion') ||
-      window.location.hash.includes('cortex-companion') ||
-      window.location.search.includes('view=pulsedj-companion') ||
-      window.location.hash.includes('pulsedj-companion'))
+      window.location.hash.includes('cortex-companion'))
   ) {
     return <CortexFloatingWindow />;
   }
@@ -254,11 +252,7 @@ export const App: React.FC = () => {
     B: undefined,
     C: undefined,
     D: undefined,
-  });
-  // Real decoded audio (via server-side yt-dlp) for YouTube-sourced decks, enabling true stems + real waveforms
-  const ytRealAudioRef = useRef<Record<string, { videoId: string; buffer?: AudioBuffer; failed?: boolean } | undefined>>({});
   const stemPrepRef = useRef<Record<string, boolean>>({});
-  const stemRetryRef = useRef<Record<string, number>>({});
 
   const applyZoom = (factor: number) => {
     lastAppliedZoomRef.current = factor;
@@ -416,19 +410,10 @@ export const App: React.FC = () => {
       if (now - lastUiTick >= 33.3) {
         lastUiTick = now;
 
-        let timeA = audioEngine.getCurrentTime('A');
-        let timeB = audioEngine.getCurrentTime('B');
-
-        // Check if Deck A or Deck B is powered by YouTubeDeckBridge
-        if (youtubeDeckBridge.isYouTubeDeck('A')) {
-          timeA = youtubeDeckBridge.getCurrentTime('A');
-        }
-        if (youtubeDeckBridge.isYouTubeDeck('B')) {
-          timeB = youtubeDeckBridge.getCurrentTime('B');
-        }
-
-        const meterA = youtubeDeckBridge.isYouTubeDeck('A') && youtubeDeckBridge.isTrackPlaying('A') ? 0.75 : audioEngine.getDeckLevel('A');
-        const meterB = youtubeDeckBridge.isYouTubeDeck('B') && youtubeDeckBridge.isTrackPlaying('B') ? 0.75 : audioEngine.getDeckLevel('B');
+        const timeA = audioEngine.getCurrentTime('A');
+        const timeB = audioEngine.getCurrentTime('B');
+        const meterA = audioEngine.getDeckLevel('A');
+        const meterB = audioEngine.getDeckLevel('B');
         const masterMeter = Math.max(meterA, meterB, audioEngine.getMasterLevel());
 
         setDeckA((prev) => {
@@ -463,9 +448,8 @@ export const App: React.FC = () => {
 
       // Throttle OBS/StreamerBot broadcast updates to 4 Hz (every 250ms)
       if (now - lastBroadcastTick >= 250) {
-        lastBroadcastTick = now;
-        const timeA = youtubeDeckBridge.isYouTubeDeck('A') ? youtubeDeckBridge.getCurrentTime('A') : audioEngine.getCurrentTime('A');
-        const timeB = youtubeDeckBridge.isYouTubeDeck('B') ? youtubeDeckBridge.getCurrentTime('B') : audioEngine.getCurrentTime('B');
+        const timeA = audioEngine.getCurrentTime('A');
+        const timeB = audioEngine.getCurrentTime('B');
         broadcastService.update({
           elapsedSecA: timeA,
           elapsedSecB: timeB,
@@ -525,7 +509,7 @@ export const App: React.FC = () => {
   }, [deckA, deckB, mixer.crossfader]);
 
   const handleToggleCortex = () => {
-    if ((bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed') {
+    if (bottomDrawerTab === 'cortex' && drawerMode !== 'collapsed') {
       setBottomDrawerTab('library');
     } else {
       setBottomDrawerTab('cortex');
@@ -536,8 +520,6 @@ export const App: React.FC = () => {
   const handlePopOutCortex = () => {
     if ((window as any).desktopAPI?.openCortexCompanion) {
       (window as any).desktopAPI.openCortexCompanion();
-    } else if ((window as any).desktopAPI?.openPulseDjCompanion) {
-      (window as any).desktopAPI.openPulseDjCompanion();
     } else {
       window.open('?view=cortex-companion', 'MixCortex_Companion', 'width=420,height=760');
     }
@@ -630,7 +612,7 @@ export const App: React.FC = () => {
     const track = sanitizeTrackMetadata(rawTrack);
     audioEngine.resumeContext().catch(() => {});
     try {
-      // 1. YouTube Music direct bridge integration: real audio via native YouTube player
+      // 1. YouTube Music native stream ingestion: real audio decoded directly into Web Audio
       if (track.fileSource === 'youtube') {
         let vidId = '';
         if (track.id.startsWith('yt_')) {
@@ -641,119 +623,51 @@ export const App: React.FC = () => {
         }
 
         if (vidId) {
-          // Pause AudioEngine source so no local audio conflicts
           audioEngine.pauseDeck(deckId);
-
-          // Set deck track immediately so transport controls and UI have valid track metadata right away
-          const initialDur = track.duration || 210;
-          if (deckId === 'A') {
-            setDeckA((prev) => ({
-              ...prev,
-              track,
-              currentTime: 0,
-              duration: initialDur,
-              isPlaying: false,
-              playbackRate: 1.0,
-            }));
-            broadcastService.update({ trackA: track, isPlayingA: false });
-          } else {
-            setDeckB((prev) => ({
-              ...prev,
-              track,
-              currentTime: 0,
-              duration: initialDur,
-              isPlaying: false,
-              playbackRate: 1.0,
-            }));
-            broadcastService.update({ trackB: track, isPlayingB: false });
-          }
 
           const duration = await youtubeDeckBridge.loadVideo(deckId, vidId, track.title, track.artist);
           track.duration = duration || track.duration || 210;
 
-          // Generate silent visual waveform buffer for deck rendering
-          const silentBuffer = audioEngine.generateSilentWaveformBuffer(track.duration, track.bpm || 125);
-          const wf = AudioAnalyzer.extractWaveformData(silentBuffer);
-          audioEngine.loadTrackToDeck(deckId, silentBuffer);
+          const deck = audioEngine.getDeck(deckId);
+          const buf = deck?.audioBuffer;
+          if (buf) {
+            const wf = AudioAnalyzer.extractWaveformData(buf);
+            if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(buf).bpm;
 
-          // Background: pull real audio server-side (yt-dlp) -> real waveform + stems-capable buffer
-          ytRealAudioRef.current[deckId] = undefined;
-          const yid: string = vidId;
-          (async () => {
-            try {
-              const resp = await fetch(`http://127.0.0.1:8088/api/youtube/audio?id=${yid}`);
-              if (!resp.ok || resp.status === 204) {
-                // Audio extraction deferred or unavailable (204 No Content), seamlessly keep synthetic waveform & filter DSP
-                if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
-                  ytRealAudioRef.current[deckId] = { videoId: yid, failed: true };
-                }
-                return;
+            // Proactively separate 4 discrete neural stems in background immediately
+            const filePath = youtubeDeckBridge.getTrackFilePath(deckId);
+            stemSeparatorService.separateTrack(track.id, buf, undefined, filePath).then((stems) => {
+              console.log(`[NeuralStems] 4 discrete stems loaded for Deck ${deckId} (${track.title})`);
+              if (audioEngine.getDeckBuffer(deckId) === buf) {
+                audioEngine.handOffToStems(deckId, stems);
               }
-              const real = await audioEngine.decodeAudioData(await resp.arrayBuffer());
-              if (youtubeDeckBridge.getActiveVideoId(deckId) !== yid) return; // deck changed meanwhile
-              ytRealAudioRef.current[deckId] = { videoId: yid, buffer: real };
-              const realWf = AudioAnalyzer.extractWaveformData(real);
-              if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(real).bpm;
-              if (deckId === 'A') setWaveformDataA(realWf); else setWaveformDataB(realWf);
-              // Seamless AudioEngine Takeover: Once real audio is decoded, immediately hand off
-              // so all mixer knobs (GAIN, HI, MID, LOW, FILTER) and 4-stem DSP operate directly via Web Audio
-              if (youtubeDeckBridge.getActiveVideoId(deckId) === yid && !youtubeDeckBridge.isEngineTakeover(deckId)) {
-                const isPlaying = deckId === 'A' ? deckA.isPlaying : deckB.isPlaying;
-                const ytTime = youtubeDeckBridge.getCurrentTime(deckId);
-                const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
-                const playTime = ytTime > 0 ? ytTime : time;
-                audioEngine.loadTrackToDeck(deckId, real);
-                audioEngine.seekDeck(deckId, playTime);
-                if (wasPlaying || isPlaying) {
-                  audioEngine.playDeck(deckId, playTime);
-                }
-                console.log(`[YouTubeAudio] Seamless handoff to Web Audio DSP engine complete for Deck ${deckId} at ${playTime.toFixed(2)}s`);
-              }
+            }).catch((err) => {
+              console.warn('[NeuralStems] Background stem separation warning:', err);
+            });
 
-              // Pre-calculate stems in the background immediately so stems/acapella work with 0 latency
-              const trackId = track.id;
-              stemSeparatorService.separateTrack(trackId, real).then((stems) => {
-                console.log(`[YouTubeAudio] Discrete stems pre-computed for Deck ${deckId} (${track.title})`);
-                if (youtubeDeckBridge.isEngineTakeover(deckId)) {
-                  audioEngine.setDeckStems(deckId, stems);
-                }
-              }).catch((err) => {
-                console.warn('[YouTubeAudio] Background stem separation warning:', err);
-              });
-            } catch (e) {
-              console.warn('[YouTubeAudio] real audio unavailable, keeping synthetic waveform:', e);
-              if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
-                ytRealAudioRef.current[deckId] = { videoId: yid, failed: true };
-              }
+            if (deckId === 'A') {
+              setWaveformDataA(wf);
+              setDeckA((prev) => ({
+                ...prev,
+                track,
+                currentTime: 0,
+                duration: buf.duration,
+                isPlaying: false,
+                playbackRate: 1.0,
+              }));
+              broadcastService.update({ trackA: track, isPlayingA: false });
+            } else {
+              setWaveformDataB(wf);
+              setDeckB((prev) => ({
+                ...prev,
+                track,
+                currentTime: 0,
+                duration: buf.duration,
+                isPlaying: false,
+                playbackRate: 1.0,
+              }));
+              broadcastService.update({ trackB: track, isPlayingB: false });
             }
-          })();
-
-          // Update volume multiplier on YouTube player based on current faders
-          const currentVol = deckId === 'A' ? deckA.volume : deckB.volume;
-          youtubeDeckBridge.setVolume(deckId, currentVol);
-
-          if (deckId === 'A') {
-            setWaveformDataA(wf);
-            setDeckA((prev) => ({
-              ...prev,
-              track,
-              currentTime: 0,
-              duration: track.duration,
-              isPlaying: false,
-              playbackRate: 1.0,
-            }));
-            broadcastService.update({ trackA: track, isPlayingA: false });
-          } else {
-            setWaveformDataB(wf);
-            setDeckB((prev) => ({
-              ...prev,
-              track,
-              currentTime: 0,
-              duration: track.duration,
-              isPlaying: false,
-              playbackRate: 1.0,
-            }));
-            broadcastService.update({ trackB: track, isPlayingB: false });
           }
           cortexMonitorService.notifyDeckSwap();
           return;
@@ -879,67 +793,23 @@ export const App: React.FC = () => {
   }, [deckA.volume, deckB.volume]);
 
   // Ensure the deck is playing REAL discrete stems (not just a volume change).
-  // YouTube decks: swap iframe -> AudioEngine once real audio + stems are ready.
+  // Separate discrete neural stems for active deck
   const prepareStems = async (deckId: DeckId) => {
     if (stemPrepRef.current[deckId]) return;
     const trackId = (deckId === 'A' ? deckA : deckB).track?.id;
     if (!trackId) return;
-    const isYt = youtubeDeckBridge.hasVideo(deckId);
-    let buffer: AudioBuffer | null = null;
-    if (isYt) {
-      const audioState = ytRealAudioRef.current[deckId];
-      if (audioState?.failed) {
-        console.warn(`[Stems] Deck ${deckId}: real audio unavailable — using real-time audio filter fallback.`);
-        return;
-      }
-      buffer = audioState?.buffer || null;
-      if (!buffer) {
-        // Track retry attempts per deck to prevent infinite setTimeout loops
-        if (!stemRetryRef.current) stemRetryRef.current = { A: 0, B: 0 };
-        const retries = stemRetryRef.current[deckId] || 0;
-        if (retries < 3) {
-          stemRetryRef.current[deckId] = retries + 1;
-          if (retries === 0) {
-            console.log(`[Stems] Deck ${deckId}: real audio downloading — stems will activate when ready.`);
-          }
-          setTimeout(() => { void prepareStems(deckId); }, 2000);
-        }
-        return;
-      }
-      if (stemRetryRef.current) stemRetryRef.current[deckId] = 0;
-    } else {
-      buffer = audioEngine.getDeckBuffer(deckId);
-    }
+    const buffer = audioEngine.getDeckBuffer(deckId);
     if (!buffer) return;
-
-    // IMMEDIATE ENGINE TAKEOVER: If currently playing via YouTube IFrame,
-    // take over immediately with AudioEngine so unfiltered IFrame audio stops playing right away!
-    if (isYt && !youtubeDeckBridge.isEngineTakeover(deckId)) {
-      const cachedStems = stemSeparatorService.getCachedStems(trackId);
-      const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
-      audioEngine.loadTrackToDeck(deckId, buffer, cachedStems || undefined);
-      audioEngine.seekDeck(deckId, time);
-      if (wasPlaying) audioEngine.playDeck(deckId, time);
-    }
 
     stemPrepRef.current[deckId] = true;
     try {
       let stems = audioEngine.getDeckStems(deckId);
       if (!stems) {
-        stems = await stemSeparatorService.separateTrack(trackId, buffer);
+        const filePath = youtubeDeckBridge.getTrackFilePath(deckId);
+        stems = await stemSeparatorService.separateTrack(trackId, buffer, undefined, filePath);
       }
-      if (isYt) {
-        if (youtubeDeckBridge.getActiveVideoId(deckId) === null) return;
-        if (!youtubeDeckBridge.isEngineTakeover(deckId)) {
-          const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
-          audioEngine.loadTrackToDeck(deckId, buffer, stems);
-          audioEngine.seekDeck(deckId, time);
-          if (wasPlaying) audioEngine.playDeck(deckId, time);
-        } else {
-          audioEngine.setDeckStems(deckId, stems);
-        }
-      } else if (!audioEngine.getDeckStems(deckId)) {
-        audioEngine.setDeckStems(deckId, stems);
+      if (stems && audioEngine.getDeckBuffer(deckId) === buffer) {
+        audioEngine.handOffToStems(deckId, stems);
       }
     } catch (e) {
       console.warn('[Stems] separation failed:', e);
@@ -1724,7 +1594,7 @@ export const App: React.FC = () => {
           onToggleStreamerHud={() => setIsStreamerHudOpen((prev) => !prev)}
           onToggleSettingsModal={() => setIsSettingsOpen(true)}
           isStreamerHudOpen={isStreamerHudOpen}
-          isCortexOpen={(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && drawerMode !== 'collapsed'}
+          isCortexOpen={bottomDrawerTab === 'cortex' && drawerMode !== 'collapsed'}
           onToggleCortex={handleToggleCortex}
           onOpenPatchModal={() => setIsPatchModalOpen(true)}
           drawerMode={drawerMode}
@@ -1740,7 +1610,7 @@ export const App: React.FC = () => {
       {drawerMode !== 'expanded' && (
         <div
           className={`flex flex-col p-1 sm:p-1.5 space-y-1 sm:space-y-1.5 overflow-hidden relative z-10 min-h-0 ${
-            drawerMode === 'collapsed' ? 'flex-1' : 'h-[58vh] min-h-[385px] shrink-0'
+            drawerMode === 'collapsed' ? 'flex-1' : 'h-[66vh] xl:h-[68vh] min-h-[420px] shrink-0'
           }`}
         >
           {/* Stacked Vertical Waveforms (Rekordbox / Serato Pro mode) */}
@@ -1940,7 +1810,7 @@ export const App: React.FC = () => {
                 if (drawerMode === 'collapsed') setDrawerMode('split');
               }}
               className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                drawerMode !== 'collapsed' && (bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj')
+                drawerMode !== 'collapsed' && bottomDrawerTab === 'cortex'
                   ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 text-purple-300 border border-purple-500/50 shadow-[0_0_14px_rgba(168,85,247,0.4)] font-black'
                   : 'text-slate-400 hover:text-purple-300'
               }`}
@@ -2018,7 +1888,7 @@ export const App: React.FC = () => {
 
             {bottomDrawerTab === 'automix' && <AutomixHud deckA={deckA} deckB={deckB} />}
 
-            {(bottomDrawerTab === 'cortex' || bottomDrawerTab === 'pulsedj') && (
+            {bottomDrawerTab === 'cortex' && (
               <CortexDJCoPilot
                 onLoadTrackToDeck={(deckId, track) => handleLoadTrack(deckId, track)}
                 onPopOutWindow={handlePopOutCortex}

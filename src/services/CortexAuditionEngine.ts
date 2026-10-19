@@ -191,7 +191,3 @@ export class CortexAuditionEngine {
 }
 
 export const cortexAuditionEngine = new CortexAuditionEngine();
-
-// Backwards compatibility alias
-export const pulseAuditionEngine = cortexAuditionEngine;
-export const PulseAuditionEngine = CortexAuditionEngine;

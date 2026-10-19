@@ -601,7 +601,3 @@ export class CortexAiService {
 }
 
 export const cortexAiService = new CortexAiService();
-
-// Backwards compatibility alias
-export const pulseAiService = cortexAiService;
-export const PulseAiService = CortexAiService;

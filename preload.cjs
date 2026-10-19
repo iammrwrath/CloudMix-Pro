@@ -52,7 +52,18 @@ try {
   `);
 } catch {}
 
+contextBridge.exposeInMainWorld('electron', {
+  fetchTrackAudio: (data) => ipcRenderer.invoke('fetch-track-audio', data),
+  separateStemsOnnx: (data) => ipcRenderer.invoke('separate-stems-onnx', data),
+  readAudioFile: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
+});
+
 contextBridge.exposeInMainWorld('desktopAPI', {
+  // Native Stream Extraction & ONNX Stems
+  fetchTrackAudio: (data) => ipcRenderer.invoke('fetch-track-audio', data),
+  separateStemsOnnx: (data) => ipcRenderer.invoke('separate-stems-onnx', data),
+  readAudioFile: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),
+
   // Local File Access & Native Persistent Storage
   getSystemPaths: () => ipcRenderer.invoke('get-system-paths'),
   readLocalAudio: (filePath) => ipcRenderer.invoke('read-local-audio', filePath),

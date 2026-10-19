@@ -357,7 +357,3 @@ export class CortexMonitorService {
 }
 
 export const cortexMonitorService = new CortexMonitorService();
-
-// Backwards compatibility alias
-export const pulseMonitorService = cortexMonitorService;
-export const PulseMonitorService = CortexMonitorService;

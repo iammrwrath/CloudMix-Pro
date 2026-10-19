@@ -182,7 +182,7 @@ export interface RecordingState {
   fileSizeBytes: number;
 }
 
-export type BottomDrawerTab = 'library' | 'fx' | 'sampler' | 'automix' | 'cortex' | 'pulsedj';
+export type BottomDrawerTab = 'library' | 'fx' | 'sampler' | 'automix' | 'cortex';
 
 export interface MixerState {
   crossfader: number; // -1.0 (Deck A) to 0.0 (Center) to 1.0 (Deck B)

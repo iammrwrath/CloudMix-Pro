@@ -41,6 +41,19 @@ class AutoErrorHealingService {
     this.init();
   }
 
+  private isBenignError(msg: string): boolean {
+    if (!msg) return false;
+    return (
+      msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") ||
+      msg.includes('postMessage') ||
+      msg.includes("The target origin provided") ||
+      msg.includes("Unrecognized feature: 'web-share'") ||
+      msg.includes('web-share') ||
+      msg.includes("The powerPreference option is currently ignored") ||
+      msg.includes('powerPreference')
+    );
+  }
+
   public init() {
     if (this.isInitialized || typeof window === 'undefined') return;
     this.isInitialized = true;
@@ -48,8 +61,7 @@ class AutoErrorHealingService {
     // 1. Capture unhandled synchronous exceptions
     window.addEventListener('error', (event) => {
       const msg = event.message || '';
-      // Filter out benign browser warnings emitted when embedded third-party iframe (YouTube) performs postMessage handshake
-      if (msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") || msg.includes('postMessage')) {
+      if (this.isBenignError(msg)) {
         return;
       }
       this.handleError(
@@ -62,7 +74,7 @@ class AutoErrorHealingService {
     window.addEventListener('unhandledrejection', (event) => {
       const reason = event.reason;
       const msg = String(reason?.message || reason || '');
-      if (msg.includes("Failed to execute 'postMessage' on 'DOMWindow'") || msg.includes('postMessage')) {
+      if (this.isBenignError(msg)) {
         return;
       }
       const err = reason instanceof Error ? reason : new Error(String(reason || 'Unhandled Promise Rejection'));
@@ -83,6 +95,9 @@ class AutoErrorHealingService {
   private async handleError(error: Error, context: ErrorContext = {}) {
     try {
       const message = error.message || 'Unknown error occurred';
+      if (this.isBenignError(message)) {
+        return;
+      }
       const stack = error.stack || '';
       const hash = `${message}_${context.component || ''}`;
 

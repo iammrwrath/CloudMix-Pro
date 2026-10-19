@@ -346,8 +346,9 @@ class AudioEngine {
     fxWetNode.connect(crossfaderGain);
     crossfaderGain.connect(this.masterGain);
 
+    // Pre-fader Cue Listen (PFL): Tap signal after EQ & filter strip, before channel volume fader
     if (this.headphoneGain) {
-      channelFader.connect(cueGain);
+      filterHpf.connect(cueGain);
       cueGain.connect(this.headphoneGain);
     }
 
@@ -1550,6 +1551,26 @@ class AudioEngine {
       console.error('[AUDIO ROUTING] Failed to set headphone output device:', err);
       return false;
     }
+  }
+
+  public async setCueOutputDevice(deviceId: string): Promise<boolean> {
+    return this.setHeadphoneOutputDevice(deviceId);
+  }
+
+  public getMasterDestination(): AudioNode | null {
+    return this.masterLimiter || this.masterGain;
+  }
+
+  public getCueDestination(): AudioNode | null {
+    return this.headphoneGain;
+  }
+
+  public getAudioContext(): AudioContext | null {
+    return this.ctx;
+  }
+
+  public get audioCtx(): AudioContext | null {
+    return this.ctx;
   }
 
   public getMasterDeviceId(): string {

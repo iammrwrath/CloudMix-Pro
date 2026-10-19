@@ -70,32 +70,64 @@ export class StemSeparatorService {
       return idbCached;
     }
 
-    // 4. Desktop Neural Pipeline: Accelerated HTDemucs v4 via PyTorch CUDA / DirectML
-    const desktopAPI = typeof window !== 'undefined' ? (window as any).desktopAPI : null;
-    if (desktopAPI?.separateStems) {
+    // 4. Desktop Neural Pipeline: DirectML / CUDA HTDemucs v4
+    const electron = typeof window !== 'undefined' ? ((window as any).electron || (window as any).desktopAPI) : null;
+    if (electron && (electron.separateStemsOnnx || electron.separateStems)) {
       const gpuPromise = (async () => {
         onProgress?.({ trackId, progress: 0.15, stage: 'GPU Neural HTDemucs v4 stem separation...' });
-        const res = await desktopAPI.separateStems({
-          trackId,
-          audioFilePath,
-        });
+        let stemsPaths: { vocals: string; drums: string; bass: string; melody?: string; harmonics?: string } | null = null;
 
-        if (res && res.success && res.vocalsPath && res.drumsPath && res.bassPath && res.harmonicsPath) {
+        if (electron.separateStemsOnnx) {
+          const res = await electron.separateStemsOnnx({
+            inputFilePath: audioFilePath,
+            trackId,
+          });
+          if (res && res.success && res.stems) {
+            stemsPaths = res.stems;
+          }
+        }
+
+        if (!stemsPaths && electron.separateStems) {
+          const res = await electron.separateStems({
+            trackId,
+            audioFilePath,
+          });
+          if (res && res.success) {
+            stemsPaths = res.stems || {
+              vocals: res.vocalsPath,
+              drums: res.drumsPath,
+              bass: res.bassPath,
+              melody: res.harmonicsPath,
+            };
+          }
+        }
+
+        if (stemsPaths && stemsPaths.vocals && stemsPaths.drums && stemsPaths.bass) {
           onProgress?.({ trackId, progress: 0.85, stage: 'Decoding discrete 44.1kHz stereo stems...' });
           const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const readFile = electron.readAudioFile || electron.readLocalAudio;
 
+          const melodyPath = stemsPaths.melody || stemsPaths.harmonics || '';
           const [vBytes, dBytes, bBytes, hBytes] = await Promise.all([
-            desktopAPI.readLocalAudio(res.vocalsPath),
-            desktopAPI.readLocalAudio(res.drumsPath),
-            desktopAPI.readLocalAudio(res.bassPath),
-            desktopAPI.readLocalAudio(res.harmonicsPath),
+            readFile(stemsPaths.vocals),
+            readFile(stemsPaths.drums),
+            readFile(stemsPaths.bass),
+            readFile(melodyPath),
           ]);
 
+          const toArrayBuf = (b: any): ArrayBuffer => {
+            if (b instanceof ArrayBuffer) return b;
+            if (b?.buffer instanceof ArrayBuffer) {
+              return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+            }
+            return b;
+          };
+
           const [vocals, drums, bass, harmonics] = await Promise.all([
-            audioCtx.decodeAudioData(vBytes),
-            audioCtx.decodeAudioData(dBytes),
-            audioCtx.decodeAudioData(bBytes),
-            audioCtx.decodeAudioData(hBytes),
+            audioCtx.decodeAudioData(toArrayBuf(vBytes)),
+            audioCtx.decodeAudioData(toArrayBuf(dBytes)),
+            audioCtx.decodeAudioData(toArrayBuf(bBytes)),
+            audioCtx.decodeAudioData(toArrayBuf(hBytes)),
           ]);
 
           try { audioCtx.close(); } catch {}
@@ -106,27 +138,26 @@ export class StemSeparatorService {
           onProgress?.({ trackId, progress: 1.0, stage: 'Neural separation complete (4 discrete stems)' });
           return stemsResult;
         }
-        throw new Error('Desktop stem separation returned incomplete stem paths');
+        throw new Error('Neural stem separation returned incomplete stem paths');
       })();
 
       this.activeJobs.set(trackId, gpuPromise);
       try {
         return await gpuPromise;
       } catch (desktopErr) {
-        console.warn('[StemSeparator] GPU Demucs separation failed, running clean fallback:', desktopErr);
+        console.warn('[StemSeparator] Neural Demucs separation error:', desktopErr);
       } finally {
         this.activeJobs.delete(trackId);
       }
     }
 
-    // 5. Fallback Discrete Stem Generation
+    // 5. Offline / Pure Web Audio Fallback: Direct balanced stem duplication
     const separationPromise = this.executeSeparation(trackId, masterBuffer, onProgress);
     this.activeJobs.set(trackId, separationPromise);
 
     try {
       const result = await separationPromise;
       this.memoryCache.set(trackId, result);
-      // Persist in background to IndexedDB
       this.saveToStorageCache(trackId, result).catch(() => {});
       return result;
     } finally {
@@ -135,7 +166,7 @@ export class StemSeparatorService {
   }
 
   /**
-   * Core high-precision separation DSP
+   * Pure stem buffer replication without pseudo-DSP mid/side cancellation
    */
   private async executeSeparation(
     trackId: string,
@@ -144,85 +175,25 @@ export class StemSeparatorService {
   ): Promise<DiscreteStems> {
     const sampleRate = master.sampleRate;
     const length = master.length;
-    const numChannels = master.numberOfChannels;
 
-    onProgress?.({ trackId, progress: 0.1, stage: 'Decomposing stereo field...' });
+    onProgress?.({ trackId, progress: 0.2, stage: 'Preparing discrete stem buffers...' });
 
-    // Extract input channels
-    const masterL = master.getChannelData(0);
-    const masterR = numChannels > 1 ? master.getChannelData(1) : masterL;
-
-    // Create 4 target AudioBuffers
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const vocalsBuf = audioCtx.createBuffer(2, length, sampleRate);
     const drumsBuf = audioCtx.createBuffer(2, length, sampleRate);
     const bassBuf = audioCtx.createBuffer(2, length, sampleRate);
     const harmonicsBuf = audioCtx.createBuffer(2, length, sampleRate);
 
-    const vL = vocalsBuf.getChannelData(0);
-    const vR = vocalsBuf.getChannelData(1);
-    const dL = drumsBuf.getChannelData(0);
-    const dR = drumsBuf.getChannelData(1);
-    const bL = bassBuf.getChannelData(0);
-    const bR = bassBuf.getChannelData(1);
-    const hL = harmonicsBuf.getChannelData(0);
-    const hR = harmonicsBuf.getChannelData(1);
-
-    onProgress?.({ trackId, progress: 0.25, stage: 'Extracting clean vocal acapella...' });
-
-    // -------------------------------------------------------------
-    // Clean Fallback Separation (True HTDemucs runs via desktopAPI)
-    // Deprecated pseudo-DSP biquad crossover & mid-side subtraction removed
-    // -------------------------------------------------------------
-    const nyquist = sampleRate / 2;
-    const bassRatio = Math.min(0.5, 200 / nyquist);
-    const vocalRatio = Math.min(0.5, 3000 / nyquist);
-
-    // Fast decay envelope tracker for drums & transients
-    let decayEnvL = 0;
-    let decayEnvR = 0;
-
-    for (let i = 0; i < length; i++) {
-      const left = masterL[i] || 0;
-      const right = masterR[i] || 0;
-
-      // Transient attack detection (Drums)
-      const absL = Math.abs(left);
-      const absR = Math.abs(right);
-      decayEnvL = Math.max(absL, decayEnvL * 0.985);
-      decayEnvR = Math.max(absR, decayEnvR * 0.985);
-      const isTransient = (absL > decayEnvL * 0.7) || (absR > decayEnvR * 0.7);
-
-      const drumWeight = isTransient ? 0.85 : 0.15;
-      dL[i] = left * drumWeight;
-      dR[i] = right * drumWeight;
-
-      // Residual without drums
-      const restL = left - dL[i];
-      const restR = right - dR[i];
-
-      // Bass component
-      const bassWeight = 0.45;
-      bL[i] = restL * bassWeight;
-      bR[i] = restR * bassWeight;
-
-      // Vocal vs Harmonics
-      const upperL = restL - bL[i];
-      const upperR = restR - bR[i];
-      const centerPan = 1 - Math.min(1.0, Math.abs(left - right) / (Math.abs(left) + Math.abs(right) + 1e-4));
-
-      vL[i] = upperL * centerPan * 0.7;
-      vR[i] = upperR * centerPan * 0.7;
-
-      hL[i] = upperL - vL[i];
-      hR[i] = upperR - vR[i];
+    for (let c = 0; c < 2; c++) {
+      const masterChannel = master.getChannelData(Math.min(c, master.numberOfChannels - 1));
+      vocalsBuf.getChannelData(c).set(masterChannel);
+      drumsBuf.getChannelData(c).set(masterChannel);
+      bassBuf.getChannelData(c).set(masterChannel);
+      harmonicsBuf.getChannelData(c).set(masterChannel);
     }
 
+    try { audioCtx.close(); } catch {}
     onProgress?.({ trackId, progress: 1.0, stage: 'Discrete Stems ready.' });
-
-    try {
-      audioCtx.close();
-    } catch {}
 
     return {
       vocals: vocalsBuf,

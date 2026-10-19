@@ -1,22 +1,22 @@
 /**
  * MusicLibraryService
  * Ingests, caches, and indexes the entire music collection including Music.csv (6,257 tracks)
- * and CloudMix Pro IndexedDB tracks for real-time sub-millisecond PulseDJ recommendation querying.
+ * and CloudMix Pro IndexedDB tracks for real-time sub-millisecond Cortex AI recommendation querying.
  */
 
-import { CortexTrack, PulseTrack } from '../types/cortex';
+import { CortexTrack } from '../types/cortex';
 import { cortexAiService } from './CortexAiService';
 import { storageCache } from './StorageCacheService';
 import { TrackMetadata } from '../types/dj';
 import { decodeHtmlEntities } from '../utils/decodeHtml';
 
 export class MusicLibraryService {
-  private tracks: PulseTrack[] = [];
+  private tracks: CortexTrack[] = [];
   private isLoaded: boolean = false;
-  private loadPromise: Promise<PulseTrack[]> | null = null;
-  private listeners: Set<(tracks: PulseTrack[]) => void> = new Set();
+  private loadPromise: Promise<CortexTrack[]> | null = null;
+  private listeners: Set<(tracks: CortexTrack[]) => void> = new Set();
 
-  public async getTracks(): Promise<PulseTrack[]> {
+  public async getTracks(): Promise<CortexTrack[]> {
     if (this.isLoaded) return this.tracks;
     if (this.loadPromise) return this.loadPromise;
 
@@ -24,7 +24,7 @@ export class MusicLibraryService {
     return this.loadPromise;
   }
 
-  public subscribe(listener: (tracks: PulseTrack[]) => void): () => void {
+  public subscribe(listener: (tracks: CortexTrack[]) => void): () => void {
     this.listeners.add(listener);
     if (this.isLoaded) {
       listener([...this.tracks]);
@@ -78,8 +78,8 @@ export class MusicLibraryService {
     return 'Electronic / Club';
   }
 
-  public async initLibrary(): Promise<PulseTrack[]> {
-    const combined: Map<string, PulseTrack> = new Map();
+  public async initLibrary(): Promise<CortexTrack[]> {
+    const combined: Map<string, CortexTrack> = new Map();
 
     // 0. Primary: Direct Algoriddim djay Pro MediaLibrary.db ingestion (6,000+ local tracks with real audio file paths)
     try {
@@ -171,7 +171,7 @@ export class MusicLibraryService {
     return this.tracks;
   }
 
-  public convertPulseToDjTrack(track: PulseTrack): TrackMetadata {
+  public convertPulseToDjTrack(track: CortexTrack): TrackMetadata {
     const cleanTitle = decodeHtmlEntities(track.title);
     const cleanArtist = decodeHtmlEntities(track.artist);
     const cleanAlbum = decodeHtmlEntities(track.album || '');
@@ -205,7 +205,7 @@ export class MusicLibraryService {
    * Scans a local folder for audio files via Electron IPC (scan-directory).
    * Returns tracks with real file:/// URLs.
    */
-  public async scanLocalFolder(dirPath: string): Promise<PulseTrack[]> {
+  public async scanLocalFolder(dirPath: string): Promise<CortexTrack[]> {
     if (!dirPath || !(window as any).desktopAPI?.scanDirectory) return [];
 
     try {
@@ -288,8 +288,8 @@ export class MusicLibraryService {
 
 
   // Fast robust CSV parser for Music.csv format
-  public parseMusicCsv(csvText: string): PulseTrack[] {
-    const results: PulseTrack[] = [];
+  public parseMusicCsv(csvText: string): CortexTrack[] {
+    const results: CortexTrack[] = [];
     const lines = csvText.split(/\r?\n/);
     if (lines.length < 2) return results;
 
@@ -395,7 +395,7 @@ export class MusicLibraryService {
     return fields;
   }
 
-  public convertDjTrackToPulse(track: TrackMetadata): PulseTrack {
+  public convertDjTrackToPulse(track: TrackMetadata): CortexTrack {
     return {
       id: track.id,
       title: decodeHtmlEntities(track.title),
@@ -415,14 +415,14 @@ export class MusicLibraryService {
     };
   }
 
-  public addTrack(track: PulseTrack) {
+  public addTrack(track: CortexTrack) {
     if (!this.tracks.some((t) => t.id === track.id)) {
       this.tracks.unshift(track);
       this.notify();
     }
   }
 
-  private getFallbackDemoTracks(): PulseTrack[] {
+  private getFallbackDemoTracks(): CortexTrack[] {
     return [
       {
         id: 'pulse-demo-1',

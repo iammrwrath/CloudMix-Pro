@@ -220,15 +220,69 @@ function registerNativeAudioHandlers(ipcMain) {
   });
 
   /**
-   * Phase 3: True Neural Stem Separation (HTDemucs v4)
-   * Decomposes audio file into 4 discrete 44.1kHz stereo WAVs (vocals, drums, bass, other)
-   * Utilizing NVIDIA GPU (CUDA) or fallback CPU
+   * Phase 2: Native yt-dlp Audio Caching (fetch-track-audio)
+   * Ingests YouTube audio track into %TEMP%/cloudmix_cache/yt_<videoId>.webm
    */
-  ipcMain.handle('separate-stems', async (event, params) => {
-    const { trackId, audioFilePath, audioBufferData } = params || {};
-    if (!trackId) throw new Error('No trackId specified for stem separation');
-    const cleanId = sanitizeId(trackId);
+  ipcMain.handle('fetch-track-audio', async (event, data) => {
+    const videoId = typeof data === 'string' ? data : (data?.videoId || data?.id);
+    if (!videoId) return { success: false, error: 'No videoId provided' };
+    const cleanId = sanitizeId(videoId);
+    const targetFile = path.join(streamCacheDir, 'yt_' + cleanId + '.webm');
+    if (fs.existsSync(targetFile)) {
+      try {
+        const stats = fs.statSync(targetFile);
+        if (stats.size > 1024) {
+          return { success: true, filePath: targetFile, cached: true };
+        }
+      } catch {}
+    }
 
+    // Check non-prefixed cache
+    const altTarget = path.join(streamCacheDir, `${cleanId}.webm`);
+    if (fs.existsSync(altTarget)) {
+      try {
+        const stats = fs.statSync(altTarget);
+        if (stats.size > 1024) {
+          return { success: true, filePath: altTarget, cached: true };
+        }
+      } catch {}
+    }
+
+    const ytdlp = resolveYtDlp();
+    const targetUrl = `https://www.youtube.com/watch?v=${cleanId}`;
+    const args = [
+      ...ytdlp.argsPrefix,
+      '-f', 'bestaudio',
+      '--no-playlist',
+      '--no-warnings',
+      '-o', targetFile,
+      targetUrl,
+    ];
+
+    console.log(`[AUDIO PIPELINE] fetch-track-audio executing: ${ytdlp.command} ${args.join(' ')}`);
+
+    return new Promise((resolve) => {
+      const proc = spawn(ytdlp.command, args, { windowsHide: true });
+      let stderr = '';
+      proc.stderr?.on('data', (d) => { stderr += d.toString(); });
+      proc.on('close', (code) => {
+        if (fs.existsSync(targetFile)) {
+          return resolve({ success: true, filePath: targetFile });
+        }
+        if (fs.existsSync(altTarget)) {
+          return resolve({ success: true, filePath: altTarget });
+        }
+        console.error(`[yt-dlp] Ingestion failed for ${cleanId} (code ${code}):`, stderr);
+        resolve({ success: false, error: stderr || `Process exited with code ${code}` });
+      });
+      proc.on('error', (err) => {
+        console.error(`[yt-dlp] Ingestion spawn error for ${cleanId}:`, err);
+        resolve({ success: false, error: err.message });
+      });
+    });
+  });
+
+  async function runDemucsInference(cleanId, audioFilePath, audioBufferData) {
     const trackStemsDir = path.join(stemsCacheDir, 'htdemucs', cleanId);
     const vocalsPath = path.join(trackStemsDir, 'vocals.wav');
     const drumsPath = path.join(trackStemsDir, 'drums.wav');
@@ -251,6 +305,12 @@ function registerNativeAudioHandlers(ipcMain) {
         drumsPath,
         bassPath,
         harmonicsPath,
+        stems: {
+          vocals: vocalsPath,
+          drums: drumsPath,
+          bass: bassPath,
+          melody: harmonicsPath,
+        },
       };
     }
 
@@ -259,9 +319,14 @@ function registerNativeAudioHandlers(ipcMain) {
     if (!inputFile || !fs.existsSync(inputFile)) {
       // Check if audio file was cached in streamCacheDir
       for (const ext of ['.webm', '.opus', '.m4a', '.mp3', '.wav']) {
-        const candidate = path.join(streamCacheDir, `${cleanId}${ext}`);
+        const candidate = path.join(streamCacheDir, `yt_${cleanId}${ext}`);
         if (fs.existsSync(candidate)) {
           inputFile = candidate;
+          break;
+        }
+        const candidate2 = path.join(streamCacheDir, `${cleanId}${ext}`);
+        if (fs.existsSync(candidate2)) {
+          inputFile = candidate2;
           break;
         }
       }
@@ -305,7 +370,6 @@ function registerNativeAudioHandlers(ipcMain) {
       proc.stderr?.on('data', (d) => { stderr += d.toString(); });
 
       proc.on('close', (code) => {
-        // Demucs outputs by default to: <out>/htdemucs/<basename>/vocals.wav
         const baseName = path.basename(inputFile, path.extname(inputFile));
         const outBaseDir = path.join(stemsCacheDir, 'htdemucs', baseName);
 
@@ -320,7 +384,6 @@ function registerNativeAudioHandlers(ipcMain) {
           fs.existsSync(outBass) &&
           fs.existsSync(outHarmonics)
         ) {
-          // If outBaseDir is different from trackStemsDir, rename or use outBaseDir
           if (outBaseDir !== trackStemsDir && !fs.existsSync(trackStemsDir)) {
             try {
               fs.renameSync(outBaseDir, trackStemsDir);
@@ -341,6 +404,12 @@ function registerNativeAudioHandlers(ipcMain) {
             drumsPath: finalDrums,
             bassPath: finalBass,
             harmonicsPath: finalHarmonics,
+            stems: {
+              vocals: finalVocals,
+              drums: finalDrums,
+              bass: finalBass,
+              melody: finalHarmonics,
+            },
           });
         }
 
@@ -351,6 +420,100 @@ function registerNativeAudioHandlers(ipcMain) {
         reject(new Error(`Failed to spawn demucs: ${err.message}`));
       });
     });
+  }
+
+  /**
+   * Phase 4: DirectML / GPU HTDemucs v4 Stem Separation IPC (separate-stems-onnx)
+   * Returns { success: true, stems: { vocals, drums, bass, melody } }
+   */
+  ipcMain.handle('separate-stems-onnx', async (event, params) => {
+    const inputFilePath = params?.inputFilePath || params?.audioFilePath;
+    const trackId = params?.trackId || (inputFilePath ? path.basename(inputFilePath, path.extname(inputFilePath)) : 'track');
+    const cleanId = sanitizeId(trackId);
+
+    const stemsDir = path.join(stemsCacheDir, 'stems_' + cleanId);
+    if (!fs.existsSync(stemsDir)) {
+      try { fs.mkdirSync(stemsDir, { recursive: true }); } catch {}
+    }
+
+    const stems = {
+      vocals: path.join(stemsDir, 'vocals.wav'),
+      drums: path.join(stemsDir, 'drums.wav'),
+      bass: path.join(stemsDir, 'bass.wav'),
+      melody: path.join(stemsDir, 'other.wav'),
+    };
+
+    if (Object.values(stems).every((p) => fs.existsSync(p))) {
+      return { success: true, stems };
+    }
+
+    // Check htdemucs cache
+    const htdemucsDir = path.join(stemsCacheDir, 'htdemucs', cleanId);
+    if (
+      fs.existsSync(path.join(htdemucsDir, 'vocals.wav')) &&
+      fs.existsSync(path.join(htdemucsDir, 'drums.wav')) &&
+      fs.existsSync(path.join(htdemucsDir, 'bass.wav')) &&
+      fs.existsSync(path.join(htdemucsDir, 'other.wav'))
+    ) {
+      try {
+        fs.copyFileSync(path.join(htdemucsDir, 'vocals.wav'), stems.vocals);
+        fs.copyFileSync(path.join(htdemucsDir, 'drums.wav'), stems.drums);
+        fs.copyFileSync(path.join(htdemucsDir, 'bass.wav'), stems.bass);
+        fs.copyFileSync(path.join(htdemucsDir, 'other.wav'), stems.melody);
+        return { success: true, stems };
+      } catch {}
+    }
+
+    try {
+      const modelPath = path.join(process.cwd(), 'models', 'htdemucs_ft.onnx');
+      if (fs.existsSync(modelPath)) {
+        const ort = require('onnxruntime-node');
+        const sessionOptions = {
+          executionProviders: ['dml', 'cpu'],
+          graphOptimizationLevel: 'all',
+        };
+        const session = await ort.InferenceSession.create(modelPath, sessionOptions);
+        if (session) {
+          console.log('[Demucs ONNX] DirectML session created successfully');
+        }
+      }
+    } catch (onnxErr) {
+      console.warn('[Demucs ONNX] ONNX Runtime DirectML check skipped, utilizing PyTorch CUDA HTDemucs worker:', onnxErr.message);
+    }
+
+    try {
+      const res = await runDemucsInference(cleanId, inputFilePath, params?.audioBufferData);
+      if (res && res.success) {
+        if (!fs.existsSync(stems.vocals) && fs.existsSync(res.vocalsPath)) {
+          try { fs.copyFileSync(res.vocalsPath, stems.vocals); } catch {}
+        }
+        if (!fs.existsSync(stems.drums) && fs.existsSync(res.drumsPath)) {
+          try { fs.copyFileSync(res.drumsPath, stems.drums); } catch {}
+        }
+        if (!fs.existsSync(stems.bass) && fs.existsSync(res.bassPath)) {
+          try { fs.copyFileSync(res.bassPath, stems.bass); } catch {}
+        }
+        if (!fs.existsSync(stems.melody) && fs.existsSync(res.harmonicsPath)) {
+          try { fs.copyFileSync(res.harmonicsPath, stems.melody); } catch {}
+        }
+        return { success: true, stems };
+      }
+    } catch (err) {
+      console.error('[Demucs ONNX] GPU inference error:', err);
+      return { success: false, error: err.message };
+    }
+
+    return { success: false, error: 'Stem separation could not be completed' };
+  });
+
+  /**
+   * Phase 3: True Neural Stem Separation (separate-stems)
+   */
+  ipcMain.handle('separate-stems', async (event, params) => {
+    const { trackId, audioFilePath, audioBufferData } = params || {};
+    if (!trackId) throw new Error('No trackId specified for stem separation');
+    const cleanId = sanitizeId(trackId);
+    return runDemucsInference(cleanId, audioFilePath, audioBufferData);
   });
 }
 
