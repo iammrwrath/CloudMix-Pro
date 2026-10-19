@@ -193,8 +193,8 @@
         MIXCORTEX <tspan fill="#c084fc">AI</tspan>
       </text>
 
-      <rect x="175" y="8" width="160" height="22" rx="6" fill="#2e1065" stroke="#9333ea" stroke-width="1" />
-      <text x="255" y="23" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="bold" fill="#d8b4fe" text-anchor="middle">
+      <rect x="215" y="8" width="165" height="22" rx="6" fill="#2e1065" stroke="#9333ea" stroke-width="1" />
+      <text x="297" y="23" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="bold" fill="#d8b4fe" text-anchor="middle">
         NEURAL DJ CO-PILOT
       </text>
 
