@@ -187,14 +187,14 @@
     </g>
 
     <!-- Center MixCortex Text Information -->
-    <g transform="translate(106, 14)">
-      <!-- Line 1: Title and Tag -->
-      <text x="0" y="24" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="22" letter-spacing="1.5" fill="#ffffff">
+    <g transform="translate(106, 15)">
+      <!-- Line 1: Title and Tag aligned cleanly together -->
+      <text x="0" y="22" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="20" letter-spacing="1" fill="#ffffff">
         MIXCORTEX <tspan fill="#c084fc">AI</tspan>
       </text>
 
-      <rect x="248" y="8" width="165" height="22" rx="6" fill="#2e1065" stroke="#9333ea" stroke-width="1" />
-      <text x="330" y="23" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="bold" fill="#d8b4fe" text-anchor="middle">
+      <rect x="194" y="6" width="158" height="22" rx="6" fill="#2e1065" stroke="#9333ea" stroke-width="1" />
+      <text x="273" y="21" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" font-weight="bold" fill="#d8b4fe" text-anchor="middle">
         NEURAL DJ CO-PILOT
       </text>
 
