@@ -252,6 +252,7 @@ export const App: React.FC = () => {
     B: undefined,
     C: undefined,
     D: undefined,
+  });
   const stemPrepRef = useRef<Record<string, boolean>>({});
 
   const applyZoom = (factor: number) => {

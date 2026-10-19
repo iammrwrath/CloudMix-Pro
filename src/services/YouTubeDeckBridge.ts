@@ -185,11 +185,17 @@ class YouTubeDeckBridge {
   }
 
   public setVolume(deckId: DeckId, vol: number) {
-    audioEngine.setDeckVolume(deckId, vol);
+    audioEngine.setChannelVolume(deckId, vol);
   }
 
   public reconnect() {
     // No-op: all audio resides natively in Web Audio engine
+  }
+
+  public clearDeck(deckId: DeckId) {
+    this.releaseFromEngine(deckId);
+    this.activeVideoIds.delete(deckId);
+    this.lastFilePaths.delete(deckId);
   }
 
   public releaseFromEngine(deckId: DeckId) {
@@ -197,6 +203,10 @@ class YouTubeDeckBridge {
   }
 
   // 4-Stem Hardware Control Delegation to AudioEngine
+  public setStemGain(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) {
+    audioEngine.setStemGain(deckId, stem, val);
+  }
+
   public toggleStemMute(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'bass' | 'drums') {
     return audioEngine.toggleStemMute(deckId, stem);
   }
