@@ -1,5 +1,6 @@
 import { LyricsLine } from '../types/dj';
 import { BroadcastService } from './BroadcastService';
+import { storageCache } from './StorageCacheService';
 
 interface CachedLyrics {
   artist: string;
@@ -43,6 +44,16 @@ class LyricsService {
       return this.cache.get(key)!.syncedLines;
     }
 
+    // Check persistent disk cache before issuing network requests
+    const diskCacheKey = `lyrics_${key}`;
+    try {
+      const persisted = await storageCache.getSetting<CachedLyrics | null>(diskCacheKey, null);
+      if (persisted && persisted.syncedLines && persisted.syncedLines.length > 0) {
+        this.cache.set(key, persisted);
+        return persisted.syncedLines;
+      }
+    } catch {}
+
     if (this.pendingRequests.has(key)) {
       return this.pendingRequests.get(key)!;
     }
@@ -58,13 +69,15 @@ class LyricsService {
           const json = await proxyRes.json();
           if (json && json.found && json.data) {
             const synced = json.data.syncedLyrics ? BroadcastService.parseLRC(json.data.syncedLyrics) : [];
-            this.cache.set(key, {
+            const cachedItem = {
               artist: targetArtist,
               title: cleanTitle,
               syncedLines: synced,
               plainLyrics: json.data.plainLyrics || '',
               fetchedAt: Date.now(),
-            });
+            };
+            this.cache.set(key, cachedItem);
+            storageCache.setSetting(diskCacheKey, cachedItem).catch(() => {});
             return synced;
           }
         }
@@ -85,13 +98,15 @@ class LyricsService {
             if (firstWithSynced) {
               const parsed = firstWithSynced.syncedLyrics ? BroadcastService.parseLRC(firstWithSynced.syncedLyrics) : [];
               if (parsed.length > 0) {
-                this.cache.set(key, {
+                const cachedItem = {
                   artist: targetArtist,
                   title: cleanTitle,
                   syncedLines: parsed,
                   plainLyrics: firstWithSynced.plainLyrics || '',
                   fetchedAt: Date.now(),
-                });
+                };
+            this.cache.set(key, cachedItem);
+            storageCache.setSetting(diskCacheKey, cachedItem).catch(() => {});
                 return parsed;
               }
             }
@@ -123,13 +138,15 @@ class LyricsService {
               text,
             }));
 
-            this.cache.set(key, {
+            const cachedItem = {
               artist: targetArtist,
               title: cleanTitle,
               syncedLines: timed,
               plainLyrics: geniusRes.lyrics,
               fetchedAt: Date.now(),
-            });
+            };
+            this.cache.set(key, cachedItem);
+            storageCache.setSetting(diskCacheKey, cachedItem).catch(() => {});
             return timed;
           }
         }

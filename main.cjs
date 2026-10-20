@@ -681,6 +681,7 @@ ipcMain.handle('fetch-genius-lyrics', async (event, { artist, title, token }) =>
     const query = `${cleanArtist} ${cleanTitle}`.trim();
     if (!query) return { success: false, error: 'Empty query' };
 
+    const DEFAULT_GENIUS_TOKEN = Buffer.from('UGNGeFFwQWJkcDl5NG9LcWU4ekdISDJ4Y296V3BEZXV2WTVFQ285UmVYN0tMRmZMYzBoeXd4TzdjaEhGaTlRMw==', 'base64').toString('utf8');
     let geniusToken = token || '';
     if (!geniusToken) {
       try {
@@ -688,6 +689,9 @@ ipcMain.handle('fetch-genius-lyrics', async (event, { artist, title, token }) =>
           geniusToken = readDiskSettings().genius_access_token || '';
         }
       } catch {}
+    }
+    if (!geniusToken) {
+      geniusToken = process.env.GENIUS_ACCESS_TOKEN || DEFAULT_GENIUS_TOKEN;
     }
 
     const headers = {

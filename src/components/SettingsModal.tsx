@@ -48,7 +48,7 @@ const YtClientIdInput: React.FC = () => {
     </div>
   );
 };
-/** Self-contained input for Genius Client Access Token */
+/** Self-contained input for Genius Client Access Token (Hybrid Shared + Custom) */
 const GeniusTokenInput: React.FC = () => {
   const [token, setToken] = useState('');
   const [saved, setSaved] = useState(false);
@@ -65,18 +65,31 @@ const GeniusTokenInput: React.FC = () => {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleReset = async () => {
+    setToken('');
+    await storageCache.setSetting('genius_access_token', '');
+    setTestResult('Reset to built-in default engine.');
+    setTimeout(() => setTestResult(null), 3000);
+  };
+
   const testConnection = async () => {
-    if (!token.trim()) return;
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch('https://api.genius.com/search?q=daft+punk', {
-        headers: { Authorization: `Bearer ${token.trim()}` },
-      });
-      if (res.ok) {
-        setTestResult('Verified! Genius API connected successfully.');
+      const desktopAPI = (window as any).desktopAPI;
+      if (desktopAPI?.fetchGeniusLyrics) {
+        const res = await desktopAPI.fetchGeniusLyrics({
+          artist: 'Daft Punk',
+          title: 'One More Time',
+          token: token.trim() || undefined,
+        });
+        if (res && res.success) {
+          setTestResult(token.trim() ? 'Verified! Custom Genius token connected.' : 'Verified! Built-in Genius engine active & operational.');
+        } else {
+          setTestResult(`Notice: ${res?.error || 'Could not verify connection'}`);
+        }
       } else {
-        setTestResult(`Error: HTTP ${res.status} (Check your token)`);
+        setTestResult('Desktop environment detected');
       }
     } catch {
       setTestResult('Network error connecting to Genius API');
@@ -87,30 +100,43 @@ const GeniusTokenInput: React.FC = () => {
 
   return (
     <div className="space-y-2">
+      <div className="flex items-center justify-between text-[11px] font-mono">
+        <span className={token.trim() ? "text-cyan-400 font-semibold" : "text-emerald-400 font-semibold"}>
+          {token.trim() ? "● Custom Dedicated Token Active" : "● Built-in Shared Engine Active (Zero Setup Required)"}
+        </span>
+        {token.trim() && (
+          <button
+            onClick={handleReset}
+            className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer text-[10px]"
+          >
+            Reset to Built-in Default
+          </button>
+        )}
+      </div>
       <div className="flex space-x-1.5 w-full">
         <input
           type="password"
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder="Paste Genius Client Access Token here..."
+          placeholder="Leave empty for built-in default, or paste custom token..."
           className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
         />
         <button
           onClick={save}
           className="px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold hover:bg-amber-500/30 transition-all cursor-pointer shrink-0"
         >
-          {saved ? 'Saved!' : 'Save Token'}
+          {saved ? 'Saved!' : 'Save'}
         </button>
         <button
           onClick={testConnection}
-          disabled={testing || !token.trim()}
+          disabled={testing}
           className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-mono hover:bg-slate-700 transition-all cursor-pointer disabled:opacity-40 shrink-0"
         >
           {testing ? 'Testing...' : 'Test'}
         </button>
       </div>
       {testResult && (
-        <span className={`text-[11px] font-mono block ${testResult.includes('Verified') ? 'text-emerald-400' : 'text-rose-400'}`}>
+        <span className={`text-[11px] font-mono block ${testResult.includes('Verified') ? 'text-emerald-400' : 'text-amber-400'}`}>
           {testResult}
         </span>
       )}
