@@ -263,7 +263,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
       </div>
 
       {/* Center Jog LCD Display HUD */}
-      <div className="relative z-10 w-[56%] h-[56%] min-w-[58px] min-h-[58px] rounded-full bg-slate-950/95 border border-slate-800 flex flex-col items-center justify-center shadow-[0_0_16px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
+      <div className="jog-lcd-hud relative z-10 w-[56%] h-[56%] min-w-[58px] min-h-[58px] rounded-full border flex flex-col items-center justify-center shadow-[0_0_16px_rgba(0,0,0,0.95)] text-center px-1 overflow-hidden">
         {coverArtUrl && (
           <div className="absolute inset-0 opacity-30 rounded-full overflow-hidden pointer-events-none">
             <img src={coverArtUrl} alt="Cover Art" className="w-full h-full object-cover" />
@@ -309,7 +309,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             </span>
 
             {/* Time Elapsed Readout */}
-            <span className="text-[13px] sm:text-[15px] md:text-[16px] font-mono font-semibold text-white tracking-tight mt-0.5 leading-none drop-shadow-md">
+            <span className="jog-time-elapsed text-[13px] sm:text-[15px] md:text-[16px] font-mono font-semibold text-white tracking-tight mt-0.5 leading-none drop-shadow-md">
               {formatTime(currentTime)}
             </span>
 
@@ -325,7 +325,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
             </span>
 
             {/* Live Virtual RPM */}
-            <span className="text-[9px] sm:text-[10px] font-mono font-medium text-slate-400 tracking-wider mt-0.5 hidden xs:inline">
+            <span className="jog-rpm text-[9px] sm:text-[10px] font-mono font-medium text-slate-400 tracking-wider mt-0.5 hidden xs:inline">
               {liveRpm} RPM
             </span>
           </div>

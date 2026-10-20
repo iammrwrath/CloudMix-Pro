@@ -147,8 +147,10 @@
 }
 
 /* ==========================================================================
-   4. STUDIO TITANIUM LIGHT MODE ADAPTATION LAYER
+   4. STUDIO TITANIUM LIGHT MODE ADAPTATION LAYER (WCAG AAA CONTRAST ENGINE)
    ========================================================================== */
+
+/* 4.1 Master Surface Hierarchy */
 [data-theme="light"] .bg-dj-bg {
   background-color: var(--bg-primary) !important;
 }
@@ -161,8 +163,10 @@
 [data-theme="light"] .bg-dj-surface\/90,
 [data-theme="light"] .bg-dj-surface\/95,
 [data-theme="light"] .bg-dj-surface\/80,
+[data-theme="light"] .bg-dj-surface\/75,
 [data-theme="light"] .bg-dj-surface\/70 {
   background-color: var(--surface-elevated) !important;
+  color: var(--text-primary);
 }
 
 [data-theme="light"] .bg-slate-950,
@@ -211,77 +215,109 @@
   color: var(--text-primary);
 }
 
-[data-theme="light"] .bg-slate-800,
-[data-theme="light"] .bg-slate-800\/95,
-[data-theme="light"] .bg-slate-800\/90,
-[data-theme="light"] .bg-slate-800\/80,
-[data-theme="light"] .bg-slate-800\/60,
-[data-theme="light"] .bg-slate-800\/50,
-[data-theme="light"] .bg-slate-800\/40,
-[data-theme="light"] .bg-zinc-800,
-[data-theme="light"] .bg-zinc-800\/90,
-[data-theme="light"] .bg-zinc-800\/80,
-[data-theme="light"] .bg-zinc-800\/60 {
-  background-color: #dde4ee !important;
-  color: var(--text-primary);
+/* 4.2 Inactive Hardware Control Buttons: Crisp Elevated White with Bold Charcoal Text */
+[data-theme="light"] button.bg-slate-800,
+[data-theme="light"] button.bg-slate-800\/90,
+[data-theme="light"] button.bg-slate-800\/80,
+[data-theme="light"] button.bg-slate-800\/60,
+[data-theme="light"] button.bg-slate-800\/50,
+[data-theme="light"] button.bg-slate-800\/40,
+[data-theme="light"] button.bg-slate-700,
+[data-theme="light"] button.bg-slate-700\/80,
+[data-theme="light"] button.bg-slate-700\/60,
+[data-theme="light"] button.bg-slate-600,
+[data-theme="light"] button.bg-zinc-800,
+[data-theme="light"] button.bg-zinc-800\/90,
+[data-theme="light"] button.bg-zinc-700 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
 }
 
-[data-theme="light"] .bg-slate-700,
-[data-theme="light"] .bg-slate-700\/80,
-[data-theme="light"] .bg-slate-700\/60,
-[data-theme="light"] .bg-slate-600,
-[data-theme="light"] .bg-zinc-700 {
-  background-color: #cbd5e1 !important;
-  color: var(--text-primary);
+[data-theme="light"] button.bg-slate-800:hover,
+[data-theme="light"] button.bg-slate-800\/90:hover,
+[data-theme="light"] button.bg-slate-800\/80:hover,
+[data-theme="light"] button.bg-slate-700:hover,
+[data-theme="light"] button.bg-slate-600:hover,
+[data-theme="light"] button.bg-zinc-800:hover,
+[data-theme="light"] button.bg-zinc-700:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #000000 !important;
 }
 
-/* Light mode interactive hover states */
-[data-theme="light"] .hover\:bg-slate-800:hover,
-[data-theme="light"] .hover\:bg-slate-800\/90:hover,
-[data-theme="light"] .hover\:bg-slate-800\/80:hover,
-[data-theme="light"] .hover\:bg-slate-800\/60:hover,
-[data-theme="light"] .hover\:bg-slate-800\/50:hover,
-[data-theme="light"] .hover\:bg-slate-800\/40:hover,
-[data-theme="light"] .hover\:bg-zinc-800:hover,
-[data-theme="light"] .hover\:bg-zinc-900:hover {
-  background-color: #dde4ee !important;
-}
-
-[data-theme="light"] .hover\:bg-slate-700:hover,
-[data-theme="light"] .hover\:bg-slate-700\/80:hover,
-[data-theme="light"] .hover\:bg-slate-600:hover,
-[data-theme="light"] .hover\:bg-zinc-700:hover {
-  background-color: #cbd5e1 !important;
-}
-
-[data-theme="light"] .hover\:text-white:hover {
+[data-theme="light"] button.bg-slate-800 *,
+[data-theme="light"] button.bg-slate-800\/90 *,
+[data-theme="light"] button.bg-slate-800\/80 *,
+[data-theme="light"] button.bg-slate-700 *,
+[data-theme="light"] button.bg-zinc-800 * {
   color: #0f172a !important;
 }
 
-[data-theme="light"] .hover\:border-slate-700:hover,
-[data-theme="light"] .hover\:border-slate-600:hover,
-[data-theme="light"] .hover\:border-slate-500:hover,
-[data-theme="light"] .hover\:border-slate-400:hover,
-[data-theme="light"] .hover\:border-slate-300:hover,
-[data-theme="light"] .hover\:border-zinc-700:hover {
-  border-color: #94a3b8 !important;
+/* Fallback non-button backgrounds */
+[data-theme="light"] div.bg-slate-800,
+[data-theme="light"] div.bg-slate-800\/95,
+[data-theme="light"] div.bg-slate-800\/90,
+[data-theme="light"] div.bg-slate-800\/80,
+[data-theme="light"] span.bg-slate-800,
+[data-theme="light"] span.bg-slate-800\/80 {
+  background-color: #e2e8f0 !important;
+  color: var(--text-primary);
 }
 
-/* Preserve crisp white text on vibrant solid action buttons in light mode */
-[data-theme="light"] .text-white:not(.bg-rose-600):not(.bg-rose-500):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-purple-500):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-amber-500):not(.bg-blue-600):not(.bg-pink-500):not(.bg-teal-500):not([class*="from-pink-"]):not([class*="from-purple-"]):not([class*="from-cyan-"]) {
-  color: var(--text-primary) !important;
+[data-theme="light"] div.bg-slate-700,
+[data-theme="light"] div.bg-slate-700\/80 {
+  background-color: #cbd5e1 !important;
+  color: var(--text-primary);
 }
 
-[data-theme="light"] .bg-rose-600,
-[data-theme="light"] .bg-rose-500,
-[data-theme="light"] .bg-indigo-600,
-[data-theme="light"] .bg-purple-600,
-[data-theme="light"] .bg-purple-500,
-[data-theme="light"] .bg-emerald-600,
-[data-theme="light"] .bg-blue-600,
-[data-theme="light"] .bg-pink-500,
-[data-theme="light"] .bg-teal-500 {
+/* 4.3 Active & Solid Colored Buttons: Preserve Crisp Contrast Text */
+[data-theme="light"] button[class*="from-pink-"],
+[data-theme="light"] button[class*="from-purple-"],
+[data-theme="light"] button[class*="from-cyan-"],
+[data-theme="light"] button.bg-rose-600,
+[data-theme="light"] button.bg-rose-500,
+[data-theme="light"] button.bg-emerald-600,
+[data-theme="light"] button.bg-cyan-600,
+[data-theme="light"] button.bg-purple-600,
+[data-theme="light"] button.bg-purple-500,
+[data-theme="light"] button.bg-indigo-600,
+[data-theme="light"] button.bg-blue-600 {
   color: #ffffff !important;
+}
+
+[data-theme="light"] button[class*="from-pink-"] *,
+[data-theme="light"] button[class*="from-purple-"] *,
+[data-theme="light"] button[class*="from-cyan-"] *,
+[data-theme="light"] button.bg-rose-600 *,
+[data-theme="light"] button.bg-rose-500 *,
+[data-theme="light"] button.bg-emerald-600 *,
+[data-theme="light"] button.bg-cyan-600 *,
+[data-theme="light"] button.bg-purple-600 *,
+[data-theme="light"] button.bg-purple-500 *,
+[data-theme="light"] button.bg-indigo-600 *,
+[data-theme="light"] button.bg-blue-600 * {
+  color: #ffffff !important;
+}
+
+[data-theme="light"] button.bg-emerald-500,
+[data-theme="light"] button.bg-amber-500,
+[data-theme="light"] button.bg-amber-400,
+[data-theme="light"] button.bg-cyan-500 {
+  color: #000000 !important;
+}
+
+[data-theme="light"] button.bg-emerald-500 *,
+[data-theme="light"] button.bg-amber-500 *,
+[data-theme="light"] button.bg-amber-400 *,
+[data-theme="light"] button.bg-cyan-500 * {
+  color: #000000 !important;
+}
+
+/* 4.4 Typography & Text Readability (WCAG AAA High-Contrast Scaling) */
+[data-theme="light"] .text-white:not(.bg-rose-600):not(.bg-rose-500):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-purple-500):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-blue-600):not([class*="from-pink-"]):not([class*="from-purple-"]):not([class*="from-cyan-"]) {
+  color: var(--text-primary) !important;
 }
 
 [data-theme="light"] .text-slate-100,
@@ -297,10 +333,45 @@
 }
 
 [data-theme="light"] .text-slate-400,
+[data-theme="light"] .text-zinc-400 {
+  color: #334155 !important;
+}
+
 [data-theme="light"] .text-slate-500,
-[data-theme="light"] .text-zinc-400,
 [data-theme="light"] .text-zinc-500 {
   color: #475569 !important;
+}
+
+/* 4.5 Hardcoded Neon Accent Classes -> Rich Deep Contrast Colors */
+[data-theme="light"] .text-\[\#00f2fe\] {
+  color: #0284c7 !important;
+}
+[data-theme="light"] .text-\[\#ff007f\] {
+  color: #be123c !important;
+}
+[data-theme="light"] .text-\[\#ffb703\] {
+  color: #b45309 !important;
+}
+[data-theme="light"] .text-\[\#00ff66\] {
+  color: #047857 !important;
+}
+
+[data-theme="light"] .border-\[\#00f2fe\],
+[data-theme="light"] .border-\[\#00f2fe\]\/80 {
+  border-color: #0284c7 !important;
+}
+[data-theme="light"] .border-\[\#ff007f\],
+[data-theme="light"] .border-\[\#ff007f\]\/80 {
+  border-color: #e11d48 !important;
+}
+[data-theme="light"] .border-\[\#ffb703\],
+[data-theme="light"] .border-\[\#ffb703\]\/80 {
+  border-color: #d97706 !important;
+}
+
+[data-theme="light"] .bg-\[\#ffb703\],
+[data-theme="light"] .bg-\[\#ffb703\]\/90 {
+  background-color: #d97706 !important;
 }
 
 [data-theme="light"] .text-cyan-400,
@@ -350,6 +421,7 @@
   color: #c2410c !important;
 }
 
+/* 4.6 Subdued Background Panels */
 [data-theme="light"] .bg-\[\#0b0e14\],
 [data-theme="light"] .bg-\[\#0b0e14\]\/90,
 [data-theme="light"] .bg-\[\#080a0f\],
@@ -360,18 +432,6 @@
 [data-theme="light"] .bg-\[\#0e1219\] {
   background-color: var(--surface) !important;
   color: var(--text-primary);
-}
-
-[data-theme="light"] .bg-black\/85,
-[data-theme="light"] .bg-black\/80,
-[data-theme="light"] .bg-black\/75,
-[data-theme="light"] .bg-black\/70,
-[data-theme="light"] .bg-black\/60,
-[data-theme="light"] .bg-black\/50,
-[data-theme="light"] .bg-black\/40,
-[data-theme="light"] .bg-black\/30,
-[data-theme="light"] .bg-black\/25 {
-  background-color: rgba(226, 232, 240, 0.75) !important;
 }
 
 [data-theme="light"] .bg-cyan-950,
@@ -445,6 +505,7 @@
   border-color: #fdba74 !important;
 }
 
+/* 4.7 Clean Borders */
 [data-theme="light"] .border-dj-border,
 [data-theme="light"] .border-slate-800,
 [data-theme="light"] .border-slate-800\/80,
@@ -461,6 +522,55 @@
 [data-theme="light"] .border-white\/5,
 [data-theme="light"] .border-white\/10 {
   border-color: #cbd5e1 !important;
+}
+
+/* 4.8 Interactive Hover States & Table Rows */
+[data-theme="light"] tr.hover\:bg-slate-800\/80:hover {
+  background-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .hover\:text-white:hover {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .hover\:border-slate-700:hover,
+[data-theme="light"] .hover\:border-slate-600:hover,
+[data-theme="light"] .hover\:border-slate-500:hover,
+[data-theme="light"] .hover\:border-slate-400:hover,
+[data-theme="light"] .hover\:border-slate-300:hover,
+[data-theme="light"] .hover\:border-zinc-700:hover {
+  border-color: #94a3b8 !important;
+}
+
+/* 4.9 Dedicated Dark Display Protection: Waveform Legend & Jog Wheel Center LCD */
+.waveform-screen-legend,
+.waveform-screen-legend *,
+[data-theme="light"] .waveform-screen-legend,
+[data-theme="light"] .waveform-screen-legend * {
+  color: #f8fafc !important;
+  background-color: rgba(6, 8, 14, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.jog-lcd-hud,
+[data-theme="light"] .jog-lcd-hud {
+  background-color: #05070c !important;
+  border-color: #1e293b !important;
+}
+
+.jog-lcd-hud span.jog-time-elapsed,
+[data-theme="light"] .jog-lcd-hud span.jog-time-elapsed {
+  color: #ffffff !important;
+}
+
+.jog-lcd-hud span.jog-time-remaining,
+[data-theme="light"] .jog-lcd-hud span.jog-time-remaining {
+  color: #cbd5e1 !important;
+}
+
+.jog-lcd-hud span.jog-rpm,
+[data-theme="light"] .jog-lcd-hud span.jog-rpm {
+  color: #94a3b8 !important;
 }
 
 /* Custom Scrollbar for Library */
