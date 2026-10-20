@@ -1,3 +1,7 @@
+## v2.0.23
+- **README & Asset Branding Overhaul**:
+  - **Banner Typography & Alignment Refinement**: Fixed typography overlapping and text clipping in `cloudmix-banner.svg`. Aligned the `NEURAL DJ CO-PILOT` pill cleanly beside the `MIXCORTEX AI` title with proportional letter spacing and vertical centering.
+  - **Two-Line Text Wrapping**: Formatted the detailed MixCortex capabilities text into a responsive two-tier layout to prevent badge collisions and ensure crisp rendering across all screen densities.
 ## v2.0.11
 - **Automated UI/UX Layout Auditor & Live DevTools Telemetry Bridge (`UILayoutAuditorService`)**:
   - **Real-Time DOM Geometry & Overlap Scanner**: Automatically audits bounding boxes (`getBoundingClientRect()`) across Header window controls, Decks, Jog Wheels, Waveforms, and Performance Pads on load, resize, theme toggle, and layout changes to detect off-screen/clipped buttons, platter collisions, container overflows, and unescaped HTML entities.
@@ -671,3 +675,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Enforced 1:1 symmetrical circular geometry for jog wheels across all viewport scales.
 - Recursive music directory scanning traversing up to 10 subdirectories deep.
 - RFC 8252 loopback system browser OAuth (127.0.0.1:42813) for YouTube Music sign-in.
+
+

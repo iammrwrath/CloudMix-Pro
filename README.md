@@ -9,7 +9,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-informational.svg)](https://github.com/iammrwrath/CloudMix-Pro/releases)
-[![Version: v2.0.4](https://img.shields.io/badge/Version-v2.0.4-emerald.svg)](https://github.com/iammrwrath/CloudMix-Pro/releases/tag/v2.0.4)
+[![Version: v2.0.23](https://img.shields.io/badge/Version-v2.0.23-emerald.svg)](https://github.com/iammrwrath/CloudMix-Pro/releases/tag/v2.0.23)
 [![Electron](https://img.shields.io/badge/Electron-44.2.0-47848F?logo=electron&logoColor=white)](https://electronjs.org)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
