@@ -227,35 +227,33 @@ function registerNativeAudioHandlers(ipcMain) {
     const videoId = typeof data === 'string' ? data : (data?.videoId || data?.id);
     if (!videoId) return { success: false, error: 'No videoId provided' };
     const cleanId = sanitizeId(videoId);
-    const targetFile = path.join(streamCacheDir, 'yt_' + cleanId + '.webm');
-    if (fs.existsSync(targetFile)) {
-      try {
-        const stats = fs.statSync(targetFile);
-        if (stats.size > 1024) {
-          return { success: true, filePath: targetFile, cached: true };
-        }
-      } catch {}
-    }
+    const audioExts = ['.webm', '.opus', '.m4a', '.mp3', '.ogg'];
 
-    // Check non-prefixed cache
-    const altTarget = path.join(streamCacheDir, `${cleanId}.webm`);
-    if (fs.existsSync(altTarget)) {
-      try {
-        const stats = fs.statSync(altTarget);
-        if (stats.size > 1024) {
-          return { success: true, filePath: altTarget, cached: true };
+    // 1. Fast cache check across common formats
+    for (const prefix of ['yt_', '']) {
+      for (const ext of audioExts) {
+        const candidate = path.join(streamCacheDir, `${prefix}${cleanId}${ext}`);
+        if (fs.existsSync(candidate)) {
+          try {
+            const stats = fs.statSync(candidate);
+            if (stats.size > 1024) {
+              return { success: true, filePath: candidate, cached: true };
+            }
+          } catch {}
         }
-      } catch {}
+      }
     }
 
     const ytdlp = resolveYtDlp();
     const targetUrl = `https://www.youtube.com/watch?v=${cleanId}`;
+    const targetFile = path.join(streamCacheDir, 'yt_' + cleanId + '.webm');
+    const outputTemplate = path.join(streamCacheDir, 'yt_' + cleanId + '.%(ext)s');
     const args = [
       ...ytdlp.argsPrefix,
-      '-f', 'bestaudio',
+      '-f', '251/140/ba/bestaudio',
       '--no-playlist',
       '--no-warnings',
-      '-o', targetFile,
+      '-o', outputTemplate,
       targetUrl,
     ];
 
@@ -266,11 +264,21 @@ function registerNativeAudioHandlers(ipcMain) {
       let stderr = '';
       proc.stderr?.on('data', (d) => { stderr += d.toString(); });
       proc.on('close', (code) => {
+        for (const prefix of ['yt_', '']) {
+          for (const ext of audioExts) {
+            const candidate = path.join(streamCacheDir, `${prefix}${cleanId}${ext}`);
+            if (fs.existsSync(candidate)) {
+              try {
+                const stats = fs.statSync(candidate);
+                if (stats.size > 1024) {
+                  return resolve({ success: true, filePath: candidate });
+                }
+              } catch {}
+            }
+          }
+        }
         if (fs.existsSync(targetFile)) {
           return resolve({ success: true, filePath: targetFile });
-        }
-        if (fs.existsSync(altTarget)) {
-          return resolve({ success: true, filePath: altTarget });
         }
         console.error(`[yt-dlp] Ingestion failed for ${cleanId} (code ${code}):`, stderr);
         resolve({ success: false, error: stderr || `Process exited with code ${code}` });

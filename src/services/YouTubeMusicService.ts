@@ -732,7 +732,69 @@ class YouTubeMusicService {
       return cachedTracks.map((t) => sanitizeTrackMetadata(t));
     }
 
-    // 3. Direct Google YouTube Data API v3 query with API key (instant client execution)
+    // 3. Try OAuth first if token present (guarantees private user playlists and Liked Music work)
+    let oauthToken = await this.getValidAccessToken();
+    if (oauthToken) {
+      try {
+        let res = await fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(playlistId)}&maxResults=50`,
+          { headers: { Authorization: `Bearer ${oauthToken}` } }
+        );
+        if (res.status === 401 && this._refreshToken) {
+          console.log('[YouTube Music] 401 on playlist tracks fetch — auto-refreshing token...');
+          const fresh = await this.refreshAccessToken();
+          if (fresh) {
+            oauthToken = fresh;
+            res = await fetch(
+              `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(playlistId)}&maxResults=50`,
+              { headers: { Authorization: `Bearer ${fresh}` } }
+            );
+          }
+        }
+        if (res.ok) {
+          const data = await res.json();
+          const tracks: TrackMetadata[] = (data.items || []).map((item: any) => {
+            const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
+            const rawTitle = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
+            let title = rawTitle;
+            let artist = decodeHtmlEntities(item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Music');
+            if (rawTitle.includes(' - ')) {
+              const parts = rawTitle.split(' - ');
+              artist = decodeHtmlEntities(parts[0].trim());
+              title = decodeHtmlEntities(parts.slice(1).join(' - ').trim());
+            }
+            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
+            return {
+              id: `yt_${videoId}`,
+              title,
+              artist,
+              genre,
+              duration: 210,
+              bpm: 125.0,
+              key: '8A',
+              camelotKey: '8A',
+              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              fileSource: 'youtube' as const,
+              coverArtUrl: thumbnailUrl,
+              dateAdded: new Date().toISOString(),
+              hotCues: [],
+              savedLoops: [],
+              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
+            };
+          }).filter((t: TrackMetadata) => t.id !== 'yt_' && t.title !== 'Private video' && t.title !== 'Deleted video');
+
+          if (tracks.length > 0) {
+            await storageCache.setSetting(`yt_pl_tracks_${playlistId}`, tracks);
+            return tracks;
+          }
+        }
+      } catch (oauthErr) {
+        console.warn('[YouTube Music] OAuth playlist tracks fetch notice:', oauthErr);
+      }
+    }
+
+    // 4. Direct Google YouTube Data API v3 query with API key (public playlists)
     try {
       const res = await fetch(
         `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(playlistId)}&maxResults=50&key=${YOUTUBE_DATA_API_KEY}`
@@ -781,7 +843,7 @@ class YouTubeMusicService {
       console.warn('[YouTube Music] Direct API track fetch error:', e);
     }
 
-    // 4. Query local streaming server (Port 8088) with Data API key
+    // 5. Query local streaming server (Port 8088)
     try {
       const res = await fetch(`http://127.0.0.1:8088/api/youtube/playlist?id=${encodeURIComponent(playlistId)}`);
       if (res.ok) {
@@ -793,64 +855,6 @@ class YouTubeMusicService {
         }
       }
     } catch {}
-
-    // 5. Try OAuth if token present
-    let oauthToken = await this.getValidAccessToken();
-    if (oauthToken) {
-      try {
-        let res = await fetch(
-          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
-          { headers: { Authorization: `Bearer ${oauthToken}` } }
-        );
-        if (res.status === 401 && this._refreshToken) {
-          console.log('[YouTube Music] 401 on playlist tracks fetch — auto-refreshing token...');
-          const fresh = await this.refreshAccessToken();
-          if (fresh) {
-            oauthToken = fresh;
-            res = await fetch(
-              `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50`,
-              { headers: { Authorization: `Bearer ${fresh}` } }
-            );
-          }
-        }
-        if (res.status === 401) {
-          console.warn('[YouTube Music] OAuth token needs refresh on playlist tracks fetch. Retaining user profile.');
-        } else if (res.ok) {
-          const data = await res.json();
-          const tracks = (data.items || []).map((item: any) => {
-            const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId || '';
-            const title = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
-            const thumbnailUrl = item.snippet?.thumbnails?.medium?.url;
-            let trackTitle = title;
-            let artist = decodeHtmlEntities(item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Music');
-            if (title.includes(' - ')) {
-              const parts = title.split(' - ');
-              artist = decodeHtmlEntities(parts[0].trim());
-              trackTitle = decodeHtmlEntities(parts.slice(1).join(' - ').trim());
-            }
-            const genre = musicLibraryService.detectGenre(trackTitle, artist, undefined, undefined, 125.0);
-            return {
-              id: `yt_${videoId}`,
-              title: trackTitle,
-              artist,
-              genre,
-              duration: 210,
-              bpm: 125.0,
-              key: '8A',
-              camelotKey: '8A',
-              fileUrl: `https://www.youtube.com/watch?v=${videoId}`,
-              fileSource: 'youtube' as const,
-              coverArtUrl: thumbnailUrl,
-              dateAdded: new Date().toISOString(),
-              hotCues: [],
-              savedLoops: [],
-              beatGrid: { bpm: 125.0, firstBeatOffset: 0.0, meter: 4 },
-            };
-          });
-          if (tracks.length > 0) return tracks;
-        }
-      } catch {}
-    }
 
     return this.defaultFeaturedTracks;
   }

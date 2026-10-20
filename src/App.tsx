@@ -253,10 +253,7 @@ export const App: React.FC = () => {
     C: undefined,
     D: undefined,
   });
-  // Real decoded audio (via native fetchTrackAudio or server-side yt-dlp) for YouTube-sourced decks, enabling true stems + real waveforms
-  const ytRealAudioRef = useRef<Record<string, { videoId: string; buffer?: AudioBuffer; failed?: boolean } | undefined>>({});
   const stemPrepRef = useRef<Record<string, boolean>>({});
-  const stemRetryRef = useRef<Record<string, number>>({});
 
   const applyZoom = (factor: number) => {
     lastAppliedZoomRef.current = factor;
@@ -656,128 +653,47 @@ export const App: React.FC = () => {
           const duration = await youtubeDeckBridge.loadVideo(deckId, vidId, track.title, track.artist);
           track.duration = duration || track.duration || 210;
 
-          // Generate silent visual waveform buffer for deck rendering
-          const silentBuffer = audioEngine.generateSilentWaveformBuffer(track.duration, track.bpm || 125);
-          const wf = AudioAnalyzer.extractWaveformData(silentBuffer);
-          audioEngine.loadTrackToDeck(deckId, silentBuffer);
+          const deck = audioEngine.getDeck(deckId);
+          const buf = deck?.audioBuffer;
+          if (buf) {
+            const wf = AudioAnalyzer.extractWaveformData(buf);
+            if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(buf).bpm;
 
-          // Update volume multiplier on YouTube player based on current faders
-          const currentVol = deckId === 'A' ? deckA.volume : deckB.volume;
-          youtubeDeckBridge.setVolume(deckId, currentVol);
-
-          if (deckId === 'A') {
-            setWaveformDataA(wf);
-            setDeckA((prev) => ({
-              ...prev,
-              track,
-              currentTime: 0,
-              duration: track.duration,
-              isPlaying: false,
-              playbackRate: 1.0,
-            }));
-            broadcastService.update({ trackA: track, isPlayingA: false });
-          } else {
-            setWaveformDataB(wf);
-            setDeckB((prev) => ({
-              ...prev,
-              track,
-              currentTime: 0,
-              duration: track.duration,
-              isPlaying: false,
-              playbackRate: 1.0,
-            }));
-            broadcastService.update({ trackB: track, isPlayingB: false });
-          }
-
-          // Background: pull real audio (via native fetchTrackAudio or streaming server /api/youtube/audio)
-          ytRealAudioRef.current[deckId] = undefined;
-          const yid: string = vidId;
-          youtubeDeckBridge.setAudioFetchInFlight(deckId, yid);
-          (async () => {
-            try {
-              let real: AudioBuffer | null = null;
-              let filePath: string | undefined = undefined;
-
-              const electron = typeof window !== 'undefined'
-                ? ((window as any).electron || (window as any).desktopAPI)
-                : null;
-
-              if (electron && electron.fetchTrackAudio) {
-                try {
-                  const res = await electron.fetchTrackAudio({ videoId: yid });
-                  if (res && res.success && res.filePath) {
-                    filePath = res.filePath;
-                    youtubeDeckBridge.setTrackFilePath(deckId, res.filePath);
-                    const readFile = electron.readAudioFile || electron.readLocalAudio;
-                    if (readFile) {
-                      const rawBytes = await readFile(filePath);
-                      const toArrayBuf = (b: any): ArrayBuffer => {
-                        if (b instanceof ArrayBuffer) return b;
-                        if (b?.buffer instanceof ArrayBuffer) {
-                          return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-                        }
-                        return b;
-                      };
-                      real = await audioEngine.decodeAudioData(toArrayBuf(rawBytes));
-                    }
-                  }
-                } catch (e) {
-                  console.warn('[YouTubeAudio] Native fetchTrackAudio warning:', e);
-                }
+            // Proactively separate 4 discrete neural stems in background immediately
+            const filePath = youtubeDeckBridge.getTrackFilePath(deckId);
+            stemSeparatorService.separateTrack(track.id, buf, undefined, filePath).then((stems) => {
+              console.log(`[NeuralStems] 4 discrete stems loaded for Deck ${deckId} (${track.title})`);
+              if (audioEngine.getDeckBuffer(deckId) === buf) {
+                audioEngine.handOffToStems(deckId, stems);
               }
+            }).catch((err) => {
+              console.warn('[NeuralStems] Background stem separation warning:', err);
+            });
 
-              if (!real) {
-                const resp = await fetch(`http://127.0.0.1:8088/api/youtube/audio?id=${yid}`);
-                if (resp.ok && resp.status === 200) {
-                  real = await audioEngine.decodeAudioData(await resp.arrayBuffer());
-                }
-              }
-
-              youtubeDeckBridge.clearAudioFetchInFlight(deckId);
-
-              if (!real) {
-                if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
-                  ytRealAudioRef.current[deckId] = { videoId: yid, failed: true };
-                }
-                return;
-              }
-
-              if (youtubeDeckBridge.getActiveVideoId(deckId) !== yid) return;
-              ytRealAudioRef.current[deckId] = { videoId: yid, buffer: real };
-              const realWf = AudioAnalyzer.extractWaveformData(real);
-              if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(real).bpm;
-              if (deckId === 'A') setWaveformDataA(realWf); else setWaveformDataB(realWf);
-
-              // Seamless AudioEngine Takeover: Once real audio is decoded, immediately hand off
-              if (youtubeDeckBridge.getActiveVideoId(deckId) === yid && !youtubeDeckBridge.isEngineTakeover(deckId)) {
-                const isPlaying = deckId === 'A' ? deckA.isPlaying : deckB.isPlaying;
-                const ytTime = youtubeDeckBridge.getCurrentTime(deckId);
-                const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
-                const playTime = ytTime > 0 ? ytTime : time;
-                audioEngine.loadTrackToDeck(deckId, real);
-                audioEngine.seekDeck(deckId, playTime);
-                if (wasPlaying || isPlaying) {
-                  audioEngine.playDeck(deckId, playTime);
-                }
-                console.log(`[YouTubeAudio] Seamless handoff to Web Audio DSP engine complete for Deck ${deckId} at ${playTime.toFixed(2)}s`);
-              }
-
-              // Pre-calculate stems in the background
-              const trackId = track.id;
-              stemSeparatorService.separateTrack(trackId, real, undefined, filePath).then((stems) => {
-                console.log(`[YouTubeAudio] Discrete stems pre-computed for Deck ${deckId} (${track.title})`);
-                if (youtubeDeckBridge.isEngineTakeover(deckId)) {
-                  audioEngine.setDeckStems(deckId, stems);
-                }
-              }).catch(() => {});
-            } catch (e) {
-              console.warn('[YouTubeAudio] Real audio extraction deferred or unavailable:', e);
-              if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
-                ytRealAudioRef.current[deckId] = { videoId: yid, failed: true };
-              }
+            if (deckId === 'A') {
+              setWaveformDataA(wf);
+              setDeckA((prev) => ({
+                ...prev,
+                track,
+                currentTime: 0,
+                duration: buf.duration,
+                isPlaying: false,
+                playbackRate: 1.0,
+              }));
+              broadcastService.update({ trackA: track, isPlayingA: false });
+            } else {
+              setWaveformDataB(wf);
+              setDeckB((prev) => ({
+                ...prev,
+                track,
+                currentTime: 0,
+                duration: buf.duration,
+                isPlaying: false,
+                playbackRate: 1.0,
+              }));
+              broadcastService.update({ trackB: track, isPlayingB: false });
             }
-          })();
-
+          }
           cortexMonitorService.notifyDeckSwap();
           return;
         }
@@ -901,49 +817,13 @@ export const App: React.FC = () => {
     }
   }, [deckA.volume, deckB.volume]);
 
-  // Ensure the deck is playing REAL discrete stems (not just a volume change).
-  // YouTube decks: swap iframe -> AudioEngine once real audio + stems are ready.
+  // Separate discrete neural stems for active deck
   const prepareStems = async (deckId: DeckId) => {
     if (stemPrepRef.current[deckId]) return;
     const trackId = (deckId === 'A' ? deckA : deckB).track?.id;
     if (!trackId) return;
-    const isYt = youtubeDeckBridge.hasVideo(deckId);
-    let buffer: AudioBuffer | null = null;
-    if (isYt) {
-      const audioState = ytRealAudioRef.current[deckId];
-      if (audioState?.failed) {
-        console.warn(`[Stems] Deck ${deckId}: real audio unavailable — using real-time audio filter fallback.`);
-        return;
-      }
-      buffer = audioState?.buffer || null;
-      if (!buffer) {
-        // Track retry attempts per deck to prevent infinite setTimeout loops
-        if (!stemRetryRef.current) stemRetryRef.current = { A: 0, B: 0 };
-        const retries = stemRetryRef.current[deckId] || 0;
-        if (retries < 3) {
-          stemRetryRef.current[deckId] = retries + 1;
-          if (retries === 0) {
-            console.log(`[Stems] Deck ${deckId}: real audio downloading — stems will activate when ready.`);
-          }
-          setTimeout(() => { void prepareStems(deckId); }, 2000);
-        }
-        return;
-      }
-      if (stemRetryRef.current) stemRetryRef.current[deckId] = 0;
-    } else {
-      buffer = audioEngine.getDeckBuffer(deckId);
-    }
+    const buffer = audioEngine.getDeckBuffer(deckId);
     if (!buffer) return;
-
-    // IMMEDIATE ENGINE TAKEOVER: If currently playing via YouTube IFrame,
-    // take over immediately with AudioEngine so unfiltered IFrame audio stops playing right away!
-    if (isYt && !youtubeDeckBridge.isEngineTakeover(deckId)) {
-      const cachedStems = stemSeparatorService.getCachedStems(trackId);
-      const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
-      audioEngine.loadTrackToDeck(deckId, buffer, cachedStems || undefined);
-      audioEngine.seekDeck(deckId, time);
-      if (wasPlaying) audioEngine.playDeck(deckId, time);
-    }
 
     stemPrepRef.current[deckId] = true;
     try {
@@ -952,18 +832,8 @@ export const App: React.FC = () => {
         const filePath = youtubeDeckBridge.getTrackFilePath(deckId);
         stems = await stemSeparatorService.separateTrack(trackId, buffer, undefined, filePath);
       }
-      if (isYt) {
-        if (youtubeDeckBridge.getActiveVideoId(deckId) === null) return;
-        if (!youtubeDeckBridge.isEngineTakeover(deckId)) {
-          const { time, wasPlaying } = youtubeDeckBridge.handOffToEngine(deckId);
-          audioEngine.loadTrackToDeck(deckId, buffer, stems);
-          audioEngine.seekDeck(deckId, time);
-          if (wasPlaying) audioEngine.playDeck(deckId, time);
-        } else {
-          audioEngine.setDeckStems(deckId, stems);
-        }
-      } else if (!audioEngine.getDeckStems(deckId)) {
-        audioEngine.setDeckStems(deckId, stems);
+      if (stems && audioEngine.getDeckBuffer(deckId) === buffer) {
+        audioEngine.handOffToStems(deckId, stems);
       }
     } catch (e) {
       console.warn('[Stems] separation failed:', e);
