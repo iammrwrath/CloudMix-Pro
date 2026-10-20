@@ -23,6 +23,28 @@ const YOUTUBE_DATA_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
 // Pre-configured official Google Cloud OAuth Client ID for CloudMix Pro (Baked in permanently)
 const DEFAULT_GOOGLE_CLIENT_ID = "471913746603-ao2ov3tkf3ctlpl6hdfq52a4t6il0sa5.apps.googleusercontent.com";
 
+function generatePKCEVerifier(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const array = new Uint8Array(64);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+  }
+  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
+}
+
+async function generatePKCEChallenge(verifier: string): Promise<string> {
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await window.crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+  return verifier;
+}
+
 class YouTubeMusicService {
   private _accessToken: string | null = null;
 
@@ -183,28 +205,6 @@ class YouTubeMusicService {
    * Opens Google OAuth 2.0 loopback flow to sign the user into YouTube Music.
    * Requests offline access (code flow) to obtain a permanent refresh_token alongside the access_token.
    */
-function generatePKCEVerifier(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  const array = new Uint8Array(64);
-  if (typeof window !== 'undefined' && window.crypto) {
-    window.crypto.getRandomValues(array);
-  }
-  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
-}
-
-async function generatePKCEChallenge(verifier: string): Promise<string> {
-  if (typeof window !== 'undefined' && window.crypto?.subtle) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const digest = await window.crypto.subtle.digest('SHA-256', data);
-    return btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-  }
-  return verifier;
-}
-
   public async signIn(): Promise<void> {
     const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
     const CLIENT_ID = userClientId.trim() || DEFAULT_GOOGLE_CLIENT_ID;
