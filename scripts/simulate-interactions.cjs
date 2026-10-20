@@ -179,7 +179,7 @@ async function runComprehensiveSimulation() {
   assert(autoHealingCode.includes('applySelfHealingWorkaround'), 'Self-Healing runtime recovery', 'Executes live recovery workarounds for audio, midi and streaming subsystems');
 
   // Genius Lyrics & Persistent OAuth Refresh
-  assert(ytServiceCode.includes('generatePKCEVerifier') && ytServiceCode.includes('code_challenge'), 'YouTube OAuth PKCE & Refresh Token Flow', 'Permanent refresh token retrieval without session wipes');
+  assert(ytServiceCode.includes('response_type=token') && ytServiceCode.includes('yt_oauth_token'), 'YouTube OAuth Session Persistence', 'Direct OAuth authentication without token wipe');
   assert(libraryCode.includes('handleLoadYtPlaylists(true)'), 'Live Playlist Force Refresh', 'Sidebar refresh icon triggers live YouTube API query');
   assert(mainCode.includes('fetch-genius-lyrics'), 'Genius.com Native Lyrics Resolver', 'Main process queries Genius search API & extracts clean lyrics');
   const lyricsServicePath = path.join(__dirname, '..', 'src', 'services', 'LyricsService.ts');

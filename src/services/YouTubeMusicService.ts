@@ -23,28 +23,6 @@ const YOUTUBE_DATA_API_KEY = "AIzaSyBnnMkAZZtrlF4qCFBKilsjUu_zKeXcfKQ";
 // Pre-configured official Google Cloud OAuth Client ID for CloudMix Pro (Baked in permanently)
 const DEFAULT_GOOGLE_CLIENT_ID = "471913746603-ao2ov3tkf3ctlpl6hdfq52a4t6il0sa5.apps.googleusercontent.com";
 
-function generatePKCEVerifier(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  const array = new Uint8Array(64);
-  if (typeof window !== 'undefined' && window.crypto) {
-    window.crypto.getRandomValues(array);
-  }
-  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
-}
-
-async function generatePKCEChallenge(verifier: string): Promise<string> {
-  if (typeof window !== 'undefined' && window.crypto?.subtle) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const digest = await window.crypto.subtle.digest('SHA-256', data);
-    return btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-  }
-  return verifier;
-}
-
 class YouTubeMusicService {
   private _accessToken: string | null = null;
 
@@ -203,7 +181,7 @@ class YouTubeMusicService {
 
   /**
    * Opens Google OAuth 2.0 loopback flow to sign the user into YouTube Music.
-   * Requests offline access (code flow) to obtain a permanent refresh_token alongside the access_token.
+   * Uses implicit grant (response_type=token) for client-side OAuth without requiring a client_secret.
    */
   public async signIn(): Promise<void> {
     const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
@@ -214,22 +192,13 @@ class YouTubeMusicService {
       'https://www.googleapis.com/auth/userinfo.email',
     ].join(' ');
 
-    const codeVerifier = generatePKCEVerifier();
-    let codeChallenge = codeVerifier;
-    try {
-      codeChallenge = await generatePKCEChallenge(codeVerifier);
-    } catch {}
-
-    // Request offline access with PKCE authorization code grant to obtain permanent refresh_token
+    // Use implicit grant token response so public desktop apps authenticate directly without client_secret
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth` +
       `?client_id=${encodeURIComponent(CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=code` +
-      `&access_type=offline` +
-      `&prompt=consent select_account` +
-      `&code_challenge=${encodeURIComponent(codeChallenge)}` +
-      `&code_challenge_method=S256` +
+      `&response_type=token` +
+      `&prompt=select_account` +
       `&scope=${encodeURIComponent(SCOPES)}`;
 
     const desktopAPI = (window as any).desktopAPI;
@@ -237,7 +206,6 @@ class YouTubeMusicService {
       const result: any = await desktopAPI.openOAuthWindow(authUrl);
       if (result) {
         let accessToken: string | null = null;
-        let refreshToken: string | null = null;
 
         if (typeof result === 'string') {
           accessToken = result;
@@ -245,41 +213,10 @@ class YouTubeMusicService {
           accessToken = result.token;
         }
 
-        // If authorization code was returned, exchange it for tokens
-        if (result.code) {
-          try {
-            console.log('[YouTube Music] Exchanging authorization code for permanent refresh token...');
-            const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                code: result.code,
-                client_id: CLIENT_ID,
-                redirect_uri: REDIRECT_URI,
-                grant_type: 'authorization_code',
-                code_verifier: codeVerifier,
-              }),
-            });
-            if (tokenRes.ok) {
-              const tokenData = await tokenRes.json();
-              accessToken = tokenData.access_token || accessToken;
-              refreshToken = tokenData.refresh_token || null;
-            } else {
-              console.warn('[YouTube Music] Code exchange notice:', await tokenRes.text());
-            }
-          } catch (exErr) {
-            console.warn('[YouTube Music] Code exchange fetch error:', exErr);
-          }
-        }
-
         if (accessToken) {
           this._accessToken = accessToken;
           await storageCache.setSetting('yt_oauth_token', accessToken);
           this._fetchUserEmail(accessToken);
-        }
-        if (refreshToken) {
-          this._refreshToken = refreshToken;
-          await storageCache.setSetting('yt_refresh_token', refreshToken);
         }
       }
       return;
@@ -831,7 +768,10 @@ class YouTubeMusicService {
       const res = await fetch(
         `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(playlistId)}&maxResults=50&key=${YOUTUBE_DATA_API_KEY}`
       );
-      if (res.ok) {
+      if (res.status === 404) {
+        // Benign notice: playlist was deleted on YouTube, remove from memory
+        console.info(`[YouTube Music] Playlist "${playlistId}" is no longer available on YouTube.`);
+      } else if (res.ok) {
         const data = await res.json();
         const tracks: TrackMetadata[] = (data.items || [])
           .map((item: any) => {
