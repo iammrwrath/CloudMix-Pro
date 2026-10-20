@@ -27,10 +27,10 @@
     ]
   },
   "nsis": {
-    "oneClick": false,
+    "oneClick": true,
     "perMachine": false,
     "allowElevation": true,
-    "allowToChangeInstallationDirectory": true,
+    "allowToChangeInstallationDirectory": false,
     "createDesktopShortcut": "always",
     "createStartMenuShortcut": true,
     "shortcutName": "MixCortex AI",

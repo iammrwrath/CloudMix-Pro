@@ -1616,9 +1616,9 @@ ipcMain.handle('restart-and-install-patch', async () => {
   if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
     log('Launching downloaded setup executable: ' + downloadedInstallerPath);
     try {
-      // Write batch script to temp directory that runs installer silently and restarts the app
+      // Write batch script to temp directory with robust process watchdog
       const batPath = path.join(os.tmpdir(), 'cloudmix_patch_relaunch.bat');
-      const batContent = `@echo off\r\ntimeout /t 2 /nobreak >nul\r\nstart /wait "" "${downloadedInstallerPath}" /S\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\n(goto) 2>nul & del "%~f0"\r\n`;
+      const batContent = `@echo off\r\nsetlocal enabledelayedexpansion\r\ntimeout /t 1 /nobreak >nul\r\ntaskkill /F /IM "CloudMix Pro.exe" >nul 2>&1\r\ntimeout /t 1 /nobreak >nul\r\nstart /wait "" "${downloadedInstallerPath}" /S\r\ntimeout /t 3 /nobreak >nul\r\n:WAIT_FOR_INSTALLER\r\nset STILL_RUNNING=0\r\ntasklist /FI "IMAGENAME eq CloudMix-Pro-Setup*" 2>nul | find /I "CloudMix-Pro-Setup" >nul\r\nif not errorlevel 1 set STILL_RUNNING=1\r\ntasklist /FI "IMAGENAME eq installer.exe" 2>nul | find /I "installer.exe" >nul\r\nif not errorlevel 1 set STILL_RUNNING=1\r\ntasklist /FI "IMAGENAME eq Au_.exe" 2>nul | find /I "Au_.exe" >nul\r\nif not errorlevel 1 set STILL_RUNNING=1\r\nif "!STILL_RUNNING!"=="1" (\r\n    timeout /t 2 /nobreak >nul\r\n    goto WAIT_FOR_INSTALLER\r\n)\r\ntimeout /t 2 /nobreak >nul\r\nif exist "${currentExe}" (\r\n    start "" "${currentExe}"\r\n) else (\r\n    start "" "%LOCALAPPDATA%\\Programs\\CloudMix Pro\\CloudMix Pro.exe"\r\n)\r\ntimeout /t 3 /nobreak >nul\r\ntasklist /FI "IMAGENAME eq CloudMix Pro.exe" 2>nul | find /I "CloudMix Pro.exe" >nul\r\nif errorlevel 1 (\r\n    start "" "%LOCALAPPDATA%\\Programs\\CloudMix Pro\\CloudMix Pro.exe"\r\n)\r\n(goto) 2>nul & del "%~f0"\r\n`;
       fs.writeFileSync(batPath, batContent, 'utf8');
 
       // Launch completely hidden in background via native cmd.exe without flashing window
@@ -1644,7 +1644,7 @@ ipcMain.handle('restart-and-install-patch', async () => {
     try {
       log('[RELAUNCH] Launching companion watchdog to guarantee app relaunch after quitAndInstall...');
       const batPath = path.join(os.tmpdir(), 'cloudmix_patch_relaunch.bat');
-      const batContent = `@echo off\r\ntimeout /t 3 /nobreak >nul\r\n:WAIT_LOOP\r\ntasklist /FI "IMAGENAME eq CloudMix-Pro-Setup.exe" 2>nul | find /I "CloudMix-Pro-Setup.exe" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto WAIT_LOOP\r\n)\r\ntasklist /FI "IMAGENAME eq installer.exe" 2>nul | find /I "installer.exe" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto WAIT_LOOP\r\n)\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\n(goto) 2>nul & del "%~f0"\r\n`;
+      const batContent = `@echo off\r\nsetlocal enabledelayedexpansion\r\ntimeout /t 3 /nobreak >nul\r\n:WAIT_FOR_INSTALLER\r\nset STILL_RUNNING=0\r\ntasklist /FI "IMAGENAME eq CloudMix-Pro-Setup*" 2>nul | find /I "CloudMix-Pro-Setup" >nul\r\nif not errorlevel 1 set STILL_RUNNING=1\r\ntasklist /FI "IMAGENAME eq installer.exe" 2>nul | find /I "installer.exe" >nul\r\nif not errorlevel 1 set STILL_RUNNING=1\r\ntasklist /FI "IMAGENAME eq Au_.exe" 2>nul | find /I "Au_.exe" >nul\r\nif not errorlevel 1 set STILL_RUNNING=1\r\nif "!STILL_RUNNING!"=="1" (\r\n    timeout /t 2 /nobreak >nul\r\n    goto WAIT_FOR_INSTALLER\r\n)\r\ntimeout /t 2 /nobreak >nul\r\nif exist "${currentExe}" (\r\n    start "" "${currentExe}"\r\n) else (\r\n    start "" "%LOCALAPPDATA%\\Programs\\CloudMix Pro\\CloudMix Pro.exe"\r\n)\r\ntimeout /t 3 /nobreak >nul\r\ntasklist /FI "IMAGENAME eq CloudMix Pro.exe" 2>nul | find /I "CloudMix Pro.exe" >nul\r\nif errorlevel 1 (\r\n    start "" "%LOCALAPPDATA%\\Programs\\CloudMix Pro\\CloudMix Pro.exe"\r\n)\r\n(goto) 2>nul & del "%~f0"\r\n`;
       fs.writeFileSync(batPath, batContent, 'utf8');
 
       const child = spawn('cmd.exe', ['/c', batPath], {
