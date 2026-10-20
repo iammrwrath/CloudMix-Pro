@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Cloud, HardDrive, Check, X, Shield, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings, Loader2 } from 'lucide-react';
+import { Cloud, HardDrive, Check, X, Shield, BookOpen, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings, Loader2 } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
@@ -577,6 +577,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                   <div className="bg-blue-950/20 border border-blue-800/40 rounded-xl p-3 text-xs text-blue-300 flex items-start space-x-2">
                     <Shield className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                     <span>Press <kbd className="bg-slate-800 px-1 py-0.5 rounded border border-slate-700 text-white font-mono">?</kbd> anywhere in CloudMix Pro to view full keyboard and controller mappings.</span>
+                  </div>
+
+                  <div className="bg-cyan-950/20 border border-cyan-800/40 rounded-xl p-3 text-xs text-cyan-300 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <BookOpen className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>Press <kbd className="bg-slate-800 px-1 py-0.5 rounded border border-slate-700 text-white font-mono">F1</kbd> to open the built-in CloudMix Pro User Guide & Technical Manual.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && (window as any).desktopAPI?.shellOpenExternal) {
+                          (window as any).desktopAPI.shellOpenExternal('https://github.com/iammrwrath/CloudMix-Pro/blob/main/docs/USER_GUIDE.md');
+                        } else {
+                          window.open('https://github.com/iammrwrath/CloudMix-Pro/blob/main/docs/USER_GUIDE.md', '_blank');
+                        }
+                      }}
+                      className="text-cyan-400 hover:text-white underline font-mono text-[11px] cursor-pointer shrink-0 ml-2"
+                    >
+                      GitHub Docs ↗
+                    </button>
                   </div>
                 </div>
               )}

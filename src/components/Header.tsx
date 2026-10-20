@@ -58,6 +58,7 @@ interface HeaderProps {
   onUiZoomChange?: (zoom: number) => void;
   themeMode?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  onToggleUserGuide?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -85,6 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
   onUiZoomChange,
   themeMode = 'dark',
   onToggleTheme,
+  onToggleUserGuide,
 }) => {
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [quantize, setQuantize] = useState(true);
@@ -475,6 +477,16 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
           )}
+
+          {/* User Guide & Manual (F1) */}
+          <button
+            onClick={onToggleUserGuide}
+            title="CloudMix Pro User Guide & Manual (F1)"
+            className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-800 transition-colors cursor-pointer flex items-center space-x-1"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline text-[11px] font-mono font-bold">GUIDE</span>
+          </button>
 
           {/* Keyboard Shortcuts Help Button */}
           <button

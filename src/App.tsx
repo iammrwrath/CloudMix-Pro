@@ -33,6 +33,7 @@ import { VerticalWaveforms } from './components/VerticalWaveforms';
 import { SamplerBank } from './components/SamplerBank';
 import { AutomixHud } from './components/AutomixHud';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { UserGuideModal } from './components/UserGuideModal';
 import { StreamerOverlay } from './components/StreamerOverlay';
 import { MidiModal } from './components/MidiModal';
 import { DjayImportModal } from './components/DjayImportModal';
@@ -241,6 +242,7 @@ export const App: React.FC = () => {
     setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
   const [isKeyboardModalOpen, setIsKeyboardModalOpen] = useState(false);
+  const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isAutomixActive, setIsAutomixActive] = useState(false);
@@ -1535,6 +1537,12 @@ export const App: React.FC = () => {
         setLayoutMode((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'));
       }
 
+      // Official CloudMix Pro User Guide / Manual: F1
+      else if (e.key === 'F1') {
+        e.preventDefault();
+        setIsUserGuideOpen((prev) => !prev);
+      }
+
       // Help / Keyboard Shortcuts Modal: ? or Shift+/
       else if (e.key === '?' || (e.shiftKey && key === '/')) {
         e.preventDefault();
@@ -1613,6 +1621,7 @@ export const App: React.FC = () => {
           onToggleRecording={handleToggleRecording}
           isAutomixActive={isAutomixActive}
           onToggleAutomix={() => automixService.toggleAutomix(deckA, deckB)}
+          onToggleUserGuide={() => setIsUserGuideOpen((prev) => !prev)}
           onToggleKeyboardModal={() => setIsKeyboardModalOpen((prev) => !prev)}
           onToggleMidiModal={() => setIsMidiModalOpen(true)}
           onToggleStreamerHud={() => setIsStreamerHudOpen((prev) => !prev)}
@@ -1952,6 +1961,12 @@ export const App: React.FC = () => {
 
       {/* GitHub In-App Patch Downloader Modal */}
       {isPatchModalOpen && <PatchUpdateModal onClose={() => setIsPatchModalOpen(false)} />}
+
+      {/* Official Built-In User Guide Modal (Integrated with GitHub) */}
+      <UserGuideModal
+        isOpen={isUserGuideOpen}
+        onClose={() => setIsUserGuideOpen(false)}
+      />
 
       {/* 5. Keyboard Shortcuts Reference Cheat Sheet Modal */}
       <KeyboardShortcutsModal

@@ -186,6 +186,17 @@ async function runComprehensiveSimulation() {
   const lyricsServiceCode = fs.readFileSync(lyricsServicePath, 'utf8');
   assert(lyricsServiceCode.includes('fetchGeniusLyrics'), 'LyricsService Genius Fallback', 'High-accuracy fallback for newly released songs');
 
+  // Built-In User Guide & GitHub Documentation Integration
+  const guideDocPath = path.join(__dirname, '..', 'docs', 'USER_GUIDE.md');
+  assert(fs.existsSync(guideDocPath) && fs.readFileSync(guideDocPath, 'utf8').length > 1000, 'GitHub Markdown User Guide', 'Full technical manual present in docs/USER_GUIDE.md');
+  const userGuideCompPath = path.join(__dirname, '..', 'src', 'components', 'UserGuideModal.tsx');
+  const userGuideCompCode = fs.readFileSync(userGuideCompPath, 'utf8');
+  assert(userGuideCompCode.includes('handleSyncWithGitHub') && userGuideCompCode.includes('github.com/iammrwrath/CloudMix-Pro'), 'Built-In User Guide GitHub Sync', 'Live GitHub sync & issue links operational');
+  const headerPath = path.join(__dirname, '..', 'src', 'components', 'Header.tsx');
+  const headerCode = fs.readFileSync(headerPath, 'utf8');
+  assert(headerCode.includes('onToggleUserGuide') && headerCode.includes('GUIDE'), 'Header User Guide Button', 'Dedicated Guide icon and label present in header');
+  assert(appCode.includes('UserGuideModal') && appCode.includes("e.key === 'F1'"), 'User Guide Modal Hotkey (F1)', 'F1 hotkey and modal container mounted in App');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');
