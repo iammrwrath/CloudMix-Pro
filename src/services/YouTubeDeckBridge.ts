@@ -52,6 +52,19 @@ class YouTubeDeckBridge {
   private failedVideoIds: Map<DeckId, Set<string>> = new Map([['A', new Set()], ['B', new Set()]]);
   private failoverAttempts: Map<DeckId, number> = new Map([['A', 0], ['B', 0]]);
   private failoverInFlight: Map<DeckId, boolean> = new Map([['A', false], ['B', false]]);
+  private audioFetchInFlight: Map<DeckId, string> = new Map();
+
+  public setAudioFetchInFlight(deckId: DeckId, videoId: string) {
+    this.audioFetchInFlight.set(deckId, videoId);
+  }
+
+  public clearAudioFetchInFlight(deckId: DeckId) {
+    this.audioFetchInFlight.delete(deckId);
+  }
+
+  public getAudioFetchInFlight(deckId: DeckId): string | undefined {
+    return this.audioFetchInFlight.get(deckId);
+  }
   private deckStems: Map<DeckId, StemState> = new Map([
     [
       'A',
@@ -307,6 +320,12 @@ class YouTubeDeckBridge {
                 const attempts = this.failoverAttempts.get(deckId) ?? 0;
                 const inFlight = this.failoverInFlight.get(deckId) ?? false;
                 
+                // If a real audio stream fetch is already in flight for this video, do not overwrite the deck
+                if (this.audioFetchInFlight.get(deckId) === currentVid) {
+                  console.log(`[YouTubeDeckBridge] Embedding restricted (${code}) on Deck ${deckId}, but direct audio stream is already downloading. Awaiting AudioEngine takeover.`);
+                  return;
+                }
+
                 if (currentVid) {
                   deckFailed.add(currentVid);
                   this.failedVideoIds.set(deckId, deckFailed);
@@ -516,6 +535,10 @@ class YouTubeDeckBridge {
   }
 
   public async play(deckId: DeckId) {
+    if (this.engineTakeover.has(deckId)) {
+      return;
+    }
+
     let player = this.players.get(deckId);
     if (!player || typeof player.playVideo !== 'function') {
       console.log(`[YouTubeDeckBridge] play() Deck ${deckId} G�� awaiting player readiness`);
@@ -702,6 +725,7 @@ class YouTubeDeckBridge {
 
   public clearDeck(deckId: DeckId) {
     this.releaseFromEngine(deckId);
+    this.audioFetchInFlight.delete(deckId);
     this.activeVideoIds.delete(deckId);
     this.lastFilePaths.delete(deckId);
     this.isDeckPlaying.set(deckId, false);

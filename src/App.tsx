@@ -692,6 +692,7 @@ export const App: React.FC = () => {
           // Background: pull real audio (via native fetchTrackAudio or streaming server /api/youtube/audio)
           ytRealAudioRef.current[deckId] = undefined;
           const yid: string = vidId;
+          youtubeDeckBridge.setAudioFetchInFlight(deckId, yid);
           (async () => {
             try {
               let real: AudioBuffer | null = null;
@@ -731,6 +732,8 @@ export const App: React.FC = () => {
                   real = await audioEngine.decodeAudioData(await resp.arrayBuffer());
                 }
               }
+
+              youtubeDeckBridge.clearAudioFetchInFlight(deckId);
 
               if (!real) {
                 if (youtubeDeckBridge.getActiveVideoId(deckId) === yid) {
