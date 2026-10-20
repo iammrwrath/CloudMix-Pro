@@ -84,18 +84,58 @@ class LyricsService {
             const firstWithSynced = results.find((r: any) => r.syncedLyrics) || results[0];
             if (firstWithSynced) {
               const parsed = firstWithSynced.syncedLyrics ? BroadcastService.parseLRC(firstWithSynced.syncedLyrics) : [];
-              this.cache.set(key, {
-                artist: targetArtist,
-                title: cleanTitle,
-                syncedLines: parsed,
-                plainLyrics: firstWithSynced.plainLyrics || '',
-                fetchedAt: Date.now(),
-              });
-              return parsed;
+              if (parsed.length > 0) {
+                this.cache.set(key, {
+                  artist: targetArtist,
+                  title: cleanTitle,
+                  syncedLines: parsed,
+                  plainLyrics: firstWithSynced.plainLyrics || '',
+                  fetchedAt: Date.now(),
+                });
+                return parsed;
+              }
             }
           }
         }
-      } catch {} finally {
+      } catch (err) {
+        console.warn('[LyricsService] lrclib search error:', err);
+      }
+
+      // 3. Genius API high-accuracy fallback for newer songs, club edits & underground tracks
+      try {
+        const desktopAPI = (window as any).desktopAPI;
+        if (desktopAPI?.fetchGeniusLyrics) {
+          const geniusRes = await desktopAPI.fetchGeniusLyrics({
+            artist: targetArtist,
+            title: cleanTitle,
+          });
+          if (geniusRes && geniusRes.success && geniusRes.lyrics) {
+            const rawLines = geniusRes.lyrics.split('\n');
+            const cleanLines = rawLines
+              .map((l: string) => l.trim())
+              .filter((l: string) => l.length > 0 && !l.startsWith('['));
+
+            const total = cleanLines.length;
+            const validDuration = durationSec && durationSec > 10 ? durationSec : 180;
+            const stepMs = total > 0 ? (validDuration * 1000) / total : 5000;
+            const timed: LyricsLine[] = cleanLines.map((text: string, idx: number) => ({
+              timestampMs: Math.round(idx * stepMs),
+              text,
+            }));
+
+            this.cache.set(key, {
+              artist: targetArtist,
+              title: cleanTitle,
+              syncedLines: timed,
+              plainLyrics: geniusRes.lyrics,
+              fetchedAt: Date.now(),
+            });
+            return timed;
+          }
+        }
+      } catch (geniusErr) {
+        console.warn('[LyricsService] Genius fallback notice:', geniusErr);
+      } finally {
         this.pendingRequests.delete(key);
       }
 

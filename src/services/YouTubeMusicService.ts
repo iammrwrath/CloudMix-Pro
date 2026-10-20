@@ -183,6 +183,28 @@ class YouTubeMusicService {
    * Opens Google OAuth 2.0 loopback flow to sign the user into YouTube Music.
    * Requests offline access (code flow) to obtain a permanent refresh_token alongside the access_token.
    */
+function generatePKCEVerifier(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const array = new Uint8Array(64);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+  }
+  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
+}
+
+async function generatePKCEChallenge(verifier: string): Promise<string> {
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await window.crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+  return verifier;
+}
+
   public async signIn(): Promise<void> {
     const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
     const CLIENT_ID = userClientId.trim() || DEFAULT_GOOGLE_CLIENT_ID;
@@ -192,13 +214,22 @@ class YouTubeMusicService {
       'https://www.googleapis.com/auth/userinfo.email',
     ].join(' ');
 
-    // Use implicit grant token response so public clients can authenticate directly without server client_secret
+    const codeVerifier = generatePKCEVerifier();
+    let codeChallenge = codeVerifier;
+    try {
+      codeChallenge = await generatePKCEChallenge(codeVerifier);
+    } catch {}
+
+    // Request offline access with PKCE authorization code grant to obtain permanent refresh_token
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth` +
       `?client_id=${encodeURIComponent(CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=token` +
-      `&prompt=select_account` +
+      `&response_type=code` +
+      `&access_type=offline` +
+      `&prompt=consent select_account` +
+      `&code_challenge=${encodeURIComponent(codeChallenge)}` +
+      `&code_challenge_method=S256` +
       `&scope=${encodeURIComponent(SCOPES)}`;
 
     const desktopAPI = (window as any).desktopAPI;
@@ -226,6 +257,7 @@ class YouTubeMusicService {
                 client_id: CLIENT_ID,
                 redirect_uri: REDIRECT_URI,
                 grant_type: 'authorization_code',
+                code_verifier: codeVerifier,
               }),
             });
             if (tokenRes.ok) {
@@ -411,7 +443,11 @@ class YouTubeMusicService {
    * Utilizes in-memory cache and a mutex lock to eliminate duplicate concurrent executions.
    */
   public async getUserPlaylists(forceRefresh: boolean = false): Promise<YouTubePlaylist[]> {
-    if (!forceRefresh && this.cachedPlaylists && this.cachedPlaylists.length > 0) {
+    if (forceRefresh) {
+      this.cachedPlaylists = null;
+      this._fetchPlaylistsPromise = null;
+      this.isFetchingPlaylists = false;
+    } else if (this.cachedPlaylists && this.cachedPlaylists.length > 0) {
       return this.cachedPlaylists;
     }
 
@@ -452,9 +488,7 @@ class YouTubeMusicService {
                 }
               }
               if (chanRes.status === 401) {
-                console.warn('[YouTube Music] OAuth token expired or invalid (401). Resetting active session and retaining cached/curated playlists.');
-                this._accessToken = null;
-                await storageCache.setSetting('yt_oauth_token', null);
+                console.warn('[YouTube Music] OAuth token expired or invalid (401). Retaining session and returning cached/curated playlists.');
                 // Do NOT wipe playlists across patches; return cached playlists + curated
                 const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
                 const seen = new Set<string>();
@@ -498,9 +532,7 @@ class YouTubeMusicService {
             }
 
             if (mineRes.status === 401) {
-              console.warn('[YouTube Music] OAuth token expired (401). Retaining cached playlists for seamless reconnection.');
-              this._accessToken = null;
-              await storageCache.setSetting('yt_oauth_token', null);
+              console.warn('[YouTube Music] OAuth token expired (401). Retaining session and returning cached playlists.');
               const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
               const seen = new Set<string>();
               const res = fallback.filter((p) => {

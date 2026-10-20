@@ -304,10 +304,10 @@ export const Library = React.memo<LibraryProps>(({
     }
   };
 
-  const handleLoadYtPlaylists = async () => {
+  const handleLoadYtPlaylists = async (forceRefresh: boolean = false) => {
     setIsLoadingYtPlaylists(true);
     try {
-      const playlists = await youtubeMusicService.getUserPlaylists();
+      const playlists = await youtubeMusicService.getUserPlaylists(forceRefresh === true);
       setYtPlaylists(playlists);
     } catch (err) {
       console.error('Failed to load YouTube Music playlists:', err);
@@ -831,7 +831,7 @@ export const Library = React.memo<LibraryProps>(({
                     <span className="text-[11px] font-mono text-slate-400 font-semibold uppercase">Playlists</span>
                     <div className="flex items-center space-x-1">
                       <button
-                        onClick={handleLoadYtPlaylists}
+                        onClick={() => handleLoadYtPlaylists(true)}
                         disabled={isLoadingYtPlaylists}
                         title="Refresh Playlists from Google / YouTube"
                         className="p-1 rounded hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer text-[11px]"

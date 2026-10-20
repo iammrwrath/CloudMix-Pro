@@ -674,6 +674,87 @@ ipcMain.handle('update-streaming-broadcast', async (event, payload) => {
 ipcMain.handle('get-streaming-broadcast-state', () => {
   return getBroadcastState();
 });
+ipcMain.handle('fetch-genius-lyrics', async (event, { artist, title, token }) => {
+  try {
+    const cleanArtist = (artist || '').replace(/\s*-\s*Topic$/i, '').trim();
+    const cleanTitle = (title || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+    const query = `${cleanArtist} ${cleanTitle}`.trim();
+    if (!query) return { success: false, error: 'Empty query' };
+
+    let geniusToken = token || '';
+    if (!geniusToken) {
+      try {
+        if (typeof readDiskSettings === 'function') {
+          geniusToken = readDiskSettings().genius_access_token || '';
+        }
+      } catch {}
+    }
+
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    };
+    if (geniusToken) {
+      headers['Authorization'] = `Bearer ${geniusToken}`;
+    }
+
+    const searchRes = await fetch(`https://api.genius.com/search?q=${encodeURIComponent(query)}`, { headers });
+    if (!searchRes.ok) {
+      return { success: false, error: `Genius API returned ${searchRes.status}` };
+    }
+
+    const searchJson = await searchRes.json();
+    const hits = searchJson?.response?.hits || [];
+    if (hits.length === 0) {
+      return { success: false, error: 'No Genius song found' };
+    }
+
+    const firstHit = hits[0].result;
+    const songUrl = firstHit.url;
+    const songTitle = firstHit.title;
+    const songArtist = firstHit.primary_artist?.name;
+
+    const pageRes = await fetch(songUrl, { headers: { 'User-Agent': headers['User-Agent'] } });
+    if (!pageRes.ok) {
+      return { success: false, error: `Failed to fetch lyric page (${pageRes.status})` };
+    }
+    const html = await pageRes.text();
+
+    const regex = /<div[^>]*data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/gi;
+    let match;
+    const parts = [];
+    while ((match = regex.exec(html)) !== null) {
+      parts.push(match[1]);
+    }
+    if (parts.length === 0) {
+      const oldMatch = html.match(/<div class="lyrics">([\s\S]*?)<\/div>/i);
+      if (oldMatch) parts.push(oldMatch[1]);
+    }
+
+    let cleanLyrics = parts.join('\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .trim();
+
+    cleanLyrics = cleanLyrics.replace(/^\d+\s+Contributors[^\n]*\n+/i, '').trim();
+
+    return {
+      success: true,
+      title: songTitle,
+      artist: songArtist,
+      url: songUrl,
+      lyrics: cleanLyrics,
+    };
+  } catch (err) {
+    if (typeof log === 'function') log('fetch-genius-lyrics error: ' + err.message);
+    return { success: false, error: err.message };
+  }
+});
+
 
 // ==============================================================================
 // MIXCORTEX AI CO-PILOT ELECTRON INTEGRATION

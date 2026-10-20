@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
 
   // YouTube Music OAuth — opens a modal BrowserWindow, intercepts redirect, returns token
   openOAuthWindow: (authUrl) => ipcRenderer.invoke('open-oauth-window', authUrl),
+  fetchGeniusLyrics: (params) => ipcRenderer.invoke('fetch-genius-lyrics', params),
 
   // Universal DJ Bridge & NowPlaying Integration
   writeNowPlayingBroadcast: (payload) => ipcRenderer.invoke('write-now-playing-broadcast', payload),

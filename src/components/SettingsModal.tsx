@@ -48,6 +48,75 @@ const YtClientIdInput: React.FC = () => {
     </div>
   );
 };
+/** Self-contained input for Genius Client Access Token */
+const GeniusTokenInput: React.FC = () => {
+  const [token, setToken] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    storageCache.getSetting<string>('genius_access_token', '').then((v) => setToken(v || ''));
+  }, []);
+
+  const save = async () => {
+    await storageCache.setSetting('genius_access_token', token.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const testConnection = async () => {
+    if (!token.trim()) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('https://api.genius.com/search?q=daft+punk', {
+        headers: { Authorization: `Bearer ${token.trim()}` },
+      });
+      if (res.ok) {
+        setTestResult('Verified! Genius API connected successfully.');
+      } else {
+        setTestResult(`Error: HTTP ${res.status} (Check your token)`);
+      }
+    } catch {
+      setTestResult('Network error connecting to Genius API');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex space-x-1.5 w-full">
+        <input
+          type="password"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder="Paste Genius Client Access Token here..."
+          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        <button
+          onClick={save}
+          className="px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold hover:bg-amber-500/30 transition-all cursor-pointer shrink-0"
+        >
+          {saved ? 'Saved!' : 'Save Token'}
+        </button>
+        <button
+          onClick={testConnection}
+          disabled={testing || !token.trim()}
+          className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-mono hover:bg-slate-700 transition-all cursor-pointer disabled:opacity-40 shrink-0"
+        >
+          {testing ? 'Testing...' : 'Test'}
+        </button>
+      </div>
+      {testResult && (
+        <span className={`text-[11px] font-mono block ${testResult.includes('Verified') ? 'text-emerald-400' : 'text-rose-400'}`}>
+          {testResult}
+        </span>
+      )}
+    </div>
+  );
+};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: propUiZoom, onUiZoomChange }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'audio' | 'dvs' | 'sound' | 'automix' | 'library' | 'appearance' | 'advanced' | 'midi'>('general');
@@ -965,6 +1034,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                         Signed in as <span className="text-white font-mono">{ytEmail || 'YouTube User'}</span>. Your playlists and favorite tracks will automatically synchronize into the Crate Library.
                       </p>
                     )}
+                  </div>
+
+                  {/* Genius Lyrics Integration */}
+                  <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Music className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                          Genius.com Lyrics Engine (Pro Fallback)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/50">
+                        World's Largest Lyrics DB
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      High-accuracy lyrics engine for newly released tracks, club remixes, and underground titles when standard synced databases are missing them.
+                    </p>
+                    <GeniusTokenInput />
+                    <div className="text-[10.5px] text-slate-400 flex items-center justify-between pt-1">
+                      <span>Need an API client token? Create one instantly on Genius:</span>
+                      <a
+                        href="https://genius.com/api-clients/new"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-amber-400 hover:text-amber-300 underline font-mono cursor-pointer"
+                      >
+                        genius.com/api-clients/new ↗
+                      </a>
+                    </div>
                   </div>
 
                   {/* Streaming Audio Quality Selector (AuraMusic Engine) */}
