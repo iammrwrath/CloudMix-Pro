@@ -1339,6 +1339,10 @@ try {
 
   autoUpdater.on('update-downloaded', (info) => {
     log(`[UPDATER] Patch downloaded: v${info.version}`);
+    if (info && info.downloadedFile) {
+      downloadedInstallerPath = info.downloadedFile;
+      log(`[UPDATER] Staged downloaded installer path: ${downloadedInstallerPath}`);
+    }
     mainWindow?.webContents.send('updater-status', {
       status: 'downloaded',
       version: info.version,
@@ -1496,30 +1500,52 @@ ipcMain.handle('start-update-download', async () => {
 
 ipcMain.handle('restart-and-install-patch', async () => {
   log('IPC: restart-and-install-patch called');
+
+  // 1. Locate staged installer binary if not already captured in memory
+  if (!downloadedInstallerPath || !fs.existsSync(downloadedInstallerPath)) {
+    const candidatePaths = [
+      path.join(process.env.LOCALAPPDATA || '', 'cloudmix-pro-updater', 'pending', 'CloudMix-Pro-Setup.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'cloudmix-pro-updater', 'installer.exe'),
+      path.join(app.getPath('userData'), '..', 'cloudmix-pro-updater', 'pending', 'CloudMix-Pro-Setup.exe'),
+      path.join(os.tmpdir(), `CloudMix-Pro-Setup-${app.getVersion()}.exe`),
+    ];
+    for (const cand of candidatePaths) {
+      if (fs.existsSync(cand)) {
+        try {
+          const stats = fs.statSync(cand);
+          if (stats.size > 1000000) { // Valid binary (>1MB)
+            downloadedInstallerPath = cand;
+            log(`[RELAUNCH] Located staged installer at: ${cand} (${(stats.size / 1024 / 1024).toFixed(1)} MB)`);
+            break;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  const { spawn } = require('child_process');
+  const currentExe = process.execPath;
+  log(`[RELAUNCH] Target executable for post-install restart: ${currentExe}`);
+
+  // Path A: Direct NSIS silent execution with guaranteed relaunch handover
   if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
     log('Launching downloaded setup executable: ' + downloadedInstallerPath);
-    const { spawn } = require('child_process');
     try {
-      const currentExe = process.execPath;
-      // Write a tiny batch script to temp directory that runs the installer silently and then restarts the installed app
+      // Write batch script to temp directory that runs installer silently and restarts the app
       const batPath = path.join(os.tmpdir(), 'cloudmix_patch_relaunch.bat');
-      const batContent = `@echo off\r\ntimeout /t 1 /nobreak >nul\r\nstart /wait "" "${downloadedInstallerPath}" /S\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\ndel "%~f0"\r\n`;
+      const batContent = `@echo off\r\ntimeout /t 2 /nobreak >nul\r\nstart /wait "" "${downloadedInstallerPath}" /S\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\n(goto) 2>nul & del "%~f0"\r\n`;
       fs.writeFileSync(batPath, batContent, 'utf8');
 
-      // Launch completely hidden in background without any console window flashing
-      const child = spawn(
-        'powershell.exe',
-        ['-WindowStyle', 'Hidden', '-NoProfile', '-Command', `Start-Process -FilePath cmd.exe -ArgumentList '/c', [System.IO.Path]::Combine($env:TEMP, 'cloudmix_patch_relaunch.bat') -WindowStyle Hidden`],
-        {
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: true,
-        }
-      );
+      // Launch completely hidden in background via native cmd.exe without flashing window
+      const child = spawn('cmd.exe', ['/c', batPath], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
       child.unref();
 
       setTimeout(() => {
-        app.quit();
+        app.exit(0);
       }, 500);
       return { success: true };
     } catch (spawnErr) {
@@ -1528,8 +1554,21 @@ ipcMain.handle('restart-and-install-patch', async () => {
     }
   }
 
+  // Path B: electron-updater quitAndInstall with watchdog restart guardian
   if (autoUpdater) {
     try {
+      log('[RELAUNCH] Launching companion watchdog to guarantee app relaunch after quitAndInstall...');
+      const batPath = path.join(os.tmpdir(), 'cloudmix_patch_relaunch.bat');
+      const batContent = `@echo off\r\ntimeout /t 3 /nobreak >nul\r\n:WAIT_LOOP\r\ntasklist /FI "IMAGENAME eq CloudMix-Pro-Setup.exe" 2>nul | find /I "CloudMix-Pro-Setup.exe" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto WAIT_LOOP\r\n)\r\ntasklist /FI "IMAGENAME eq installer.exe" 2>nul | find /I "installer.exe" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto WAIT_LOOP\r\n)\r\ntimeout /t 1 /nobreak >nul\r\nstart "" "${currentExe}"\r\n(goto) 2>nul & del "%~f0"\r\n`;
+      fs.writeFileSync(batPath, batContent, 'utf8');
+
+      const child = spawn('cmd.exe', ['/c', batPath], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.unref();
+
       // isSilent: true, isForceRunAfter: true
       autoUpdater.quitAndInstall(true, true);
       return { success: true };
