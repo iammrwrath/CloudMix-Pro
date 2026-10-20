@@ -79,9 +79,9 @@ async function runComprehensiveSimulation() {
   const mainPath = path.join(__dirname, '..', 'main.cjs');
   const mainCode = fs.readFileSync(mainPath, 'utf8');
 
-  assert(mainCode.includes('cloudmix_patch_relaunch.bat'), 'Installer relaunch script', 'Writes batch script for automated post-install handover');
-  assert(mainCode.includes('start /wait "" "${downloadedInstallerPath}" /S'), 'Silent installer execution', 'NSIS executed with /S and start /wait');
-  assert(mainCode.includes('start "" "${currentExe}"'), 'Automatic app relaunch', 'Executes process.execPath after installer exits');
+  assert(!mainCode.includes('cloudmix_patch_relaunch.bat'), 'No console batch helper', 'Updater no longer spawns visible cmd/tasklist loops');
+  assert(mainCode.includes("spawn(downloadedInstallerPath, ['/S'"), 'Silent installer execution', 'NSIS spawned directly with /S, windowsHide, detached');
+  assert(mainCode.includes('runAfterFinish') || require('fs').readFileSync('package.json','utf8').includes('runAfterFinish'), 'Automatic app relaunch', 'NSIS runAfterFinish relaunches the app');
   assert(mainCode.includes('restart-and-install-patch'), 'IPC Handler registration', 'restart-and-install-patch registered in main process');
 
   // Simulate Version Comparison Logic
