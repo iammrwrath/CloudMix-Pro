@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
+let broadcastServerInstance = null;
 let startStreamingServer = () => {};
 let updateBroadcastState = () => {};
 let getBroadcastState = () => ({});
@@ -305,7 +306,7 @@ if (!gotTheLock) {
     try {
       const { distDir } = getDistInfo();
       log(`[STREAM SERVER] Initializing with distDir: ${distDir}`);
-      startStreamingServer(8088, {
+      broadcastServerInstance = startStreamingServer(8088, {
         onStreamerbotRequest: (reqData) => {
           log('[STREAM SERVER] Received viewer request: ' + JSON.stringify(reqData));
           mainWindow?.webContents.send('streamerbot-request', reqData);
@@ -381,6 +382,17 @@ app.on('window-all-closed', () => {
   log('app window-all-closed fired.');
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  log('[BEFORE-QUIT] Terminating internal server and releasing sockets...');
+  if (broadcastServerInstance) {
+    try {
+      broadcastServerInstance.close();
+      log('[BEFORE-QUIT] Broadcast server closed.');
+    } catch {}
+    broadcastServerInstance = null;
   }
 });
 
@@ -1629,9 +1641,14 @@ ipcMain.handle('restart-and-install-patch', async () => {
       });
       child.unref();
 
+      if (broadcastServerInstance) {
+        try { broadcastServerInstance.close(); } catch {}
+        broadcastServerInstance = null;
+      }
       setTimeout(() => {
-        app.exit(0);
-      }, 500);
+        try { app.exit(0); } catch {}
+        try { process.exit(0); } catch {}
+      }, 300);
       return { success: true };
     } catch (spawnErr) {
       log('Failed to execute patch installer batch script: ' + spawnErr.message);
