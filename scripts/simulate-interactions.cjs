@@ -196,6 +196,8 @@ async function runComprehensiveSimulation() {
   const headerCode = fs.readFileSync(headerPath, 'utf8');
   assert(headerCode.includes('onToggleUserGuide') && headerCode.includes('GUIDE'), 'Header User Guide Button', 'Dedicated Guide icon and label present in header');
   assert(appCode.includes('UserGuideModal') && appCode.includes("e.key === 'F1'"), 'User Guide Modal Hotkey (F1)', 'F1 hotkey and modal container mounted in App');
+  assert(headerCode.includes('isMenuOpen') && headerCode.includes('Studio Control Center') && headerCode.includes('MENU'), 'Modular Slide-Out Studio Drawer', 'Header includes slide-out drawer menu for compact & responsive window layouts');
+  assert(headerCode.includes("e.key === 'm'") && headerCode.includes("e.key === 'M'"), 'Modular Slide-Out Menu Hotkey (M)', 'Pressing M triggers the Studio Control Center slide-out drawer');
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);

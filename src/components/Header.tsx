@@ -28,6 +28,7 @@ import {
   X,
   Sun,
   Moon,
+  Menu,
 } from 'lucide-react';
 import { midiControllerService, MidiDevice } from '../services/MidiControllerService';
 import { updateService, UpdateStatus } from '../services/UpdateService';
@@ -94,6 +95,20 @@ export const Header: React.FC<HeaderProps> = ({
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(updateService.getStatus());
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'm' || e.key === 'M') {
+        setIsMenuOpen((prev) => !prev);
+      } else if (e.key === 'Escape' && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMenuOpen]);
 
   useEffect(() => {
     // Scan MIDI devices
@@ -334,22 +349,33 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* 3. Right Toolbar: Feature Toggles + Pinned Window Controls */}
-      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1 min-w-0 justify-end">
-        <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar min-w-0">
-          {/* Master Mix Recording Button */}
+      {/* 3. Right Toolbar: Feature Toggles + Slide-Out Menu + Pinned Window Controls */}
+      <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex items-center space-x-1.5 min-w-0 justify-end">
+        {/* On compact windows: Show active REC pill if recording */}
+        {isRecording && (
           <button
             onClick={onToggleRecording}
-            title={isRecording ? "Click to Stop & Save Mix Recording" : "Record Live Master Mix to Lossless Audio"}
-            className={`flex items-center space-x-1 px-1.5 py-1 rounded-lg text-[11px] font-mono font-black transition-all cursor-pointer border shrink-0 ${
-              isRecording
-                ? 'bg-red-600 text-white border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse'
-                : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400'
-            }`}
+            title="Stop & Save Mix Recording"
+            className="flex items-center space-x-1 px-1.5 py-1 rounded-lg text-[11px] font-mono font-black transition-all cursor-pointer border shrink-0 bg-red-600 text-white border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse"
           >
-            <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
-            <span>{isRecording ? formatDuration(recordingDuration) : 'REC'}</span>
+            <div className="w-2 h-2 rounded-full bg-white" />
+            <span>{formatDuration(recordingDuration)}</span>
           </button>
+        )}
+
+        {/* Full toolbar icon row (Cleanly hidden on compact/split windows to prevent crowding and horizontal scrolling) */}
+        <div className="hidden xl:flex items-center space-x-1 min-w-0">
+          {/* Master Mix Recording Button (when not already active) */}
+          {!isRecording && (
+            <button
+              onClick={onToggleRecording}
+              title="Record Live Master Mix to Lossless Audio"
+              className="flex items-center space-x-1 px-1.5 py-1 rounded-lg text-[11px] font-mono font-black transition-all cursor-pointer border shrink-0 bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-red-400"
+            >
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span>REC</span>
+            </button>
+          )}
 
           {/* Automix AI Assistant Quick Toggle */}
           <button
@@ -362,7 +388,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <Bot className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline">AUTOMIX</span>
+            <span className="hidden 2xl:inline">AUTOMIX</span>
           </button>
 
           {/* MixCortex AI Co-Pilot Quick Toggle */}
@@ -376,7 +402,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <Brain className={`w-3.5 h-3.5 ${isCortexOpen ? 'text-white animate-pulse' : 'text-purple-400 animate-pulse'}`} />
-            <span className="font-extrabold tracking-wide text-[11px] hidden lg:inline">CORTEX</span>
+            <span className="font-extrabold tracking-wide text-[11px] hidden 2xl:inline">CORTEX</span>
           </button>
 
           {/* MIDI Hardware Button */}
@@ -387,7 +413,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sliders className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden 2xl:inline max-w-[70px] truncate">{primaryMidiName}</span>
-            <span className="2xl:hidden hidden sm:inline">MIDI</span>
+            <span className="2xl:hidden">MIDI</span>
           </button>
 
           {/* Streamer HUD / Lyrics Overlay Button */}
@@ -401,57 +427,26 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <Tv className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">OBS</span>
+            <span>OBS</span>
             {requestCount > 0 && (
               <span className="px-1 py-0.2 rounded-full bg-pink-500 text-white text-[10px] font-mono animate-pulse shadow-[0_0_8px_rgba(236,72,153,0.8)]">
                 {requestCount}
               </span>
             )}
           </button>
-        </div>
 
-        {/* Pinned Right-Most Action & Window Control Cluster (NEVER Clipped) */}
-        <div className="flex items-center space-x-1 shrink-0">
-          {/* GitHub & In-App Patch Updates Widget */}
-          {updateStatus.status === 'available' ? (
-            <button
-              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.startDownload())}
-              title="A new patch is available on GitHub! Click to open patch downloader."
-              className="flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>v{updateStatus.version}</span>
-            </button>
-          ) : updateStatus.status === 'downloading' ? (
-            <button
-              onClick={() => onOpenPatchModal && onOpenPatchModal()}
-              className="flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[11px] font-mono text-purple-200 cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" />
-              <span>{updateStatus.percent || 0}%</span>
-            </button>
-          ) : updateStatus.status === 'downloaded' ? (
-            <button
-              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.restartAndApply())}
-              title="Patch downloaded. Click to review and apply."
-              className="flex items-center space-x-1 px-1.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.6)] cursor-pointer transition-all"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Apply</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '2.0.10'} - Click to check GitHub for patches`}
-              className="flex items-center space-x-1 px-1.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-cyan-300 text-[11px] font-mono transition-all cursor-pointer shadow-sm group"
-            >
-              <Sparkles className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span className="inline font-bold text-cyan-300">v{updateStatus.version || '2.0.10'}</span>
-              {updateStatus.status === 'checking' && (
-                <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
-              )}
-            </button>
-          )}
+          {/* Version badge & update check */}
+          <button
+            onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
+            title={`CloudMix Pro v${updateStatus.version || '2.0.44'} - Click to check GitHub for patches`}
+            className="flex items-center space-x-1 px-1.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-cyan-300 text-[11px] font-mono transition-all cursor-pointer shadow-sm group"
+          >
+            <Sparkles className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
+            <span className="inline font-bold text-cyan-300">v{updateStatus.version || '2.0.44'}</span>
+            {updateStatus.status === 'checking' && (
+              <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
+            )}
+          </button>
 
           {/* Persistent Light / Dark Theme Toggle */}
           {onToggleTheme && (
@@ -467,12 +462,12 @@ export const Header: React.FC<HeaderProps> = ({
               {themeMode === 'light' ? (
                 <>
                   <Sun className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden xl:inline">LIGHT</span>
+                  <span className="hidden 2xl:inline">LIGHT</span>
                 </>
               ) : (
                 <>
                   <Moon className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="hidden xl:inline">DARK</span>
+                  <span className="hidden 2xl:inline">DARK</span>
                 </>
               )}
             </button>
@@ -485,7 +480,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-800 transition-colors cursor-pointer flex items-center space-x-1"
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline text-[11px] font-mono font-bold">GUIDE</span>
+            <span className="text-[11px] font-mono font-bold">GUIDE</span>
           </button>
 
           {/* Keyboard Shortcuts Help Button */}
@@ -505,55 +500,526 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
+        </div>
 
-          {/* Integrated Frameless Window Controls (Always Visible) */}
-          <div className="flex items-center space-x-1 pl-1.5 ml-0.5 border-l border-white/10 shrink-0 select-none">
-            {/* Fullscreen Toggle (F11) */}
-            <button
-              onClick={handleToggleFullScreen}
-              title={isFullScreen ? 'Exit Full Screen (F11)' : 'Enter Full Screen (F11)'}
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                isFullScreen
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
-                  : 'bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border-slate-800'
-              }`}
-            >
-              {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            </button>
+        {/* Dedicated Slide-Out Studio Control Center Trigger (Modular Menu) */}
+        <button
+          onClick={() => setIsMenuOpen((prev) => !prev)}
+          title="Toggle Studio Control Center & Modular Apps Drawer (M)"
+          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border relative shrink-0 ${
+            isMenuOpen
+              ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.6)] font-black'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-white border-cyan-500/40 hover:border-cyan-400 shadow-sm'
+          }`}
+        >
+          <Menu className="w-3.5 h-3.5" />
+          <span className="font-mono text-[11px]">MENU</span>
+          {/* Active notification indicator */}
+          {(isRecording || isAutomixActive || isCortexOpen || requestCount > 0) && (
+            <span className={`w-2 h-2 rounded-full absolute -top-0.5 -right-0.5 ${
+              isRecording ? 'bg-rose-500 animate-ping' : 'bg-purple-500 animate-pulse'
+            }`} />
+          )}
+        </button>
 
-            {typeof window !== 'undefined' && Boolean((window as any).desktopAPI) && (
-              <>
-                {/* Minimize Window */}
-                <button
-                  onClick={handleMinimize}
-                  title="Minimize to Taskbar"
-                  className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
+        {/* Pinned Window Controls (Always Visible, Never Clipped) */}
+        <div className="flex items-center space-x-1 pl-1 ml-0.5 border-l border-white/10 shrink-0 select-none">
+          {/* Fullscreen Toggle (F11) */}
+          <button
+            onClick={handleToggleFullScreen}
+            title={isFullScreen ? 'Exit Full Screen (F11)' : 'Enter Full Screen (F11)'}
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+              isFullScreen
+                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                : 'bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border-slate-800'
+            }`}
+          >
+            {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
 
-                {/* Maximize / Restore Window */}
-                <button
-                  onClick={handleMaximize}
-                  title={isMaximized ? 'Restore Down' : 'Maximize Window'}
-                  className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
-                >
-                  <Square className="w-3.5 h-3.5" />
-                </button>
+          {typeof window !== 'undefined' && Boolean((window as any).desktopAPI) && (
+            <>
+              {/* Minimize Window */}
+              <button
+                onClick={handleMinimize}
+                title="Minimize to Taskbar"
+                className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
 
-                {/* Close Application */}
-                <button
-                  onClick={handleClose}
-                  title="Close CloudMix Pro"
-                  className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-600/90 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-500 transition-colors cursor-pointer group"
-                >
-                  <X className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                </button>
-              </>
-            )}
-          </div>
+              {/* Maximize / Restore Window */}
+              <button
+                onClick={handleMaximize}
+                title={isMaximized ? 'Restore Down' : 'Maximize Window'}
+                className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+              >
+                <Square className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Close Application */}
+              <button
+                onClick={handleClose}
+                title="Close CloudMix Pro"
+                className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-600/90 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-500 transition-colors cursor-pointer group"
+              >
+                <X className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* 4. Slide-Out Studio Control Center Drawer (Modular Menu) */}
+      {isMenuOpen && (
+        <div
+          style={{ WebkitAppRegion: 'no-drag' } as any}
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsMenuOpen(false)}
+        >
+          <div
+            className={`w-80 sm:w-96 h-full shadow-2xl flex flex-col border-l animate-in slide-in-from-right duration-250 select-text overflow-hidden ${
+              themeMode === 'light'
+                ? 'bg-white border-slate-200 text-slate-800'
+                : 'bg-slate-950/95 border-slate-800 text-slate-100'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
+              themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/80 border-slate-800'
+            }`}>
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-sm">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-sm font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                    Studio Control Center
+                  </h3>
+                  <span className="text-[11px] font-mono text-cyan-500 font-semibold block">
+                    Modular Performance & Workstation Tools
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                title="Close Menu (Esc)"
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  themeMode === 'light'
+                    ? 'bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border-slate-300'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border-slate-700'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              
+              {/* SECTION 1: LIVE PERFORMANCE & AI ENGINES */}
+              <div className="space-y-2">
+                <span className={`text-[10px] font-mono font-bold uppercase tracking-wider block px-1 ${
+                  themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'
+                }`}>
+                  Live Performance & AI Engines
+                </span>
+
+                {/* Master Mix Recording Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  isRecording
+                    ? 'bg-rose-500/10 border-rose-500/50 shadow-sm'
+                    : themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`w-3 h-3 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : 'bg-slate-400'}`} />
+                      <div>
+                        <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          Master Mix Recording
+                        </div>
+                        <div className="text-[11px] font-mono text-slate-500">
+                          {isRecording ? `Recording: ${formatDuration(recordingDuration)}` : 'Ready to record (Lossless Audio)'}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={onToggleRecording}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        isRecording
+                          ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-md'
+                          : themeMode === 'light'
+                            ? 'bg-white hover:bg-slate-100 text-rose-600 border border-slate-300'
+                            : 'bg-slate-800 hover:bg-slate-700 text-rose-400 border border-slate-700'
+                      }`}
+                    >
+                      {isRecording ? 'STOP' : 'RECORD'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Automix AI Assistant Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  isAutomixActive
+                    ? 'bg-purple-500/10 border-purple-500/50 shadow-sm'
+                    : themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`p-2 rounded-lg ${isAutomixActive ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400'}`}>
+                        <Bot className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          Automix AI Assistant
+                        </div>
+                        <div className="text-[11px] font-sans text-slate-500">
+                          Autonomous stem-blending transitions
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={onToggleAutomix}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        isAutomixActive
+                          ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-md'
+                          : themeMode === 'light'
+                            ? 'bg-white hover:bg-slate-100 text-purple-700 border border-slate-300'
+                            : 'bg-slate-800 hover:bg-slate-700 text-purple-400 border border-slate-700'
+                      }`}
+                    >
+                      {isAutomixActive ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* MixCortex AI Co-Pilot Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  isCortexOpen
+                    ? 'bg-indigo-500/10 border-indigo-500/50 shadow-sm'
+                    : themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`p-2 rounded-lg ${isCortexOpen ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400'}`}>
+                        <Brain className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          MixCortex AI Co-Pilot
+                        </div>
+                        <div className="text-[11px] font-sans text-slate-500">
+                          Harmonic Camelot & vibe track suggestions
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onToggleCortex?.()}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        isCortexOpen
+                          ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md'
+                          : themeMode === 'light'
+                            ? 'bg-white hover:bg-slate-100 text-indigo-700 border border-slate-300'
+                            : 'bg-slate-800 hover:bg-slate-700 text-indigo-400 border border-slate-700'
+                      }`}
+                    >
+                      {isCortexOpen ? 'PANEL ON' : 'PANEL OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Streamer HUD & OBS Lyrics Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  isStreamerHudOpen
+                    ? 'bg-fuchsia-500/10 border-fuchsia-500/50 shadow-sm'
+                    : themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`p-2 rounded-lg ${isStreamerHudOpen ? 'bg-fuchsia-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400'}`}>
+                        <Tv className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold font-sans flex items-center space-x-1.5 ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          <span>OBS & Live Streamer Hub</span>
+                          {requestCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white text-[10px] font-mono">
+                              {requestCount} req
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] font-sans text-slate-500">
+                          Browser overlays, lyrics, & song requests
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={onToggleStreamerHud}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        isStreamerHudOpen
+                          ? 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-md'
+                          : themeMode === 'light'
+                            ? 'bg-white hover:bg-slate-100 text-fuchsia-700 border border-slate-300'
+                            : 'bg-slate-800 hover:bg-slate-700 text-fuchsia-400 border border-slate-700'
+                      }`}
+                    >
+                      {isStreamerHudOpen ? 'HUD ON' : 'HUD OFF'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* MIDI Hardware Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  connectedMidiDevices.length > 0
+                    ? 'bg-amber-500/10 border-amber-500/40 shadow-sm'
+                    : themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`p-2 rounded-lg ${connectedMidiDevices.length > 0 ? 'bg-amber-500 text-black shadow-sm' : 'bg-slate-800 text-slate-400'}`}>
+                        <Sliders className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          MIDI Hardware Controller
+                        </div>
+                        <div className="text-[11px] font-mono text-slate-500 truncate max-w-[170px]">
+                          {primaryMidiName}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onToggleMidiModal();
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        themeMode === 'light'
+                          ? 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                      }`}
+                    >
+                      SETUP
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* SECTION 2: WORKSTATION & DISPLAY PREFERENCES */}
+              <div className="space-y-2 pt-2 border-t border-slate-800/60">
+                <span className={`text-[10px] font-mono font-bold uppercase tracking-wider block px-1 ${
+                  themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'
+                }`}>
+                  Workstation & Display
+                </span>
+
+                {/* Theme Mode Toggle */}
+                {onToggleTheme && (
+                  <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                  }`}>
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`p-2 rounded-lg ${themeMode === 'light' ? 'bg-amber-500/20 text-amber-500' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                        {themeMode === 'light' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          Color Theme
+                        </div>
+                        <div className="text-[11px] font-sans text-slate-500">
+                          {themeMode === 'light' ? 'Studio Titanium Light' : 'Cinematic Obsidian Dark'}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={onToggleTheme}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        themeMode === 'light'
+                          ? 'bg-amber-500 text-black shadow-sm'
+                          : 'bg-cyan-500 text-black shadow-sm'
+                      }`}
+                    >
+                      {themeMode === 'light' ? 'LIGHT' : 'DARK'}
+                    </button>
+                  </div>
+                )}
+
+                {/* UI Zoom Controller */}
+                {onUiZoomChange && (
+                  <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                  }`}>
+                    <div className="flex items-center space-x-2.5">
+                      <div className="p-2 rounded-lg bg-slate-800 text-slate-300">
+                        <ZoomIn className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          Display Zoom Scaling
+                        </div>
+                        <div className="text-[11px] font-sans text-slate-500">
+                          Current Scale: {Math.round(uiZoom * 100)}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => onUiZoomChange(Math.max(0.65, Math.round((uiZoom - 0.05) * 100) / 100))}
+                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+                      >
+                        -
+                      </button>
+                      <button
+                        onClick={() => onUiZoomChange(-1)}
+                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-mono font-bold cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => onUiZoomChange(Math.min(1.4, Math.round((uiZoom + 0.05) * 100) / 100))}
+                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fullscreen Mode */}
+                <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                  themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+                }`}>
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 rounded-lg bg-slate-800 text-slate-300">
+                      {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <div className={`text-xs font-bold font-sans ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                        Fullscreen Performance
+                      </div>
+                      <div className="text-[11px] font-sans text-slate-500">
+                        {isFullScreen ? 'Currently Fullscreen (F11)' : 'Windowed Mode (F11)'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleToggleFullScreen}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      isFullScreen
+                        ? 'bg-cyan-600 text-white shadow-sm'
+                        : themeMode === 'light'
+                          ? 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    }`}
+                  >
+                    {isFullScreen ? 'EXIT' : 'ENTER'}
+                  </button>
+                </div>
+
+              </div>
+
+              {/* SECTION 3: HELP, MANUAL & UPDATES */}
+              <div className="space-y-2 pt-2 border-t border-slate-800/60">
+                <span className={`text-[10px] font-mono font-bold uppercase tracking-wider block px-1 ${
+                  themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'
+                }`}>
+                  Documentation & Settings
+                </span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {/* User Guide */}
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onToggleUserGuide?.();
+                    }}
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 text-left transition-colors cursor-pointer ${
+                      themeMode === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                        : 'bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-200'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold leading-tight">User Guide</div>
+                      <span className="text-[10px] font-mono text-slate-500">Press F1</span>
+                    </div>
+                  </button>
+
+                  {/* Keyboard Shortcuts */}
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onToggleKeyboardModal();
+                    }}
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 text-left transition-colors cursor-pointer ${
+                      themeMode === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                        : 'bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-200'
+                    }`}
+                  >
+                    <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold leading-tight">Shortcuts</div>
+                      <span className="text-[10px] font-mono text-slate-500">Press ?</span>
+                    </div>
+                  </button>
+
+                  {/* Settings */}
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onToggleSettingsModal();
+                    }}
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 text-left transition-colors cursor-pointer ${
+                      themeMode === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                        : 'bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-200'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold leading-tight">Settings</div>
+                      <span className="text-[10px] font-mono text-slate-500">Drives & Audio</span>
+                    </div>
+                  </button>
+
+                  {/* Updates */}
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      if (onOpenPatchModal) onOpenPatchModal();
+                      else updateService.checkForUpdates();
+                    }}
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 text-left transition-colors cursor-pointer ${
+                      themeMode === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                        : 'bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-200'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.44'}</div>
+                      <span className="text-[10px] font-mono text-slate-500">GitHub Updates</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Drawer Footer */}
+            <div className={`p-3 border-t text-center text-xs font-mono text-slate-500 shrink-0 ${
+              themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/50 border-slate-800'
+            }`}>
+              CloudMix Pro • Press <code className="px-1 py-0.5 rounded bg-slate-800 text-cyan-300">Esc</code> or <code className="px-1 py-0.5 rounded bg-slate-800 text-cyan-300">M</code> to close
+            </div>
+
+          </div>
+        </div>
+      )}
     </header>
   );
 };

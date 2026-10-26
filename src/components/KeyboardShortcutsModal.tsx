@@ -56,6 +56,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
       shortcuts: [
         { key: 'Alt + 1–8', action: 'Trigger Sampler Drops 1–8' },
         { key: 'V', action: 'Toggle Horizontal / Vertical Waveforms' },
+        { key: 'M', action: 'Toggle Studio Control Center / Slide-Out Menu' },
         { key: '?', action: 'Toggle Keyboard Shortcuts Modal' },
         { key: 'Esc', action: 'Close Modal' },
       ],
