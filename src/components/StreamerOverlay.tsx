@@ -47,6 +47,37 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'obs' | 'streamerbot' | 'streamdeck' | 'lyrics'>('obs');
 
+  // YouTube / YouTube Premium session state for OBS preview
+  const [ytSignedIn, setYtSignedIn] = useState<boolean | null>(null);
+  const [ytBusy, setYtBusy] = useState(false);
+  const ytApi = (window as any).desktopAPI;
+
+  useEffect(() => {
+    ytApi?.youtubeSessionStatus?.()
+      .then((s: any) => setYtSignedIn(!!s?.signedIn))
+      .catch(() => setYtSignedIn(false));
+  }, []);
+
+  const handleYtSignIn = async () => {
+    setYtBusy(true);
+    try {
+      const s = await ytApi?.youtubeSessionSignIn?.();
+      setYtSignedIn(!!s?.signedIn);
+    } finally {
+      setYtBusy(false);
+    }
+  };
+
+  const handleYtSignOut = async () => {
+    setYtBusy(true);
+    try {
+      const s = await ytApi?.youtubeSessionSignOut?.();
+      setYtSignedIn(!!s?.signedIn);
+    } finally {
+      setYtBusy(false);
+    }
+  };
+
   // Overlay Elements Display Customization
   const [overlayConfig, setOverlayConfig] = useState<OverlayConfig>({
     showCurrentTrack: true,
@@ -465,6 +496,39 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
           {/* TAB 1: OBS BROWSER SOURCE & MODULAR THEMES */}
           {activeTab === 'obs' && (
             <div className="space-y-5">
+              {/* YouTube Music Video Playback Account Status & Sign-In */}
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-inner">
+                <div className="text-[11px] text-slate-300 leading-relaxed">
+                  <div className="font-bold text-xs flex items-center gap-1.5 mb-1 text-white">
+                    <Video className="w-3.5 h-3.5 text-red-400" />
+                    YouTube Music Video Account
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded border font-semibold ${
+                      ytSignedIn
+                        ? 'text-emerald-400 border-emerald-800/60 bg-emerald-950/80'
+                        : 'text-amber-300 border-amber-800/60 bg-amber-950/60'
+                    }`}>
+                      {ytSignedIn === null ? 'CHECKING...' : ytSignedIn ? 'SIGNED IN' : 'NOT SIGNED IN'}
+                    </span>
+                  </div>
+                  Sign in with your YouTube Music or YouTube Premium Google account to unlock full-length video streaming without playback restrictions in the OBS preview window.
+                  <span className="block text-[10px] text-slate-400 mt-0.5">
+                    Note: Inside OBS Studio, right-click your Browser Source, choose <b>Interact</b>, and log in once to sync OBS session cookies.
+                  </span>
+                </div>
+                <button
+                  onClick={ytSignedIn ? handleYtSignOut : handleYtSignIn}
+                  disabled={ytBusy}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-md disabled:opacity-50 ${
+                    ytSignedIn
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                      : 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>{ytBusy ? 'Connecting...' : ytSignedIn ? 'Sign Out YouTube' : 'Sign in to YouTube'}</span>
+                </button>
+              </div>
+
               {/* Live Overlay Preview Canvas */}
               <div>
                 <div className="flex items-center justify-between mb-2">

@@ -1073,7 +1073,7 @@ function getObsOverlayHtml() {
         if (currentVideoId !== data.youtubeVideoId) {
           currentVideoId = data.youtubeVideoId;
           // Use standard youtube-nocookie embed without restrictive origin that breaks in OBS Browser Source
-          videoIframeEl.src = 'https://www.youtube-nocookie.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId + '&playsinline=1&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1';
+          videoIframeEl.src = 'https://www.youtube.com/embed/' + data.youtubeVideoId + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + data.youtubeVideoId + '&playsinline=1&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1';
         }
       } else {
         videoWidget.style.display = 'none';

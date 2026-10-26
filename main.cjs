@@ -274,6 +274,7 @@ if (!gotTheLock) {
         { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*'] },
         (details, callback) => {
           const headers = Object.assign({}, details.requestHeaders);
+          if (details.resourceType === 'mainFrame') return callback({ cancel: false, requestHeaders: headers });
           headers['Referer'] = 'http://127.0.0.1:8088/';
           headers['Origin'] = 'https://www.youtube.com';
           callback({ cancel: false, requestHeaders: headers });
@@ -535,6 +536,63 @@ ipcMain.handle('get-user-setting', async (event, key, defaultValue) => {
 // ── YouTube Music OAuth Loopback Server (RFC 8252 Native App Standard) ──────
 // Starts a temporary local HTTP server on 127.0.0.1:42813, opens system browser via
 // shell.openExternal(authUrl), intercepts the redirect, returns the token, and closes server.
+
+// ── YouTube / YouTube Music session sign-in for OBS video playback ─────────
+const YT_CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+async function getYouTubeSessionStatus() {
+  try {
+    const cookies = await session.defaultSession.cookies.get({ url: 'https://www.youtube.com' });
+    const signedIn = cookies.some((ck) => ['SAPISID', '__Secure-3PAPISID', 'LOGIN_INFO'].includes(ck.name));
+    return { signedIn };
+  } catch (e) {
+    return { signedIn: false, error: e.message };
+  }
+}
+ipcMain.handle('youtube-session-status', () => getYouTubeSessionStatus());
+ipcMain.handle('youtube-session-sign-in', async () => {
+  return new Promise((resolve) => {
+    const win = new BrowserWindow({
+      width: 540,
+      height: 740,
+      title: 'Sign In — YouTube / YouTube Music',
+      autoHideMenuBar: true,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    win.webContents.setUserAgent(YT_CHROME_UA);
+    let done = false;
+    const finish = async () => {
+      if (done) return;
+      done = true;
+      const st = await getYouTubeSessionStatus();
+      try { if (!win.isDestroyed()) win.destroy(); } catch {}
+      resolve(st);
+    };
+    const check = async () => {
+      const st = await getYouTubeSessionStatus();
+      if (st.signedIn && /youtube\.com/.test(win.webContents.getURL())) {
+        finish();
+      }
+    };
+    win.webContents.on('did-navigate', check);
+    win.webContents.on('did-navigate-in-page', check);
+    win.on('closed', finish);
+    win.loadURL('https://accounts.google.com/ServiceLogin?service=youtube&continue=' + encodeURIComponent('https://www.youtube.com/'));
+  });
+});
+ipcMain.handle('youtube-session-sign-out', async () => {
+  try {
+    const ses = session.defaultSession;
+    for (const origin of ['https://www.youtube.com', 'https://accounts.google.com', 'https://music.youtube.com', 'https://www.google.com']) {
+      await ses.clearStorageData({ origin, storages: ['cookies'] });
+    }
+  } catch {}
+  return getYouTubeSessionStatus();
+});
+
 ipcMain.handle('open-oauth-window', async (event, authUrl) => {
   return new Promise((resolve) => {
     const PORT = 42813;
