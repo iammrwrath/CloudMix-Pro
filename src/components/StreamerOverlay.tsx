@@ -1282,14 +1282,14 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                       key={idx}
                       className={`p-3 rounded-xl transition-all ${
                         isActive
-                          ? 'bg-gradient-to-r from-purple-900/80 to-slate-900/90 border border-purple-500/80 shadow-md scale-[1.01]'
+                          ? 'bg-slate-900/95 border-2 border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.25)] scale-[1.01]'
                           : 'bg-slate-900/40 border border-slate-800/40 opacity-70 hover:opacity-100'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span
-                          className={`text-xs font-bold ${
-                            isActive ? 'text-white' : 'text-slate-300'
+                          className={`text-xs font-extrabold tracking-wide ${
+                            isActive ? 'text-white drop-shadow-sm' : 'text-slate-300'
                           }`}
                         >
                           {line.text}
@@ -1304,7 +1304,7 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                       {line.translation && (
                         <p
                           className={`text-[11px] mt-0.5 italic ${
-                            isActive ? 'text-pink-300' : 'text-slate-500'
+                            isActive ? 'text-amber-300 font-semibold' : 'text-slate-400'
                           }`}
                         >
                           {line.translation}
