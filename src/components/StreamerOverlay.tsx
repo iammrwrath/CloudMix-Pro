@@ -1131,9 +1131,19 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                     </div>
                     <button
                       onClick={() => handleCopyUrl('http://127.0.0.1:8088/api/streamerbot/song', 'song_cmd')}
-                      className="w-full py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-cyan-300 border border-slate-700 cursor-pointer text-center"
+                      className="w-full py-1.5 px-3 rounded-lg bg-cyan-950/80 hover:bg-cyan-900/90 text-xs font-mono font-bold text-cyan-300 border border-cyan-800/80 cursor-pointer flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95"
                     >
-                      {copiedEndpoint === 'song_cmd' ? 'Copied URL!' : 'Copy http://127.0.0.1:8088/api/streamerbot/song'}
+                      copiedEndpoint === 'song_cmd' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400">COPIED URL</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>COPY URL</span>
+                        </>
+                      )
                     </button>
                   </div>
 
@@ -1147,9 +1157,19 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                     </div>
                     <button
                       onClick={() => handleCopyUrl('http://127.0.0.1:8088/api/streamerbot/request', 'req_cmd')}
-                      className="w-full py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-purple-300 border border-slate-700 cursor-pointer text-center"
+                      className="w-full py-1.5 px-3 rounded-lg bg-purple-950/80 hover:bg-purple-900/90 text-xs font-mono font-bold text-purple-300 border border-purple-800/80 cursor-pointer flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95"
                     >
-                      {copiedEndpoint === 'req_cmd' ? 'Copied URL!' : 'Copy http://127.0.0.1:8088/api/streamerbot/request'}
+                      copiedEndpoint === 'req_cmd' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400">COPIED URL</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>COPY URL</span>
+                        </>
+                      )
                     </button>
                   </div>
 
@@ -1163,9 +1183,19 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                     </div>
                     <button
                       onClick={() => handleCopyUrl('http://127.0.0.1:8088/api/streamerbot/sample?pad=1', 'sample_cmd')}
-                      className="w-full py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-amber-300 border border-slate-700 cursor-pointer text-center"
+                      className="w-full py-1.5 px-3 rounded-lg bg-amber-950/80 hover:bg-amber-900/90 text-xs font-mono font-bold text-amber-300 border border-amber-800/80 cursor-pointer flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95"
                     >
-                      {copiedEndpoint === 'sample_cmd' ? 'Copied URL!' : 'Copy http://127.0.0.1:8088/api/streamerbot/sample?pad=1'}
+                      copiedEndpoint === 'sample_cmd' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400">COPIED URL</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>COPY URL</span>
+                        </>
+                      )
                     </button>
                   </div>
                 </div>
