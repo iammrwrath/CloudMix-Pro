@@ -76,7 +76,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
 
   // YouTube Music OAuth — opens a modal BrowserWindow, intercepts redirect, returns token
   youtubeSessionStatus: () => ipcRenderer.invoke('youtube-session-status'),
-  youtubeSessionSignIn: () => ipcRenderer.invoke('youtube-session-sign-in'),
+  youtubeSessionSignIn: (authUrl) => ipcRenderer.invoke('youtube-session-sign-in', authUrl),
   youtubeSessionSignOut: () => ipcRenderer.invoke('youtube-session-sign-out'),
   openOAuthWindow: (authUrl) => ipcRenderer.invoke('open-oauth-window', authUrl),
   fetchGeniusLyrics: (params) => ipcRenderer.invoke('fetch-genius-lyrics', params),

@@ -549,89 +549,56 @@ async function getYouTubeSessionStatus() {
   }
 }
 ipcMain.handle('youtube-session-status', () => getYouTubeSessionStatus());
-ipcMain.handle('youtube-session-sign-in', async () => {
-  return new Promise((resolve) => {
-    const win = new BrowserWindow({
-      width: 540,
-      height: 740,
-      title: 'Sign In — YouTube / YouTube Music',
-      autoHideMenuBar: true,
-      webPreferences: {
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: true,
-      },
-    });
-    win.webContents.setUserAgent(YT_CHROME_UA);
-    let done = false;
-    const finish = async () => {
-      if (done) return;
-      done = true;
-      const st = await getYouTubeSessionStatus();
-      try { if (!win.isDestroyed()) win.destroy(); } catch {}
-      resolve(st);
-    };
-    const check = async () => {
-      const st = await getYouTubeSessionStatus();
-      if (st.signedIn && /youtube\.com/.test(win.webContents.getURL())) {
-        finish();
-      }
-    };
-    win.webContents.on('did-navigate', check);
-    win.webContents.on('did-navigate-in-page', check);
-    win.on('closed', finish);
-    win.loadURL('https://accounts.google.com/ServiceLogin?service=youtube&continue=' + encodeURIComponent('https://www.youtube.com/'));
-  });
-});
-ipcMain.handle('youtube-session-sign-out', async () => {
-  try {
-    const ses = session.defaultSession;
-    for (const origin of ['https://www.youtube.com', 'https://accounts.google.com', 'https://music.youtube.com', 'https://www.google.com']) {
-      await ses.clearStorageData({ origin, storages: ['cookies'] });
-    }
-  } catch {}
-  return getYouTubeSessionStatus();
-});
+let activeOAuthServer = null;
 
-ipcMain.handle('open-oauth-window', async (event, authUrl) => {
+function runOAuthLoopback(authUrl) {
   return new Promise((resolve) => {
     const PORT = 42813;
-    let server = null;
     let isResolved = false;
+
+    // Gracefully terminate any previous hanging server instance
+    if (activeOAuthServer) {
+      try { activeOAuthServer.close(); } catch {}
+      activeOAuthServer = null;
+    }
 
     const cleanupAndResolve = (token) => {
       if (isResolved) return;
       isResolved = true;
-      if (server) {
-        try { server.close(); } catch {}
+      if (activeOAuthServer) {
+        try { activeOAuthServer.close(); } catch {}
+        activeOAuthServer = null;
       }
       resolve(token);
     };
 
     try {
-      server = http.createServer((req, res) => {
+      activeOAuthServer = http.createServer((req, res) => {
         const reqUrl = req.url || '';
         log(`OAuth loopback request received: ${reqUrl}`);
 
         if (reqUrl.startsWith('/callback')) {
-          // Serve an HTML page that extracts hash fragments (#access_token=...) or query params (?code=...)
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>CloudMix Pro — Sign-In</title>
+  <title>CloudMix Pro — Connected to YouTube</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0d14; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-    .card { background: #131823; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; text-align: center; max-width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-    h2 { color: #38bdf8; margin-top: 0; }
-    p { color: #94a3b8; font-size: 14px; line-height: 1.5; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #090d16; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #111827; border: 1px solid #1f2937; border-radius: 20px; padding: 40px; text-align: center; max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+    .icon { width: 56px; height: 56px; margin: 0 auto 20px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #10b981; font-size: 28px; }
+    h2 { color: #38bdf8; margin: 0 0 10px; font-size: 22px; font-weight: 700; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 20px; }
+    .badge { display: inline-block; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 12px; padding: 6px 12px; border-radius: 8px; border: 1px solid #334155; }
   </style>
 </head>
 <body>
   <div class="card">
+    <div class="icon">✓</div>
     <h2>Connected to YouTube Music!</h2>
-    <p>Authentication was successful. You can safely close this browser window and return to CloudMix Pro.</p>
+    <p>Google authentication was successful. Your YouTube session has been synchronized with CloudMix Pro.</p>
+    <div class="badge">You can close this tab and return to the app</div>
   </div>
   <script>
     (function() {
@@ -650,7 +617,7 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         }).then(function() {
-          setTimeout(function() { window.close(); }, 1500);
+          setTimeout(function() { window.close(); }, 1200);
         });
       }
     })();
@@ -692,16 +659,17 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
         res.end();
       });
 
-      server.listen(PORT, '127.0.0.1', () => {
+      activeOAuthServer.listen(PORT, '127.0.0.1', () => {
         log(`OAuth loopback server listening on http://127.0.0.1:${PORT}`);
         // Launch Google authentication in user's default system browser (Chrome/Edge/Firefox)
+        // compliant with RFC 8252 for Native Apps (prevents 'Browser or app may not be secure' blocks)
         shell.openExternal(authUrl).catch(err => {
           log('shell.openExternal error: ' + err);
           cleanupAndResolve(null);
         });
       });
 
-      server.on('error', (err) => {
+      activeOAuthServer.on('error', (err) => {
         log('OAuth loopback server error: ' + err);
         cleanupAndResolve(null);
       });
@@ -719,6 +687,45 @@ ipcMain.handle('open-oauth-window', async (event, authUrl) => {
       cleanupAndResolve(null);
     }
   });
+}
+
+ipcMain.handle('youtube-session-sign-in', async (event, customAuthUrl) => {
+  // Uses RFC 8252 compliant system browser OAuth flow to eliminate 'Browser or app not secure' errors
+  const CLIENT_ID = '471913746603-ao2ov3tkf3ctlpl6hdfq52a4t6il0sa5.apps.googleusercontent.com';
+  const REDIRECT_URI = 'http://127.0.0.1:42813/callback';
+  const SCOPES = [
+    'https://www.googleapis.com/auth/youtube.readonly',
+    'https://www.googleapis.com/auth/userinfo.email',
+  ].join(' ');
+
+  const authUrl = customAuthUrl || (
+    'https://accounts.google.com/o/oauth2/v2/auth' +
+    '?client_id=' + encodeURIComponent(CLIENT_ID) +
+    '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
+    '&response_type=token' +
+    '&prompt=select_account' +
+    '&scope=' + encodeURIComponent(SCOPES)
+  );
+
+  const res = await runOAuthLoopback(authUrl);
+  if (res && (res.token || typeof res === 'string')) {
+    const token = typeof res === 'string' ? res : res.token;
+    return { signedIn: true, token };
+  }
+  return { signedIn: false, error: 'Sign-in cancelled or timed out.' };
+});
+ipcMain.handle('youtube-session-sign-out', async () => {
+  try {
+    const ses = session.defaultSession;
+    for (const origin of ['https://www.youtube.com', 'https://accounts.google.com', 'https://music.youtube.com', 'https://www.google.com']) {
+      await ses.clearStorageData({ origin, storages: ['cookies'] });
+    }
+  } catch {}
+  return getYouTubeSessionStatus();
+});
+
+ipcMain.handle('open-oauth-window', async (event, authUrl) => {
+  return runOAuthLoopback(authUrl);
 });
 
 ipcMain.handle('write-now-playing-broadcast', async (event, payload) => {

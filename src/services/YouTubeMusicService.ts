@@ -82,6 +82,8 @@ class YouTubeMusicService {
   ];
 
   private _refreshToken: string | null = null;
+  private _userEmail: string | null = null;
+  private _isExpired: boolean = false;
   private _refreshPromise: Promise<string | null> | null = null;
   private isFetchingPlaylists: boolean = false;
   private cachedPlaylists: YouTubePlaylist[] | null = null;
@@ -92,14 +94,24 @@ class YouTubeMusicService {
     Promise.all([
       storageCache.getSetting<string | null>('yt_oauth_token', null),
       storageCache.getSetting<string | null>('yt_refresh_token', null),
-    ]).then(([token, refreshToken]) => {
+      storageCache.getSetting<string | null>('yt_email', null),
+    ]).then(([token, refreshToken, email]) => {
       if (token) this._accessToken = token;
       if (refreshToken) this._refreshToken = refreshToken;
+      if (email) this._userEmail = email;
     });
   }
 
   public isSignedIn(): boolean {
     return !!(this._accessToken || this._refreshToken);
+  }
+
+  public getUserEmail(): string | null {
+    return this._userEmail;
+  }
+
+  public isExpired(): boolean {
+    return this._isExpired;
   }
 
   /**
@@ -114,7 +126,7 @@ class YouTubeMusicService {
       this._refreshToken = await storageCache.getSetting<string | null>('yt_refresh_token', null);
     }
 
-    if (this._accessToken) {
+    if (this._accessToken && !this._isExpired) {
       return this._accessToken;
     }
 
@@ -202,8 +214,12 @@ class YouTubeMusicService {
       `&scope=${encodeURIComponent(SCOPES)}`;
 
     const desktopAPI = (window as any).desktopAPI;
-    if (desktopAPI?.openOAuthWindow) {
-      const result: any = await desktopAPI.openOAuthWindow(authUrl);
+    if (desktopAPI?.openOAuthWindow || desktopAPI?.youtubeSessionSignIn) {
+      const invokeSignIn = desktopAPI.youtubeSessionSignIn
+        ? () => desktopAPI.youtubeSessionSignIn(authUrl)
+        : () => desktopAPI.openOAuthWindow(authUrl);
+
+      const result: any = await invokeSignIn();
       if (result) {
         let accessToken: string | null = null;
 
@@ -215,8 +231,12 @@ class YouTubeMusicService {
 
         if (accessToken) {
           this._accessToken = accessToken;
+          this._isExpired = false;
           await storageCache.setSetting('yt_oauth_token', accessToken);
-          this._fetchUserEmail(accessToken);
+          await this._fetchUserEmail(accessToken);
+          this.cachedPlaylists = null;
+          this._fetchPlaylistsPromise = null;
+          this.isFetchingPlaylists = false;
         }
       }
       return;
@@ -229,9 +249,15 @@ class YouTubeMusicService {
   public signOut(): void {
     this._accessToken = null;
     this._refreshToken = null;
+    this._userEmail = null;
+    this._isExpired = false;
+    this.cachedPlaylists = null;
     storageCache.setSetting('yt_oauth_token', null);
     storageCache.setSetting('yt_refresh_token', null);
     storageCache.setSetting('yt_email', null);
+    try {
+      (window as any).desktopAPI?.youtubeSessionSignOut?.().catch?.(() => {});
+    } catch {}
   }
 
   private async _fetchUserEmail(token: string): Promise<void> {
@@ -242,6 +268,7 @@ class YouTubeMusicService {
       if (res.ok) {
         const data = await res.json();
         if (data.email) {
+          this._userEmail = data.email;
           await storageCache.setSetting('yt_email', data.email);
         }
       }
@@ -426,6 +453,9 @@ class YouTubeMusicService {
               }
               if (chanRes.status === 401) {
                 console.warn('[YouTube Music] OAuth token expired or invalid (401). Retaining session and returning cached/curated playlists.');
+                this._isExpired = true;
+                this._accessToken = null;
+                await storageCache.setSetting('yt_oauth_token', null);
                 // Do NOT wipe playlists across patches; return cached playlists + curated
                 const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
                 const seen = new Set<string>();
@@ -470,6 +500,9 @@ class YouTubeMusicService {
 
             if (mineRes.status === 401) {
               console.warn('[YouTube Music] OAuth token expired (401). Retaining session and returning cached playlists.');
+              this._isExpired = true;
+              this._accessToken = null;
+              await storageCache.setSetting('yt_oauth_token', null);
               const fallback = [...savedPlaylists, ...cachedOauthPlaylists, ...curatedOnly];
               const seen = new Set<string>();
               const res = fallback.filter((p) => {

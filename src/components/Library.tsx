@@ -849,6 +849,19 @@ export const Library = React.memo<LibraryProps>(({
                     </div>
                   </div>
 
+                  {youtubeMusicService.isExpired() && (
+                    <button
+                      onClick={async () => {
+                        await youtubeMusicService.signIn();
+                        handleLoadYtPlaylists(true);
+                      }}
+                      className="w-full text-left px-2 py-1 my-1 rounded bg-amber-950/80 border border-amber-500/50 text-[10px] text-amber-300 font-mono flex items-center justify-between hover:bg-amber-900/80 transition-colors cursor-pointer"
+                    >
+                      <span>Session Expired • Re-Connect</span>
+                      <RefreshCw className="w-3 h-3 text-amber-400" />
+                    </button>
+                  )}
+
                   {/* Quick Playlist Import Input */}
                   {isImportingYtPlaylist && (
                     <div className="p-1.5 rounded bg-rose-950/70 border border-rose-600/50 space-y-1 text-left">

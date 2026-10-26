@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrackMetadata, LyricsLine, DeckState } from '../types/dj';
 import { broadcastService, NowPlayingState, OverlayConfig, CanvasConfig, DEFAULT_CANVAS_CONFIG } from '../services/BroadcastService';
+import { youtubeMusicService } from '../services/YouTubeMusicService';
 import { streamerbotService, StreamerbotConfig, StreamerbotStatus } from '../services/StreamerbotService';
 import { storageCache } from '../services/StorageCacheService';
 import { lyricsService } from '../services/LyricsService';
@@ -49,20 +50,34 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
 
   // YouTube / YouTube Premium session state for OBS preview
   const [ytSignedIn, setYtSignedIn] = useState<boolean | null>(null);
+  const [ytEmail, setYtEmail] = useState<string | null>(null);
+  const [ytExpired, setYtExpired] = useState(false);
   const [ytBusy, setYtBusy] = useState(false);
-  const ytApi = (window as any).desktopAPI;
 
   useEffect(() => {
-    ytApi?.youtubeSessionStatus?.()
-      .then((s: any) => setYtSignedIn(!!s?.signedIn))
-      .catch(() => setYtSignedIn(false));
+    const initYt = async () => {
+      const email = await storageCache.getSetting<string | null>('yt_email', null);
+      setYtEmail(email || youtubeMusicService.getUserEmail());
+      setYtExpired(youtubeMusicService.isExpired());
+      setYtSignedIn(youtubeMusicService.isSignedIn());
+    };
+    initYt();
   }, []);
 
   const handleYtSignIn = async () => {
     setYtBusy(true);
     try {
-      const s = await ytApi?.youtubeSessionSignIn?.();
-      setYtSignedIn(!!s?.signedIn);
+      await youtubeMusicService.signIn();
+      const signed = youtubeMusicService.isSignedIn();
+      setYtSignedIn(signed);
+      setYtEmail(youtubeMusicService.getUserEmail());
+      setYtExpired(youtubeMusicService.isExpired());
+      if (signed) {
+        setTriggerFeedback('Connected to YouTube Music!');
+      }
+    } catch (err: any) {
+      console.error('YouTube sign-in error:', err);
+      setTriggerFeedback('YouTube sign-in error: ' + (err?.message || err));
     } finally {
       setYtBusy(false);
     }
@@ -71,8 +86,11 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
   const handleYtSignOut = async () => {
     setYtBusy(true);
     try {
-      const s = await ytApi?.youtubeSessionSignOut?.();
-      setYtSignedIn(!!s?.signedIn);
+      youtubeMusicService.signOut();
+      setYtSignedIn(false);
+      setYtEmail(null);
+      setYtExpired(false);
+      setTriggerFeedback('Signed out of YouTube.');
     } finally {
       setYtBusy(false);
     }
@@ -505,14 +523,22 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                     <span className={`text-[10px] font-mono px-2 py-0.5 rounded border font-semibold ${
                       ytSignedIn
                         ? 'text-emerald-400 border-emerald-800/60 bg-emerald-950/80'
-                        : 'text-amber-300 border-amber-800/60 bg-amber-950/60'
+                        : ytExpired
+                        ? 'text-amber-400 border-amber-800/60 bg-amber-950/80'
+                        : 'text-slate-400 border-slate-800/60 bg-slate-950/60'
                     }`}>
-                      {ytSignedIn === null ? 'CHECKING...' : ytSignedIn ? 'SIGNED IN' : 'NOT SIGNED IN'}
+                      {ytSignedIn === null
+                        ? 'CHECKING...'
+                        : ytSignedIn
+                        ? (ytEmail ? `CONNECTED (${ytEmail})` : 'CONNECTED')
+                        : ytExpired
+                        ? 'TOKEN EXPIRED (RE-CONNECT)'
+                        : 'NOT CONNECTED'}
                     </span>
                   </div>
                   Sign in with your YouTube Music or YouTube Premium Google account to unlock full-length video streaming without playback restrictions in the OBS preview window.
                   <span className="block text-[10px] text-slate-400 mt-0.5">
-                    Note: Inside OBS Studio, right-click your Browser Source, choose <b>Interact</b>, and log in once to sync OBS session cookies.
+                    Authenticates securely via default system browser (Chrome/Edge/Firefox) with zero embedded webview blocks.
                   </span>
                 </div>
                 <button
@@ -525,7 +551,7 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                   }`}
                 >
                   <Video className="w-3.5 h-3.5" />
-                  <span>{ytBusy ? 'Connecting...' : ytSignedIn ? 'Sign Out YouTube' : 'Sign in to YouTube'}</span>
+                  <span>{ytBusy ? 'Connecting...' : ytSignedIn ? 'Disconnect Account' : ytExpired ? 'Re-Connect YouTube' : 'Sign in to YouTube'}</span>
                 </button>
               </div>
 
