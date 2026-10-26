@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import {
   Disc3,
@@ -442,7 +443,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center space-x-1 px-1.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-cyan-300 text-[11px] font-mono transition-all cursor-pointer shadow-sm group"
           >
             <Sparkles className="w-3 h-3 text-cyan-400 group-hover:rotate-12 transition-transform" />
-            <span className="inline font-bold text-cyan-300">v{updateStatus.version || '2.0.44'}</span>
+            <span className="inline font-bold text-cyan-300">v{updateStatus.version || '2.0.46'}</span>
             {updateStatus.status === 'checking' && (
               <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
             )}
@@ -571,10 +572,10 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 4. Slide-Out Studio Control Center Drawer (Modular Menu) */}
-      {isMenuOpen && (
+      {isMenuOpen && typeof document !== 'undefined' && createPortal(
         <div
           style={{ WebkitAppRegion: 'no-drag' } as any}
-          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[99999] flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsMenuOpen(false)}
         >
           <div
@@ -1018,7 +1019,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );
