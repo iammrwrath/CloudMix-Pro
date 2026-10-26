@@ -1,6 +1,6 @@
 # 🎧 CloudMix Pro — Official User Guide & Technical Manual
 
-> **Version:** 2.0.46  
+> **Version:** 2.0.47  
 > **Repository:** [https://github.com/iammrwrath/CloudMix-Pro](https://github.com/iammrwrath/CloudMix-Pro)  
 > **Platform:** Windows, macOS, Linux (Electron 44 + Web Audio DSP)
 
@@ -179,7 +179,7 @@ Migrate your existing crates, cue points, and beatgrids without losing preparati
 ## 11. GitHub Integration & Auto-Updates
 
 * **Official Repository:** [https://github.com/iammrwrath/CloudMix-Pro](https://github.com/iammrwrath/CloudMix-Pro)
-* **Check for Updates:** Click the version pill (`v2.0.46`) in the top right header. CloudMix Pro queries GitHub Releases via `electron-updater`.
+* **Check for Updates:** Click the version pill (`v2.0.47`) in the top right header. CloudMix Pro queries GitHub Releases via `electron-updater`.
 * **Silent Background Patching:** When an update is ready, click **Apply** to automatically install the patch and relaunch via native watchdog with zero downtime.
 * **Report Issues & Feature Requests:** Visit the [CloudMix Pro GitHub Issues](https://github.com/iammrwrath/CloudMix-Pro/issues) page to report bugs, suggest MIDI mappings, or contribute.
 

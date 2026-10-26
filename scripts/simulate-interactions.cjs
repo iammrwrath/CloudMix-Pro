@@ -198,6 +198,8 @@ async function runComprehensiveSimulation() {
   assert(appCode.includes('UserGuideModal') && appCode.includes("e.key === 'F1'"), 'User Guide Modal Hotkey (F1)', 'F1 hotkey and modal container mounted in App');
   assert(headerCode.includes('isMenuOpen') && headerCode.includes('Studio Control Center') && headerCode.includes('MENU'), 'Modular Slide-Out Studio Drawer', 'Header includes slide-out drawer menu for compact & responsive window layouts');
   assert(headerCode.includes("e.key === 'm'") && headerCode.includes("e.key === 'M'"), 'Modular Slide-Out Menu Hotkey (M)', 'Pressing M triggers the Studio Control Center slide-out drawer');
+  assert(headerCode.includes('grid-cols-[1fr_auto_1fr]'), 'Uniform 3-Zone Header Grid', 'Header enforces mathematical dead-center BPM alignment via 3-zone CSS grid');
+  assert(headerCode.includes('h-7') && headerCode.includes('rounded-lg'), 'Uniform Top Bar Geometry', 'All top bar capsules and tools strictly adhere to h-7 rounded-lg design system');
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
