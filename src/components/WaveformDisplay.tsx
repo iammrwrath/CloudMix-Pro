@@ -532,7 +532,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
   };
 
   return (
-    <div className="flex flex-col w-full bg-dj-surface rounded-xl overflow-hidden border border-dj-border shadow-[inset_0_2px_12px_rgba(0,0,0,0.6)]">
+    <div className="waveform-screen-housing flex flex-col w-full bg-[#06080e] rounded-xl overflow-hidden border border-dj-border shadow-[inset_0_2px_12px_rgba(0,0,0,0.6)]">
       {/* 1. Dynamic Scrolling Waveform (Tri-Band RGB — Expanded Prominent Display) */}
       <div className="relative h-[clamp(2.85rem,9.5cqh,6rem)] w-full cursor-ew-resize min-h-[46px]">
         <canvas
@@ -547,9 +547,9 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
         />
         {/* Frequency color legend */}
         <div className="waveform-screen-legend absolute top-1 right-2 flex items-center space-x-2 text-[11px] font-mono font-bold pointer-events-none px-2 py-0.5 rounded-md border shadow-md">
-          <span className="flex items-center text-slate-100"><span className="w-2 h-2 rounded-full bg-[#ff3366] mr-1 shadow-[0_0_6px_#ff3366]"></span>Bass</span>
-          <span className="flex items-center text-slate-100"><span className="w-2 h-2 rounded-full bg-[#00e5ff] mr-1 shadow-[0_0_6px_#00e5ff]"></span>Mid</span>
-          <span className="flex items-center text-slate-100"><span className="w-2 h-2 rounded-full bg-white mr-1 shadow-[0_0_4px_#ffffff]"></span>Hi</span>
+          <span className="flex items-center text-white font-bold"><span className="w-2 h-2 rounded-full bg-[#ff3366] mr-1 shadow-[0_0_6px_#ff3366]"></span>Bass</span>
+          <span className="flex items-center text-white font-bold"><span className="w-2 h-2 rounded-full bg-[#00e5ff] mr-1 shadow-[0_0_6px_#00e5ff]"></span>Mid</span>
+          <span className="flex items-center text-white font-bold"><span className="w-2 h-2 rounded-full bg-white mr-1 shadow-[0_0_4px_#ffffff]"></span>Hi</span>
         </div>
       </div>
 

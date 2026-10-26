@@ -39,7 +39,7 @@ interface GuideSection {
   tags: string[];
 }
 
-const APP_VERSION = 'v2.0.47';
+const APP_VERSION = 'v2.0.48';
 const GITHUB_REPO_URL = 'https://github.com/iammrwrath/CloudMix-Pro';
 const GITHUB_GUIDE_RAW = 'https://raw.githubusercontent.com/iammrwrath/CloudMix-Pro/main/docs/USER_GUIDE.md';
 

@@ -224,6 +224,14 @@
 }
 
 /* 4.2 Inactive Hardware Control Buttons: Crisp Elevated White with Bold Charcoal Text */
+[data-theme="light"] button.bg-slate-900,
+[data-theme="light"] button.bg-slate-900\/95,
+[data-theme="light"] button.bg-slate-900\/90,
+[data-theme="light"] button.bg-slate-900\/80,
+[data-theme="light"] button.bg-slate-900\/60,
+[data-theme="light"] button.bg-slate-950,
+[data-theme="light"] button.bg-slate-950\/90,
+[data-theme="light"] button.bg-slate-950\/80,
 [data-theme="light"] button.bg-slate-800,
 [data-theme="light"] button.bg-slate-800\/90,
 [data-theme="light"] button.bg-slate-800\/80,
@@ -243,6 +251,10 @@
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
 }
 
+[data-theme="light"] button.bg-slate-900:hover,
+[data-theme="light"] button.bg-slate-900\/95:hover,
+[data-theme="light"] button.bg-slate-900\/90:hover,
+[data-theme="light"] button.bg-slate-900\/80:hover,
 [data-theme="light"] button.bg-slate-800:hover,
 [data-theme="light"] button.bg-slate-800\/90:hover,
 [data-theme="light"] button.bg-slate-800\/80:hover,
@@ -255,12 +267,11 @@
   color: #000000 !important;
 }
 
-[data-theme="light"] button.bg-slate-800 *,
-[data-theme="light"] button.bg-slate-800\/90 *,
-[data-theme="light"] button.bg-slate-800\/80 *,
-[data-theme="light"] button.bg-slate-700 *,
-[data-theme="light"] button.bg-zinc-800 * {
-  color: #0f172a !important;
+/* Neutral text inside light mode buttons: charcoal slate (preserving explicit color classes) */
+[data-theme="light"] button.bg-slate-900 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]),
+[data-theme="light"] button.bg-slate-800 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]),
+[data-theme="light"] button.bg-slate-700 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]) {
+  color: #0f172a;
 }
 
 /* Fallback non-button backgrounds */
@@ -429,6 +440,112 @@
   color: #c2410c !important;
 }
 
+/* 4.5.1 Translucent Accent Badges & Pills (Rich Contrast Adaptation) */
+[data-theme="light"] button[class*="from-cyan-500\/25"],
+[data-theme="light"] button[class*="from-cyan-500\/20"] {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0369a1 !important;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.25) !important;
+}
+
+[data-theme="light"] .bg-cyan-500\/20,
+[data-theme="light"] .bg-cyan-500\/25,
+[data-theme="light"] .bg-cyan-500\/30,
+[data-theme="light"] .bg-cyan-500\/10 {
+  background-color: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+[data-theme="light"] .bg-purple-500\/20,
+[data-theme="light"] .bg-purple-500\/25,
+[data-theme="light"] .bg-purple-500\/30,
+[data-theme="light"] .bg-purple-500\/10 {
+  background-color: #f3e8ff !important;
+  border-color: #7c3aed !important;
+  color: #6d28d9 !important;
+}
+
+[data-theme="light"] .bg-amber-500\/20,
+[data-theme="light"] .bg-amber-500\/25,
+[data-theme="light"] .bg-amber-500\/30,
+[data-theme="light"] .bg-amber-500\/10 {
+  background-color: #fef3c7 !important;
+  border-color: #d97706 !important;
+  color: #b45309 !important;
+}
+
+[data-theme="light"] .bg-pink-500\/20,
+[data-theme="light"] .bg-pink-500\/25,
+[data-theme="light"] .bg-pink-500\/30,
+[data-theme="light"] .bg-pink-500\/10,
+[data-theme="light"] .bg-rose-500\/20,
+[data-theme="light"] .bg-rose-500\/10 {
+  background-color: #ffe4e6 !important;
+  border-color: #e11d48 !important;
+  color: #be123c !important;
+}
+
+[data-theme="light"] .bg-emerald-500\/20,
+[data-theme="light"] .bg-emerald-500\/25,
+[data-theme="light"] .bg-emerald-500\/30,
+[data-theme="light"] .bg-emerald-500\/10 {
+  background-color: #dcfce7 !important;
+  border-color: #059669 !important;
+  color: #047857 !important;
+}
+
+[data-theme="light"] .bg-indigo-500\/20,
+[data-theme="light"] .bg-indigo-500\/25,
+[data-theme="light"] .bg-indigo-500\/30,
+[data-theme="light"] .bg-indigo-600\/30 {
+  background-color: #e0e7ff !important;
+  border-color: #4f46e5 !important;
+  color: #3730a3 !important;
+}
+
+/* 4.5.2 Low-Opacity Hardware Borders -> Deep High-Contrast Borders */
+[data-theme="light"] .border-cyan-500\/20,
+[data-theme="light"] .border-cyan-500\/30,
+[data-theme="light"] .border-cyan-500\/40,
+[data-theme="light"] .border-cyan-500\/50,
+[data-theme="light"] .border-cyan-500\/60 {
+  border-color: #0284c7 !important;
+}
+
+[data-theme="light"] .border-amber-500\/20,
+[data-theme="light"] .border-amber-500\/30,
+[data-theme="light"] .border-amber-500\/40,
+[data-theme="light"] .border-amber-500\/50,
+[data-theme="light"] .border-amber-500\/60 {
+  border-color: #d97706 !important;
+}
+
+[data-theme="light"] .border-emerald-500\/20,
+[data-theme="light"] .border-emerald-500\/30,
+[data-theme="light"] .border-emerald-500\/40,
+[data-theme="light"] .border-emerald-500\/50,
+[data-theme="light"] .border-emerald-500\/60 {
+  border-color: #059669 !important;
+}
+
+[data-theme="light"] .border-purple-500\/20,
+[data-theme="light"] .border-purple-500\/30,
+[data-theme="light"] .border-purple-500\/40,
+[data-theme="light"] .border-purple-500\/50,
+[data-theme="light"] .border-purple-500\/60 {
+  border-color: #7c3aed !important;
+}
+
+[data-theme="light"] .border-pink-500\/20,
+[data-theme="light"] .border-pink-500\/30,
+[data-theme="light"] .border-pink-500\/40,
+[data-theme="light"] .border-pink-500\/50,
+[data-theme="light"] .border-rose-500\/40 {
+  border-color: #e11d48 !important;
+}
+
 /* 4.6 Subdued Background Panels */
 [data-theme="light"] .bg-\[\#0b0e14\],
 [data-theme="light"] .bg-\[\#0b0e14\]\/90,
@@ -560,13 +677,19 @@
 }
 
 /* 4.9 Dedicated Dark Display Protection: Waveform Legend & Jog Wheel Center LCD */
+.waveform-screen-housing,
+[data-theme="light"] .waveform-screen-housing {
+  background-color: #06080e !important;
+  border-color: #cbd5e1 !important;
+}
+
 .waveform-screen-legend,
 .waveform-screen-legend *,
 [data-theme="light"] .waveform-screen-legend,
 [data-theme="light"] .waveform-screen-legend * {
-  color: #f8fafc !important;
-  background-color: rgba(6, 8, 14, 0.88) !important;
-  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  background-color: rgba(6, 8, 14, 0.94) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
 }
 
 .jog-lcd-hud,
@@ -588,6 +711,19 @@
 .jog-lcd-hud span.jog-rpm,
 [data-theme="light"] .jog-lcd-hud span.jog-rpm {
   color: #94a3b8 !important;
+}
+
+/* Dedicated Hardware Displays & Sliders (VU Meter, Fader Tracks) */
+.vu-meter-housing,
+[data-theme="light"] .vu-meter-housing {
+  background-color: #06080e !important;
+  border-color: #1e293b !important;
+}
+
+.fader-track-slot,
+[data-theme="light"] .fader-track-slot {
+  background-color: #06080e !important;
+  border-color: #334155 !important;
 }
 
 /* Custom Scrollbar for Library */

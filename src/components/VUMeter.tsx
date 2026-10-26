@@ -13,7 +13,7 @@ export const VUMeter: React.FC<VUMeterProps> = React.memo(
     return (
       <div
         style={{ height }}
-        className="w-3 bg-slate-950 rounded p-0.5 flex flex-col-reverse justify-between border border-slate-800 shadow-inner"
+        className="vu-meter-housing w-3 bg-slate-950 rounded p-0.5 flex flex-col-reverse justify-between border border-slate-800 shadow-inner"
       >
         {Array.from({ length: segments }).map((_, i) => {
           const isActive = i < activeCount;

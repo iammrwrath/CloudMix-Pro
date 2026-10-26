@@ -88,7 +88,7 @@ export const ChannelFader: React.FC<ChannelFaderProps> = ({
       title={`${channelName} Volume: ${Math.round(percent)}%`}
       className="relative flex items-center justify-center h-full w-8 py-0.5 cursor-pointer select-none outline-none group touch-none"
     >
-      <div className="absolute top-1 bottom-1 w-2 rounded-full bg-slate-950 border border-slate-800/90 shadow-inner flex items-center justify-center">
+      <div className="fader-track-slot absolute top-1 bottom-1 w-2 rounded-full bg-slate-950 border border-slate-800/90 shadow-inner flex items-center justify-center">
         <div className="w-[1px] h-full bg-slate-800" />
       </div>
 

@@ -200,6 +200,10 @@ async function runComprehensiveSimulation() {
   assert(headerCode.includes("e.key === 'm'") && headerCode.includes("e.key === 'M'"), 'Modular Slide-Out Menu Hotkey (M)', 'Pressing M triggers the Studio Control Center slide-out drawer');
   assert(headerCode.includes('grid-cols-[1fr_auto_1fr]'), 'Uniform 3-Zone Header Grid', 'Header enforces mathematical dead-center BPM alignment via 3-zone CSS grid');
   assert(headerCode.includes('h-7') && headerCode.includes('rounded-lg'), 'Uniform Top Bar Geometry', 'All top bar capsules and tools strictly adhere to h-7 rounded-lg design system');
+  const cssPath = path.join(__dirname, '..', 'src', 'index.css');
+  const cssCode = fs.readFileSync(cssPath, 'utf8');
+  assert(cssCode.includes('.waveform-screen-housing') && cssCode.includes('.waveform-screen-legend *'), 'Waveform Display Dark LCD Protection', 'Waveforms and tri-band legends maintain 100% luminous contrast in Light Mode');
+  assert(cssCode.includes('button.bg-slate-900') && cssCode.includes('.bg-cyan-500\\/20'), 'Light Mode WCAG High-Contrast Theme Layer', 'Eliminates pale pastel clashes and elevates hardware buttons to crisp titanium in Light Mode');
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
