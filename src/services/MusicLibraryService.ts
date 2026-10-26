@@ -111,46 +111,7 @@ export class MusicLibraryService {
       console.warn('Could not load tracks from storageCache:', err);
     }
 
-    // 3. Scan saved local music folder path
-    try {
-      const savedPath = await storageCache.getSetting<string>('local_music_path', '');
-      if (savedPath && savedPath.trim()) {
-        const localTracks = await this.scanLocalFolder(savedPath.trim());
-        for (const t of localTracks) {
-          if (!combined.has(t.id)) {
-            combined.set(t.id, t);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not scan local music folder:', err);
-    }
-
-    // 4. Load from Music.csv via Electron IPC or Fetch
-    try {
-      let csvContent = '';
-      if ((window as any).desktopAPI?.readMusicCsv) {
-        csvContent = await (window as any).desktopAPI.readMusicCsv();
-      } else {
-        const res = await fetch('/Music.csv');
-        if (res.ok) {
-          csvContent = await res.text();
-        }
-      }
-
-      if (csvContent && csvContent.length > 50) {
-        const parsedCsv = this.parseMusicCsv(csvContent);
-        for (const t of parsedCsv) {
-          if (!combined.has(t.id)) {
-            combined.set(t.id, t);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not load Music.csv directly:', err);
-    }
-
-    // 5. If combined is empty, seed with high-quality fallback demo tracks
+    // Fallback seed if completely empty
     if (combined.size === 0) {
       const demos = this.getFallbackDemoTracks();
       for (const d of demos) {
@@ -158,15 +119,71 @@ export class MusicLibraryService {
       }
     }
 
+    // INSTANT UI DISPLAY: Populate live tracks and notify immediately (< 50ms)
     this.tracks = Array.from(combined.values());
     this.isLoaded = true;
     this.notify();
 
-    // Persist combined tracks to IndexedDB so Library.tsx and other components can access them
+    // Persist active library to IndexedDB in non-blocking background
     try {
       const djTracks = this.tracks.map((t) => this.convertPulseToDjTrack(t));
       storageCache.saveTracks(djTracks).catch((e) => console.warn('Background track cache save error:', e));
     } catch {}
+
+    // BACKGROUND INCREMENTAL SCAN: Load saved local directory and Music.csv asynchronously without blocking UI startup
+    setTimeout(async () => {
+      let updated = false;
+
+      // 3. Scan saved local music folder path in background
+      try {
+        const savedPath = await storageCache.getSetting<string>('local_music_path', '');
+        if (savedPath && savedPath.trim()) {
+          const localTracks = await this.scanLocalFolder(savedPath.trim());
+          for (const t of localTracks) {
+            if (!combined.has(t.id)) {
+              combined.set(t.id, t);
+              updated = true;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not scan local music folder in background:', err);
+      }
+
+      // 4. Load from Music.csv via Electron IPC or Fetch
+      try {
+        let csvContent = '';
+        if ((window as any).desktopAPI?.readMusicCsv) {
+          csvContent = await (window as any).desktopAPI.readMusicCsv();
+        } else {
+          const res = await fetch('/Music.csv');
+          if (res.ok) {
+            csvContent = await res.text();
+          }
+        }
+
+        if (csvContent && csvContent.length > 50) {
+          const parsedCsv = this.parseMusicCsv(csvContent);
+          for (const t of parsedCsv) {
+            if (!combined.has(t.id)) {
+              combined.set(t.id, t);
+              updated = true;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load Music.csv in background:', err);
+      }
+
+      if (updated) {
+        this.tracks = Array.from(combined.values());
+        this.notify();
+        try {
+          const djTracks = this.tracks.map((t) => this.convertPulseToDjTrack(t));
+          storageCache.saveTracks(djTracks).catch(() => {});
+        } catch {}
+      }
+    }, 250);
 
     return this.tracks;
   }

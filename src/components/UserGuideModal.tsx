@@ -27,6 +27,7 @@ import {
 interface UserGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
+  themeMode?: 'dark' | 'light';
 }
 
 interface GuideSection {
@@ -38,7 +39,7 @@ interface GuideSection {
   tags: string[];
 }
 
-const APP_VERSION = 'v2.0.43';
+const APP_VERSION = 'v2.0.44';
 const GITHUB_REPO_URL = 'https://github.com/iammrwrath/CloudMix-Pro';
 const GITHUB_GUIDE_RAW = 'https://raw.githubusercontent.com/iammrwrath/CloudMix-Pro/main/docs/USER_GUIDE.md';
 
@@ -49,7 +50,8 @@ interface ParsedBlock {
   rows?: string[];
 }
 
-export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose }) => {
+export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose, themeMode }) => {
+  const isLight = (themeMode || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'dark')) === 'light';
   const [activeSectionId, setActiveSectionId] = useState<string>('quickstart');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -427,7 +429,9 @@ CloudMix Pro is developed openly with community feedback and automated testing:
   }, [activeSection.content]);
 
   // Inline Markdown Formatter (Bold, Code, Links, Italics)
-  const renderInlineMarkdown = (text: string): React.ReactNode => {
+  const renderInlineMarkdown = (text: string, isLightMode: boolean = false): React.ReactNode => {
+    if (!text) return '';
+    // Bold, code, italic, link
     const parts: React.ReactNode[] = [];
     const regex = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
     let lastIndex = 0;
@@ -451,15 +455,18 @@ CloudMix Pro is developed openly with community feedback and automated testing:
                 e.preventDefault();
                 handleOpenExternal(linkMatch[2]);
               }}
-              className="text-cyan-400 hover:text-cyan-300 underline font-semibold cursor-pointer"
+              className={`underline font-semibold cursor-pointer inline-flex items-center space-x-0.5 mx-0.5 ${
+                isLightMode ? 'text-cyan-700 hover:text-cyan-900' : 'text-cyan-400 hover:text-cyan-300'
+              }`}
             >
-              {linkMatch[1]}
+              <span>{linkMatch[1]}</span>
+              <ExternalLink className="w-2.5 h-2.5 inline ml-0.5" />
             </a>
           );
         }
       } else if (token.startsWith('**') && token.endsWith('**')) {
         parts.push(
-          <strong key={match.index} className="text-white font-bold">
+          <strong key={match.index} className={`font-bold ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
             {token.slice(2, -2)}
           </strong>
         );
@@ -467,14 +474,18 @@ CloudMix Pro is developed openly with community feedback and automated testing:
         parts.push(
           <code
             key={match.index}
-            className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-[11px] border border-slate-700/80 mx-0.5 inline-block shadow-sm"
+            className={`px-1.5 py-0.5 rounded font-mono text-[11px] border mx-0.5 inline-block ${
+              isLightMode
+                ? 'bg-slate-100 text-cyan-800 border-slate-300 font-semibold shadow-xs'
+                : 'bg-slate-800 text-cyan-300 border-slate-700/80 shadow-sm'
+            }`}
           >
             {token.slice(1, -1)}
           </code>
         );
       } else if (token.startsWith('*') && token.endsWith('*')) {
         parts.push(
-          <em key={match.index} className="text-slate-300 italic">
+          <em key={match.index} className={`italic ${isLightMode ? 'text-slate-600' : 'text-slate-300'}`}>
             {token.slice(1, -1)}
           </em>
         );
@@ -492,25 +503,43 @@ CloudMix Pro is developed openly with community feedback and automated testing:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl h-[88vh] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-200 user-guide-backdrop">
+      <div className={`relative w-full max-w-5xl h-[88vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-colors ${
+        isLight
+          ? 'bg-white border border-slate-300 text-slate-800'
+          : 'bg-slate-900 border border-slate-700/80 text-slate-100'
+      }`}>
         
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/80">
+        <div className={`flex items-center justify-between px-5 py-3.5 border-b transition-colors ${
+          isLight
+            ? 'bg-slate-50 border-slate-200'
+            : 'bg-slate-950/80 border-slate-800'
+        }`}>
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-sm">
+            <div className={`p-2 rounded-xl border shadow-sm ${
+              isLight
+                ? 'bg-cyan-50 border-cyan-300 text-cyan-600'
+                : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+            }`}>
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold font-sans text-white tracking-wide">
+                <h2 className={`text-base font-bold font-sans tracking-wide ${
+                  isLight ? 'text-slate-900' : 'text-white'
+                }`}>
                   CloudMix Pro User Guide & Technical Manual
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-950/90 text-cyan-300 border border-cyan-700/60 shadow-sm">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shadow-sm ${
+                  isLight
+                    ? 'bg-cyan-100 border-cyan-300 text-cyan-800'
+                    : 'bg-cyan-950/90 border-cyan-700/60 text-cyan-300'
+                }`}>
                   {APP_VERSION}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Official documentation, feature walkthroughs, and GitHub repository integration
               </p>
             </div>
@@ -522,9 +551,13 @@ CloudMix Pro is developed openly with community feedback and automated testing:
               onClick={handleSyncWithGitHub}
               disabled={isSyncing}
               title="Fetch the newest documentation live from GitHub main branch"
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white text-xs font-sans font-medium transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-sans font-medium transition-all cursor-pointer disabled:opacity-50 shadow-sm border ${
+                isLight
+                  ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200 hover:text-white'
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLight ? 'text-cyan-600' : 'text-cyan-400'} ${isSyncing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync GitHub Docs'}</span>
             </button>
 
@@ -532,9 +565,13 @@ CloudMix Pro is developed openly with community feedback and automated testing:
             <button
               onClick={() => handleOpenExternal(`${GITHUB_REPO_URL}/blob/main/docs/USER_GUIDE.md`)}
               title="Open documentation file on GitHub"
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 hover:text-white text-xs font-sans font-medium transition-all cursor-pointer shadow-sm"
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-sans font-medium transition-all cursor-pointer shadow-sm border ${
+                isLight
+                  ? 'bg-cyan-50 hover:bg-cyan-100 border-cyan-300 text-cyan-800 hover:text-cyan-950'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-300 hover:text-white'
+              }`}
             >
-              <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
+              <GitBranch className={`w-3.5 h-3.5 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
               <span className="hidden sm:inline">GitHub Docs</span>
               <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
             </button>
@@ -543,7 +580,11 @@ CloudMix Pro is developed openly with community feedback and automated testing:
             <button
               onClick={onClose}
               title="Close User Guide (Esc)"
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 transition-colors cursor-pointer ml-1"
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ml-1 ${
+                isLight
+                  ? 'bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border-slate-300'
+                  : 'bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border-slate-700'
+              }`}
             >
               <X className="w-4 h-4" />
             </button>
@@ -552,14 +593,18 @@ CloudMix Pro is developed openly with community feedback and automated testing:
 
         {/* Sync notification banner */}
         {syncStatus && (
-          <div className="px-5 py-2 bg-cyan-950/70 border-b border-cyan-800/60 flex items-center justify-between text-xs font-mono text-cyan-300 animate-in fade-in duration-150">
+          <div className={`px-5 py-2 border-b flex items-center justify-between text-xs font-mono animate-in fade-in duration-150 ${
+            isLight
+              ? 'bg-cyan-50 border-cyan-200 text-cyan-800'
+              : 'bg-cyan-950/70 border-cyan-800/60 text-cyan-300'
+          }`}>
             <span className="flex items-center space-x-2">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <Sparkles className={`w-3.5 h-3.5 animate-pulse ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
               <span>{syncStatus}</span>
             </span>
             <button
               onClick={() => setSyncStatus(null)}
-              className="text-cyan-400 hover:text-white transition-colors"
+              className={`transition-colors ${isLight ? 'text-cyan-700 hover:text-cyan-950' : 'text-cyan-400 hover:text-white'}`}
             >
               ✕
             </button>
@@ -570,10 +615,14 @@ CloudMix Pro is developed openly with community feedback and automated testing:
         <div className="flex-1 flex overflow-hidden">
           
           {/* Left Sidebar Navigation */}
-          <div className="w-72 sm:w-80 border-r border-slate-800 bg-slate-950/50 flex flex-col shrink-0">
+          <div className={`w-72 sm:w-80 border-r flex flex-col shrink-0 ${
+            isLight
+              ? 'bg-slate-50/70 border-slate-200'
+              : 'bg-slate-950/50 border-slate-800'
+          }`}>
             
             {/* Search Input */}
-            <div className="p-3 border-b border-slate-800/80 bg-slate-950/80">
+            <div className={`p-3 border-b ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800/80'}`}>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -581,7 +630,11 @@ CloudMix Pro is developed openly with community feedback and automated testing:
                   placeholder="Search user guide..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                  className={`w-full rounded-lg pl-8 pr-3 py-1.5 text-xs transition-colors focus:outline-none ${
+                    isLight
+                      ? 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-cyan-600'
+                      : 'bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-cyan-500'
+                  }`}
                 />
                 {searchQuery && (
                   <button
@@ -604,43 +657,71 @@ CloudMix Pro is developed openly with community feedback and automated testing:
                     onClick={() => setActiveSectionId(section.id)}
                     className={`w-full flex items-start space-x-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer group ${
                       isActive
-                        ? 'bg-cyan-950/70 border border-cyan-500/50 text-white font-semibold shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
+                        ? isLight
+                          ? 'bg-cyan-100/90 border border-cyan-400 text-cyan-950 font-bold shadow-sm'
+                          : 'bg-cyan-950/70 border border-cyan-500/50 text-white font-semibold shadow-md'
+                        : isLight
+                          ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-200/70 border border-transparent'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
                     }`}
                   >
-                    <span className={`shrink-0 mt-0.5 p-1 rounded-lg ${isActive ? 'bg-cyan-500/20 text-cyan-300' : 'bg-slate-900 text-slate-400 group-hover:text-slate-200'}`}>
+                    <span className={`shrink-0 mt-0.5 p-1 rounded-lg ${
+                      isActive
+                        ? isLight
+                          ? 'bg-cyan-600 text-white shadow-sm'
+                          : 'bg-cyan-500/20 text-cyan-300'
+                        : isLight
+                          ? 'bg-white text-slate-600 border border-slate-200 shadow-xs'
+                          : 'bg-slate-900 text-slate-400 group-hover:text-slate-200'
+                    }`}>
                       {section.icon}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <span className={`text-[10px] uppercase font-mono block tracking-wider ${isActive ? 'text-cyan-400' : 'text-slate-500'}`}>
+                      <span className={`text-[10px] uppercase font-mono block tracking-wider ${
+                        isActive
+                          ? isLight ? 'text-cyan-800 font-bold' : 'text-cyan-400 font-bold'
+                          : isLight ? 'text-slate-500 font-semibold' : 'text-slate-500'
+                      }`}>
                         {section.category}
                       </span>
-                      <span className="text-[12.5px] font-sans block leading-tight font-medium text-slate-200 group-hover:text-white">
+                      <span className={`text-[12.5px] font-sans block leading-tight font-medium ${
+                        isActive
+                          ? isLight ? 'text-cyan-950 font-bold' : 'text-cyan-100 font-semibold'
+                          : isLight ? 'text-slate-800 group-hover:text-slate-950' : 'text-slate-200 group-hover:text-white'
+                      }`}>
                         {section.title}
                       </span>
                     </div>
                     {isActive && (
-                      <ChevronRight className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-1 self-center" />
+                      <ChevronRight className={`w-3.5 h-3.5 shrink-0 mt-1 self-center ${
+                        isLight ? 'text-cyan-700' : 'text-cyan-400'
+                      }`} />
                     )}
                   </button>
                 );
               })}
 
               {filteredSections.length === 0 && (
-                <div className="p-4 text-center text-xs text-slate-500 font-mono">
+                <div className={`p-4 text-center text-xs font-mono ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
                   No matching topics found for "{searchQuery}".
                 </div>
               )}
             </div>
 
             {/* Bottom GitHub Quick Links */}
-            <div className="p-3 border-t border-slate-800/80 bg-slate-950/80 space-y-1.5">
+            <div className={`p-3 border-t space-y-1.5 ${
+              isLight ? 'border-slate-200 bg-slate-100/80' : 'border-slate-800/80 bg-slate-950/80'
+            }`}>
               <button
                 onClick={() => handleOpenExternal(`${GITHUB_REPO_URL}/issues/new`)}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[11px] font-sans border border-slate-800 transition-colors cursor-pointer"
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-sans border transition-colors cursor-pointer ${
+                  isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 border-slate-300 shadow-xs'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-800'
+                }`}
               >
                 <span className="flex items-center space-x-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
                   <span>Report Bug / Request</span>
                 </span>
                 <ExternalLink className="w-3 h-3 opacity-60" />
@@ -648,10 +729,14 @@ CloudMix Pro is developed openly with community feedback and automated testing:
 
               <button
                 onClick={() => handleOpenExternal(`${GITHUB_REPO_URL}/releases`)}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[11px] font-sans border border-slate-800 transition-colors cursor-pointer"
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-sans border transition-colors cursor-pointer ${
+                  isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 border-slate-300 shadow-xs'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-800'
+                }`}
               >
                 <span className="flex items-center space-x-1.5">
-                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <Download className="w-3.5 h-3.5 text-emerald-500" />
                   <span>Changelog & Releases</span>
                 </span>
                 <ExternalLink className="w-3 h-3 opacity-60" />
@@ -660,19 +745,31 @@ CloudMix Pro is developed openly with community feedback and automated testing:
           </div>
 
           {/* Right Content Viewer */}
-          <div className="flex-1 overflow-y-auto p-6 sm:p-7 space-y-6 bg-slate-900">
+          <div className={`flex-1 overflow-y-auto p-6 sm:p-7 space-y-6 ${
+            isLight ? 'bg-white' : 'bg-slate-900'
+          }`}>
             
             {/* Topic Header Card */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm ${
+              isLight
+                ? 'bg-slate-50 border-slate-200 text-slate-800'
+                : 'bg-slate-950/70 border-slate-800 text-white shadow-md'
+            }`}>
               <div className="flex items-center space-x-3">
-                <div className="p-2.5 rounded-xl bg-slate-900 border border-cyan-500/30 text-cyan-400 shadow-sm">
+                <div className={`p-2.5 rounded-xl border shadow-sm ${
+                  isLight
+                    ? 'bg-white border-cyan-200 text-cyan-600'
+                    : 'bg-slate-900 border-cyan-500/30 text-cyan-400'
+                }`}>
                   {activeSection.icon}
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400">
+                  <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
+                    isLight ? 'text-cyan-700' : 'text-cyan-400'
+                  }`}>
                     {activeSection.category}
                   </span>
-                  <h3 className="text-lg font-bold text-white font-sans">
+                  <h3 className={`text-lg font-bold font-sans ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     {activeSection.title}
                   </h3>
                 </div>
@@ -682,9 +779,13 @@ CloudMix Pro is developed openly with community feedback and automated testing:
                 <button
                   onClick={handleCopyGitHubUrl}
                   title="Copy GitHub Documentation Link"
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-sans border border-slate-700/80 transition-colors cursor-pointer shadow-sm"
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-sans border transition-colors cursor-pointer shadow-xs ${
+                    isLight
+                      ? 'bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-300'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700/80'
+                  }`}
                 >
-                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                   <span>{copiedLink ? 'Copied Link' : 'Copy Link'}</span>
                 </button>
               </div>
@@ -695,8 +796,10 @@ CloudMix Pro is developed openly with community feedback and automated testing:
               {parsedBlocks.map((block, index) => {
                 if (block.type === 'h1' || block.type === 'h2') {
                   return (
-                    <h3 key={index} className="text-base font-bold text-white font-sans pt-3 pb-1.5 border-b border-slate-800 flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
+                    <h3 key={index} className={`text-base font-bold font-sans pt-3 pb-1.5 border-b flex items-center space-x-2 ${
+                      isLight ? 'text-slate-900 border-slate-200' : 'text-white border-slate-800'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isLight ? 'bg-cyan-600' : 'bg-cyan-400'}`} />
                       <span>{block.text}</span>
                     </h3>
                   );
@@ -704,8 +807,10 @@ CloudMix Pro is developed openly with community feedback and automated testing:
 
                 if (block.type === 'h3' || block.type === 'h4') {
                   return (
-                    <h4 key={index} className="text-sm font-bold text-white font-sans pt-3 pb-1 border-b border-slate-800/80 flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                    <h4 key={index} className={`text-sm font-bold font-sans pt-3 pb-1 border-b flex items-center space-x-2 ${
+                      isLight ? 'text-slate-900 border-slate-200' : 'text-white border-slate-800/80'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLight ? 'bg-cyan-600' : 'bg-cyan-400'}`} />
                       <span>{block.text}</span>
                     </h4>
                   );
@@ -713,19 +818,31 @@ CloudMix Pro is developed openly with community feedback and automated testing:
 
                 if (block.type === 'p') {
                   return (
-                    <p key={index} className="text-slate-300 text-xs sm:text-[13px] leading-relaxed font-sans">
-                      {renderInlineMarkdown(block.text || '')}
+                    <p key={index} className={`text-xs sm:text-[13px] leading-relaxed font-sans ${
+                      isLight ? 'text-slate-700' : 'text-slate-300'
+                    }`}>
+                      {renderInlineMarkdown(block.text || '', isLight)}
                     </p>
                   );
                 }
 
                 if (block.type === 'ul') {
                   return (
-                    <ul key={index} className="space-y-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800/70 text-xs sm:text-[13px] shadow-sm">
+                    <ul key={index} className={`space-y-2 p-4 rounded-xl border text-xs sm:text-[13px] shadow-xs ${
+                      isLight
+                        ? 'bg-slate-50/90 border-slate-200 text-slate-700'
+                        : 'bg-slate-950/60 border-slate-800/70 text-slate-300 shadow-sm'
+                    }`}>
                       {(block.items || []).map((item, i) => (
-                        <li key={i} className="flex items-start space-x-2.5 text-slate-300 font-sans leading-normal">
-                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-2 shrink-0 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-                          <div className="flex-1">{renderInlineMarkdown(item)}</div>
+                        <li key={i} className={`flex items-start space-x-2.5 font-sans leading-normal ${
+                          isLight ? 'text-slate-700' : 'text-slate-300'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${
+                            isLight
+                              ? 'bg-cyan-600 shadow-[0_0_6px_rgba(8,145,178,0.4)]'
+                              : 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]'
+                          }`} />
+                          <div className="flex-1">{renderInlineMarkdown(item, isLight)}</div>
                         </li>
                       ))}
                     </ul>
@@ -734,13 +851,23 @@ CloudMix Pro is developed openly with community feedback and automated testing:
 
                 if (block.type === 'ol') {
                   return (
-                    <ol key={index} className="space-y-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800/70 text-xs sm:text-[13px] shadow-sm">
+                    <ol key={index} className={`space-y-2 p-4 rounded-xl border text-xs sm:text-[13px] shadow-xs ${
+                      isLight
+                        ? 'bg-slate-50/90 border-slate-200 text-slate-700'
+                        : 'bg-slate-950/60 border-slate-800/70 text-slate-300 shadow-sm'
+                    }`}>
                       {(block.items || []).map((item, i) => (
-                        <li key={i} className="flex items-start space-x-2.5 text-slate-300 font-sans leading-normal">
-                          <span className="w-5 h-5 rounded-full bg-cyan-950/90 border border-cyan-500/40 text-cyan-300 font-mono text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        <li key={i} className={`flex items-start space-x-2.5 font-sans leading-normal ${
+                          isLight ? 'text-slate-700' : 'text-slate-300'
+                        }`}>
+                          <span className={`w-5 h-5 rounded-full font-mono text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 border ${
+                            isLight
+                              ? 'bg-cyan-100 border-cyan-300 text-cyan-800'
+                              : 'bg-cyan-950/90 border-cyan-500/40 text-cyan-300'
+                          }`}>
                             {i + 1}
                           </span>
-                          <div className="flex-1">{renderInlineMarkdown(item)}</div>
+                          <div className="flex-1">{renderInlineMarkdown(item, isLight)}</div>
                         </li>
                       ))}
                     </ol>
@@ -750,7 +877,9 @@ CloudMix Pro is developed openly with community feedback and automated testing:
                 if (block.type === 'table') {
                   const rows = block.rows || [];
                   return (
-                    <div key={index} className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70 shadow-md my-2">
+                    <div key={index} className={`overflow-x-auto rounded-xl border shadow-sm my-2 ${
+                      isLight ? 'border-slate-200 bg-white' : 'border-slate-800 bg-slate-950/70'
+                    }`}>
                       <table className="w-full text-left border-collapse text-xs">
                         <tbody>
                           {rows.map((row, rIdx) => {
@@ -758,10 +887,18 @@ CloudMix Pro is developed openly with community feedback and automated testing:
                             const cols = row.split('|').filter(c => c.trim().length > 0);
                             const isHeader = rIdx === 0;
                             return (
-                              <tr key={rIdx} className={isHeader ? 'bg-slate-900 text-cyan-300 font-bold border-b border-slate-800 text-[11px] font-mono uppercase tracking-wider' : 'border-b border-slate-900/60 hover:bg-slate-900/40 transition-colors'}>
+                              <tr key={rIdx} className={
+                                isHeader
+                                  ? isLight
+                                    ? 'bg-slate-100 text-cyan-800 font-bold border-b border-slate-200 text-[11px] font-mono uppercase tracking-wider'
+                                    : 'bg-slate-900 text-cyan-300 font-bold border-b border-slate-800 text-[11px] font-mono uppercase tracking-wider'
+                                  : isLight
+                                    ? 'border-b border-slate-100 hover:bg-slate-50 transition-colors'
+                                    : 'border-b border-slate-900/60 hover:bg-slate-900/40 transition-colors'
+                              }>
                                 {cols.map((col, cIdx) => (
-                                  <td key={cIdx} className="p-3 text-slate-300 font-sans">
-                                    {renderInlineMarkdown(col.trim())}
+                                  <td key={cIdx} className={`p-3 font-sans ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                                    {renderInlineMarkdown(col.trim(), isLight)}
                                   </td>
                                 ))}
                               </tr>
@@ -778,21 +915,31 @@ CloudMix Pro is developed openly with community feedback and automated testing:
             </div>
 
             {/* Bottom GitHub Footer Banner (High Contrast, Zero Color Clash) */}
-            <div className="mt-8 p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-inner">
+            <div className={`mt-8 p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs ${
+              isLight
+                ? 'bg-slate-50 border-slate-200'
+                : 'bg-slate-950/80 border-slate-800 shadow-inner'
+            }`}>
               <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-cyan-950/70 border border-cyan-500/40 text-cyan-300">
+                <div className={`p-2 rounded-lg border ${
+                  isLight
+                    ? 'bg-cyan-100 border-cyan-300 text-cyan-800'
+                    : 'bg-cyan-950/70 border-cyan-500/40 text-cyan-300'
+                }`}>
                   <GitBranch className="w-4 h-4 shrink-0" />
                 </div>
                 <div>
-                  <div className="text-white font-bold font-sans text-xs">CloudMix Pro Open Source</div>
-                  <p className="text-slate-300 font-sans text-[11.5px] mt-0.5">
+                  <div className={`font-bold font-sans text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    CloudMix Pro Open Source
+                  </div>
+                  <p className={`font-sans text-[11.5px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                     Continuous updates, autonomous diagnostics, issue tracking, and official community manuals.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => handleOpenExternal(GITHUB_REPO_URL)}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 shrink-0 shadow-lg shadow-cyan-600/30"
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 shrink-0 shadow-md shadow-cyan-600/20"
               >
                 <span>Star on GitHub</span>
                 <ExternalLink className="w-3.5 h-3.5 ml-0.5" />

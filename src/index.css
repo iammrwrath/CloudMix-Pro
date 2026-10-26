@@ -181,17 +181,25 @@
 [data-theme="light"] .bg-zinc-950\/90,
 [data-theme="light"] .bg-zinc-950\/80,
 [data-theme="light"] .bg-zinc-950\/60,
-[data-theme="light"] .bg-black\/85,
-[data-theme="light"] .bg-black\/80,
-[data-theme="light"] .bg-black\/75,
-[data-theme="light"] .bg-black\/70,
-[data-theme="light"] .bg-black\/60,
-[data-theme="light"] .bg-black\/50,
-[data-theme="light"] .bg-black\/40,
-[data-theme="light"] .bg-black\/30,
-[data-theme="light"] .bg-black\/25 {
+[data-theme="light"] .bg-black\/85:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/80:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/75:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/70:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/60:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/50:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/40:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/30:not(.modal-backdrop):not([class*="fixed"]),
+[data-theme="light"] .bg-black\/25:not(.modal-backdrop):not([class*="fixed"]) {
   background-color: #e2e8f0 !important;
   color: var(--text-primary);
+}
+
+/* Modal overlays maintain cinematic dimmed backdrop blur in light mode */
+[data-theme="light"] .fixed.inset-0.z-50,
+[data-theme="light"] .modal-backdrop,
+[data-theme="light"] .user-guide-backdrop {
+  background-color: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
 }
 
 [data-theme="light"] .bg-slate-900,
@@ -436,10 +444,19 @@
 
 [data-theme="light"] .bg-cyan-950,
 [data-theme="light"] .bg-cyan-950\/90,
-[data-theme="light"] .bg-cyan-950\/80 {
+[data-theme="light"] .bg-cyan-950\/80,
+[data-theme="light"] .bg-cyan-950\/70,
+[data-theme="light"] .bg-cyan-950\/60 {
   background-color: #e0f2fe !important;
   color: #0369a1 !important;
   border-color: #7dd3fc !important;
+}
+
+[data-theme="light"] code.bg-slate-800,
+[data-theme="light"] code {
+  background-color: #f1f5f9 !important;
+  color: #0369a1 !important;
+  border-color: #cbd5e1 !important;
 }
 
 [data-theme="light"] .bg-rose-950,

@@ -1966,6 +1966,7 @@ export const App: React.FC = () => {
       <UserGuideModal
         isOpen={isUserGuideOpen}
         onClose={() => setIsUserGuideOpen(false)}
+        themeMode={themeMode}
       />
 
       {/* 5. Keyboard Shortcuts Reference Cheat Sheet Modal */}

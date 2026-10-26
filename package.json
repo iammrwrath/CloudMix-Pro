@@ -1,7 +1,7 @@
 {
   "name": "cloudmix-pro",
   "productName": "CloudMix Pro",
-  "version": "2.0.43",
+  "version": "2.0.44",
   "description": "Next-Gen Cloud-Native DJ Application",
   "main": "main.cjs",
   "author": "iammrwrath",
@@ -10,11 +10,11 @@
     "url": "git+https://github.com/iammrwrath/CloudMix-Pro.git"
   },
   "scripts": {
-    "dev": "node node_modules/vite/bin/vite",
+    "dev": "vite",
     "test": "node scripts/simulate-interactions.cjs",
     "prebuild": "node scripts/verify-packaging.cjs && node scripts/simulate-interactions.cjs",
-    "build": "node node_modules/typescript/bin/tsc && node node_modules/vite/bin/vite build",
-    "preview": "node node_modules/vite/bin/vite preview",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "start": "electron .",
     "start:cortex": "electron . --cortex",
     "predist": "node scripts/verify-packaging.cjs",

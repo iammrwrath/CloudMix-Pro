@@ -434,23 +434,22 @@ ipcMain.handle('scan-directory', async (event, dirPath) => {
     const audioExtensions = new Set(['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.aif', '.aiff', '.wma']);
     const results = [];
 
-    const scanSubdir = (currentDir, depth = 0) => {
+    const scanSubdir = async (currentDir, depth = 0) => {
       if (depth > 10) return;
       try {
-        const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+        const entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
         for (const entry of entries) {
           try {
             const fullPath = path.join(currentDir, entry.name);
             if (entry.isDirectory()) {
-              scanSubdir(fullPath, depth + 1);
+              await scanSubdir(fullPath, depth + 1);
             } else if (entry.isFile()) {
               const ext = path.extname(entry.name).toLowerCase();
               if (audioExtensions.has(ext)) {
-                const stats = fs.statSync(fullPath);
                 results.push({
                   name: entry.name,
                   fullPath,
-                  size: stats.size,
+                  size: 0,
                 });
               }
             }
@@ -459,7 +458,7 @@ ipcMain.handle('scan-directory', async (event, dirPath) => {
       } catch {}
     };
 
-    scanSubdir(dirPath, 0);
+    await scanSubdir(dirPath, 0);
     log(`[SCAN DIRECTORY] Scanned ${results.length} tracks from ${dirPath}`);
     return results;
   } catch (err) {
@@ -1167,8 +1166,7 @@ ipcMain.handle('read-djay-library', async (event, customDbPath) => {
         for (const m of uriMatches) {
           try {
             const candidate = decodeURIComponent(m[1].split('\0')[0]).replace(/\//g, '\\');
-            if (!selectedPath) selectedPath = candidate;
-            if (fs.existsSync(candidate)) {
+            if (candidate) {
               selectedPath = candidate;
               break;
             }
