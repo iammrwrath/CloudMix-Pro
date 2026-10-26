@@ -704,11 +704,11 @@ export const Mixer = React.memo<MixerProps>(({
             {/* djay Pro style Neural Auto-Transition Selector Trigger */}
             <button
               onClick={() => setShowTransitionMenu((v) => !v)}
-              className="flex items-center space-x-0.5 px-1.5 py-0.5 rounded bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:bg-purple-900/80 transition-all cursor-pointer shadow-sm active:scale-95 truncate"
+              className="flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-900 border border-purple-400/80 text-white hover:text-cyan-300 hover:border-cyan-400 hover:bg-slate-800 transition-all cursor-pointer shadow-[0_0_8px_rgba(168,85,247,0.35)] active:scale-95 truncate"
               title="Configure & Trigger Neural Auto-Transition"
             >
               <Sparkles className="w-3 h-3 text-purple-400 animate-pulse shrink-0" />
-              <span className="font-semibold text-[9px] uppercase tracking-tight truncate max-w-[68px]">
+              <span className="font-extrabold text-[9.5px] uppercase tracking-wider text-white truncate max-w-[75px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                 {mixer.neuralTransitionMode.replace('_', ' ')}
               </span>
               <ChevronDown className="w-2.5 h-2.5 text-purple-400 shrink-0" />
@@ -752,7 +752,7 @@ export const Mixer = React.memo<MixerProps>(({
                     onClick={() => onNeuralTransitionModeChange?.(opt.id)}
                     className={`w-full text-left p-1.5 rounded-lg text-[10px] font-mono transition-all cursor-pointer flex flex-col ${
                       mixer.neuralTransitionMode === opt.id
-                        ? 'bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white border border-purple-300/40 shadow-sm'
+                        ? 'bg-slate-950 border-2 border-cyan-400 text-white shadow-[0_0_12px_rgba(34,211,238,0.3)]'
                         : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
                     }`}
                   >
