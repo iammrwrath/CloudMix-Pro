@@ -52,6 +52,7 @@ export const Mixer = React.memo<MixerProps>(({
   const [tempoBlend, setTempoBlend] = useState<boolean>(true);
 
   const NEURAL_TRANSITION_OPTIONS: { id: NeuralTransitionMode; label: string; desc: string }[] = [
+    { id: 'shuffle', label: '🔀 Intelligent Shuffle', desc: 'Automix dynamically selects the best transition for current tracks' },
     { id: 'vocal_sustain', label: 'Vocal Sustain', desc: 'Sustains vocals across incoming mix' },
     { id: 'harmonic_sustain', label: 'Harmonic Sustain', desc: 'Pads/melody float over incoming rhythm' },
     { id: 'drum_swap', label: 'Drum Swap', desc: 'Instant punchy beat drop on phrase' },

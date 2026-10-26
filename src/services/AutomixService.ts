@@ -168,6 +168,12 @@ export class AutomixService {
 
     // Trigger transition when 22 seconds remaining and target deck has a loaded track
     if (remainingSec <= 22 && remainingSec > 2 && targetDeck.track && !isTargetPlaying) {
+      const resolvedMode = audioEngine.getNeuralTransitionMode() === 'shuffle'
+        ? this.pickOptimalNeuralMode(sourceDeck.track, targetDeck.track)
+        : audioEngine.getNeuralTransitionMode();
+      if (resolvedMode && resolvedMode !== 'shuffle') {
+        audioEngine.setNeuralTransitionMode(resolvedMode);
+      }
       this.executeTransition(playingDeck, targetId, sourceDeck.track?.bpm || 126);
     }
   }
@@ -179,6 +185,69 @@ export class AutomixService {
     const currentPlaying = isPlayingA ? 'A' : 'B';
     const target: DeckId = currentPlaying === 'A' ? 'B' : 'A';
     this.executeTransition(currentPlaying, target, (currentPlaying === 'A' ? deckA.track?.bpm : deckB.track?.bpm) || 126);
+  }
+
+  
+  /**
+   * Intelligently selects the optimal Neural Mix Transition mode
+   * based on the genre, tempo differential, and musical characteristics
+   * of the currently playing track and the incoming track.
+   */
+  public pickOptimalNeuralMode(sourceTrack?: TrackMetadata | null, targetTrack?: TrackMetadata | null): NeuralTransitionMode {
+    if (!sourceTrack && !targetTrack) return 'standard';
+
+    const sourceGenre = (sourceTrack?.genre || '').toLowerCase();
+    const targetGenre = (targetTrack?.genre || '').toLowerCase();
+    const sourceTitle = (sourceTrack?.title || '').toLowerCase();
+    const targetTitle = (targetTrack?.title || '').toLowerCase();
+
+    const bpmA = sourceTrack?.bpm || 126;
+    const bpmB = targetTrack?.bpm || bpmA;
+    const bpmDiff = Math.abs(bpmA - bpmB);
+
+    // 1. High tempo differential (>6 BPM): Drum Swap or Drum Cut for punchy transition
+    if (bpmDiff > 6) {
+      return bpmDiff > 12 ? 'drum_cut' : 'drum_swap';
+    }
+
+    // 2. Vocal / Acapella Heavy tracks: Vocal Sustain or Vocal Swap
+    const isVocalTrack = (title: string, genre: string) =>
+      title.includes('feat') || title.includes('ft.') || title.includes('vocal') ||
+      title.includes('acapella') || genre.includes('pop') || genre.includes('r&b') || genre.includes('vocal');
+
+    if (isVocalTrack(sourceTitle, sourceGenre) && !isVocalTrack(targetTitle, targetGenre)) {
+      // Let outgoing vocals ride over the incoming instrumental track
+      return 'vocal_sustain';
+    }
+
+    if (isVocalTrack(sourceTitle, sourceGenre) && isVocalTrack(targetTitle, targetGenre)) {
+      // Clean vocal swap at center phrase to prevent vocal clashes
+      return 'vocal_swap';
+    }
+
+    // 3. Heavy Bass / Sub / Club / Trap / Dubstep: Bass Swap to protect sub frequencies
+    const isBassHeavy = (genre: string, title: string) =>
+      genre.includes('bass') || genre.includes('dubstep') || genre.includes('trap') ||
+      genre.includes('drum and bass') || genre.includes('dnb') || genre.includes('techno') ||
+      title.includes('bass') || title.includes('vip') || title.includes('dub');
+
+    if (isBassHeavy(sourceGenre, sourceTitle) || isBassHeavy(targetGenre, targetTitle)) {
+      return 'bass_swap';
+    }
+
+    // 4. Melodic / House / Trance / Ambient: Harmonic Sustain or Harmonic Swap
+    const isMelodic = (genre: string, title: string) =>
+      genre.includes('house') || genre.includes('trance') || genre.includes('progressive') ||
+      genre.includes('melodic') || genre.includes('chill') || title.includes('mix') || title.includes('extended');
+
+    if (isMelodic(sourceGenre, sourceTitle)) {
+      return 'harmonic_sustain';
+    }
+
+    // Default intelligent fallbacks across common dance music
+    const dynamicModes: NeuralTransitionMode[] = ['bass_swap', 'drum_swap', 'vocal_swap', 'harmonic_swap'];
+    const chosenIndex = Math.floor(Math.random() * dynamicModes.length);
+    return dynamicModes[chosenIndex];
   }
 
   public triggerNeuralTransition(

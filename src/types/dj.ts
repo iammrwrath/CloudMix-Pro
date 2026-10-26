@@ -74,6 +74,7 @@ export interface StemState {
 }
 
 export type NeuralTransitionMode =
+  | 'shuffle'
   | 'standard'
   | 'bass_swap'
   | 'vocal_swap'
