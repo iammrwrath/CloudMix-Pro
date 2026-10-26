@@ -1,6 +1,6 @@
 # 🎧 CloudMix Pro — Official User Guide & Technical Manual
 
-> **Version:** 2.0.29  
+> **Version:** 2.0.43  
 > **Repository:** [https://github.com/iammrwrath/CloudMix-Pro](https://github.com/iammrwrath/CloudMix-Pro)  
 > **Platform:** Windows, macOS, Linux (Electron 44 + Web Audio DSP)
 
@@ -49,8 +49,15 @@ CloudMix Pro supports three adaptive workstation views located in the top naviga
 ### 3-Band Equalizer & Crossfader
 * **High, Mid, Low Isolators:** Studio-grade biquad crossover filters providing standard `+6dB` boost down to full `-∞dB` frequency kill.
 * **Gain & Trim:** Individual channel pre-gain adjustment with responsive LED peak metering.
-* **Crossfader & Curve Control:** Smooth crossfading between Deck A and Deck B with selectable linear, exponential, or sharp scratch cut curves.
+* **Crossfader Curves:** Transition between Deck A and Deck B with selectable linear, exponential, or sharp scratch cut curves.
 * **Headphone Cue (PFL):** Click the headphone icon on either deck to route audio exclusively to your cue monitor channel.
+
+### Neural Mix Transitions (Intelligent Automix)
+* Choose between 4 advanced crossfader blend modes:
+  1. **Vocal Swap:** Automatically swaps vocal stems at crossfader center while keeping baseline groove locked.
+  2. **Drum Crossfade:** Smoothly transitions percussion transients while keeping vocals and melodies clean.
+  3. **Bass Drop:** Low-end EQ cuts and drops into the incoming track seamlessly.
+  4. **Intelligent Shuffle:** Automix dynamically evaluates track tempo delta, vocal activity, and genre to pick the ideal transition mode in real-time.
 
 ---
 
@@ -75,8 +82,8 @@ CloudMix Pro features state-of-the-art **HTDemucs / ONNX Neural Stem Separation*
 CloudMix Pro seamlessly integrates with YouTube Music without embedded iframe workarounds or synthetic fallbacks:
 
 * **High-Fidelity Audio Ingestion:** CloudMix Pro uses native direct stream extraction at studio-quality Opus 160 kbps (`yt-dlp` audio format 251/140), piping genuine audio into the Web Audio DSP pipeline.
-* **1-Click Google Sign-In with PKCE:** Go to **Settings (`⚙`) → Library & Cloud Sources → YouTube Music** and click **Sign In with Google**. Uses RFC 7636 PKCE loopback authentication on port `42813`.
-* **Permanent Offline Refresh Tokens:** Your Google login issues a permanent refresh token stored in `%APPDATA%\CloudMix Pro\cloudmix_persistent_settings.json`. Tokens renew silently in the background, ensuring you **never** have to re-authenticate after updates or app relaunches.
+* **RFC 8252 Default Browser Sign-In:** Click **Sign in to YouTube** in the broadcast hub or **Settings (`⚙`) → Library & Cloud Sources → YouTube Music**. Uses secure RFC 8252 authorization via your default system browser (Chrome/Edge/Firefox) with **zero embedded webview security blocks**.
+* **Automatic Silent Token Renewal:** Tokens refresh seamlessly via background loopback. If a token ever expires, a 1-click **Session Expired • Re-Connect** button restores authorization instantly without losing cached playlists.
 * **Playlist Refresh:** Click the dedicated circular refresh icon next to **PLAYLISTS** in the sidebar to perform an instant live sync of your Google playlists and Liked Music collection.
 
 ---
@@ -89,10 +96,10 @@ CloudMix Pro includes a multi-tier hybrid lyrics architecture designed for live 
 1. **LRCLIB Synchronized LRC:** First attempts millisecond-accurate synchronized lyrics for real-time scrolling.
 2. **Genius.com Native Fallback:** If a newly released song or club remix is missing from synchronized databases, CloudMix Pro automatically falls back to Genius.com via background extraction. Lyrics are parsed, timed to track duration, and displayed in the live HUD.
 
-### Built-in Shared Engine + Custom Token Override
+### Built-in Shared Engine + High-Contrast UI
 * **Zero Configuration:** A shared default Genius engine is pre-configured and active out of the box for all users.
+* **High-Contrast Monitor:** The Synced Lyrics Monitor uses a dark slate-900 card with cyan borders and pure white lyrics text to eliminate purple-on-purple color clashes.
 * **Persistent Disk Caching:** Once lyrics are retrieved for a track, they are permanently cached to local disk storage (`storageCache`). Subsequent plays load instantly in **0 ms** with zero network requests.
-* **Dedicated Custom Token (Optional):** Streamers and heavy users can enter their own Genius Client Access Token in **Settings → Library & Cloud Sources → Genius.com Lyrics Engine** for dedicated, unshared rate-limit quotas.
 
 ---
 
@@ -122,13 +129,18 @@ MixCortex AI is your intelligent pairing co-pilot that analyzes harmonic compati
 
 CloudMix Pro includes a built-in background HTTP server running on port `8088`:
 
-### OBS Transparent Overlay
+### OBS Transparent Overlay & Live Preview
 * In OBS Studio, add a **Browser Source**.
-* Set the URL to: `http://127.0.0.1:8088/obs-overlay`
-* Recommended Resolution: `1920 x 250` with `Shutdown source when not visible` disabled.
-* Displays real-time album artwork, animated soundwaves, live synchronized lyrics, and Camelot key readouts.
+* Set the URL to: `http://127.0.0.1:8088/overlay`
+* Recommended Resolution: `1920 x 1080` with `Shutdown source when not visible` disabled.
+* Displays real-time album artwork, animated soundwaves, live synchronized lyrics, and the active playing YouTube music video!
 
-### Streamer.bot Channel Points Integration
+### Live YouTube Video Feed in OBS Preview
+* Inside CloudMix Pro's OBS Broadcast Hub, view the live embedded music video feed in the real-time preview pane.
+* Sign in to YouTube using your default browser to unlock live video streaming into OBS Studio.
+
+### Streamer.bot Integration
+* **1-Click Copy URL Buttons:** Dedicated copy action buttons on all Streamer.bot endpoint cards for quick copy-pasting.
 * **Song Requests:** Viewer song requests sent via POST to `http://127.0.0.1:8088/api/streamerbot/request` automatically queue in the Automix Crate.
 * **Soundboard Remote Triggers:** Viewers can trigger sampler pads 1–8 (Airhorn, Dub Siren, 808 Boom) by posting to `http://127.0.0.1:8088/api/streamerbot/sample`.
 
@@ -167,7 +179,7 @@ Migrate your existing crates, cue points, and beatgrids without losing preparati
 ## 11. GitHub Integration & Auto-Updates
 
 * **Official Repository:** [https://github.com/iammrwrath/CloudMix-Pro](https://github.com/iammrwrath/CloudMix-Pro)
-* **Check for Updates:** Click the version pill (`v2.0.29`) in the top right header. CloudMix Pro queries GitHub Releases via `electron-updater`.
+* **Check for Updates:** Click the version pill (`v2.0.43`) in the top right header. CloudMix Pro queries GitHub Releases via `electron-updater`.
 * **Silent Background Patching:** When an update is ready, click **Apply** to automatically install the patch and relaunch via native watchdog with zero downtime.
 * **Report Issues & Feature Requests:** Visit the [CloudMix Pro GitHub Issues](https://github.com/iammrwrath/CloudMix-Pro/issues) page to report bugs, suggest MIDI mappings, or contribute.
 
