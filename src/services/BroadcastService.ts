@@ -35,8 +35,8 @@ export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
   height: 1080,
   theme: 'default',
   widgets: {
-    currentTrack: { x: 40, y: 40, scale: 1.0, visible: true },
-    nextTrack: { x: 40, y: 190, scale: 1.0, visible: true },
+    currentTrack: { x: 40, y: 40, width: 480, height: 86, scale: 1.0, visible: true },
+    nextTrack: { x: 40, y: 190, scale: 1.0, visible: false },
     lyrics: { x: 40, y: 260, scale: 1.0, visible: true },
     video: { x: 40, y: 340, width: 480, height: 270, scale: 1.0, visible: true },
   },

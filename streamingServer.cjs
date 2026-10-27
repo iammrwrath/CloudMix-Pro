@@ -388,8 +388,8 @@ let currentBroadcastState = {
     height: 1080,
     theme: 'default',
     widgets: {
-      currentTrack: { x: 40, y: 40, scale: 1.0, visible: true },
-      nextTrack: { x: 40, y: 190, scale: 1.0, visible: true },
+      currentTrack: { x: 40, y: 40, width: 480, height: 86, scale: 1.0, visible: true },
+      nextTrack: { x: 40, y: 190, scale: 1.0, visible: false },
       lyrics: { x: 40, y: 260, scale: 1.0, visible: true },
       video: { x: 40, y: 340, width: 480, height: 270, scale: 1.0, visible: true },
     },
@@ -552,11 +552,11 @@ function getObsOverlayHtml() {
       background: var(--bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 14px 20px;
-      box-shadow: 0 12px 36px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
-      width: 520px;
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px 12px 14px;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px rgba(0, 240, 255, 0.25);
+      width: 480px;
       position: absolute;
       left: 40px;
       top: 40px;
@@ -568,14 +568,14 @@ function getObsOverlayHtml() {
     /* Animated Vinyl Platter Thumbnail */
     .vinyl-container {
       position: relative;
-      width: 68px;
-      height: 68px;
+      width: 58px;
+      height: 58px;
       border-radius: 50%;
       background: #020617;
-      border: 2px solid rgba(255,255,255,0.15);
-      box-shadow: 0 0 16px rgba(0,0,0,0.8);
+      border: 1.5px solid rgba(0, 240, 255, 0.45);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
       flex-shrink: 0;
-      margin-right: 18px;
+      margin-right: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -596,8 +596,8 @@ function getObsOverlayHtml() {
     }
 
     .vinyl-label {
-      width: 30px;
-      height: 30px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       z-index: 2;
@@ -624,81 +624,143 @@ function getObsOverlayHtml() {
       min-width: 0;
       display: flex;
       flex-direction: column;
+      justify-content: center;
+      gap: 2px;
     }
 
-    .badges-row {
+    /* Row 1: Header / Status Row */
+    .header-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 6px;
     }
 
-    .deck-badge {
+    .live-dot {
+      color: var(--primary);
+      text-shadow: 0 0 8px var(--primary);
+      font-size: 10px;
+      line-height: 1;
+      animation: livePulse 1.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes livePulse {
+      0% { opacity: 0.6; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .now-playing-label {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       font-weight: 800;
-      padding: 2px 7px;
-      border-radius: 6px;
-      background: rgba(0, 229, 255, 0.15);
-      border: 1px solid var(--primary);
       color: var(--primary);
+      letter-spacing: 0.8px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .deck-badge.deck-b {
-      background: rgba(255, 51, 102, 0.15);
-      border-color: var(--secondary);
-      color: var(--secondary);
-    }
-
-    .bpm-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--accent);
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
     }
 
+    .mini-eq {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 10px;
+      margin-left: 2px;
+    }
+
+    .mini-bar {
+      width: 2px;
+      background: var(--primary);
+      border-radius: 1px;
+      height: 3px;
+      animation: eqMini 0.5s ease-in-out infinite alternate;
+    }
+    .mini-bar:nth-child(2) { animation-duration: 0.35s; background: var(--secondary); }
+    .mini-bar:nth-child(3) { animation-duration: 0.6s; }
+
+    @keyframes eqMini {
+      0% { height: 3px; }
+      100% { height: 10px; }
+    }
+
+    .header-sep {
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 10px;
+    }
+
+    .deck-bpm-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--subtext);
+      letter-spacing: 0.3px;
+    }
+
+    /* Row 2: Track Title */
     .track-title {
-      font-size: 18px;
-      font-weight: 900;
+      font-size: 16px;
+      font-weight: 800;
       color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      letter-spacing: -0.3px;
-      line-height: 1.2;
+      letter-spacing: -0.2px;
+      line-height: 1.25;
+      margin-top: 1px;
     }
 
-    .track-artist {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--subtext);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    /* Row 3: Integrated Next Track */
+    .next-track-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
       margin-top: 2px;
     }
 
-    /* Progress bar */
-    .progress-bar-wrap {
-      margin-top: 8px;
-      height: 4px;
-      background: rgba(255,255,255,0.1);
+    .next-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1.5px 5px;
       border-radius: 4px;
+      background: #9333ea;
+      border: 1px solid rgba(168, 85, 247, 0.7);
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      box-shadow: 0 0 8px rgba(147, 51, 234, 0.4);
+      flex-shrink: 0;
+    }
+
+    .next-text {
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      white-space: nowrap;
       overflow: hidden;
-      position: relative;
+      text-overflow: ellipsis;
+    }
+
+    /* Bottom Edge Progress Bar */
+    .progress-bar-wrap {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2.5px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
     }
 
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, var(--primary), var(--secondary));
       width: 0%;
-      border-radius: 4px;
       transition: width 0.25s linear;
+      box-shadow: 0 0 8px var(--primary);
     }
 
     /* Hype / Stem Solo Alert */
@@ -724,98 +786,9 @@ function getObsOverlayHtml() {
       to { opacity: 1; transform: scale(1.02); }
     }
 
-    /* Live Equalizer Bars */
-    .eq-bars {
-      display: flex;
-      align-items: flex-end;
-      gap: 2.5px;
-      height: 24px;
-      margin-left: 12px;
-    }
-
-    .eq-bar {
-      width: 3.5px;
-      background: var(--primary);
-      border-radius: 2px;
-      height: 4px;
-      animation: eqBounce 0.5s ease-in-out infinite alternate;
-    }
-
-    .eq-bar:nth-child(2) { animation-duration: 0.35s; background: var(--secondary); }
-    .eq-bar:nth-child(3) { animation-duration: 0.45s; }
-    .eq-bar:nth-child(4) { animation-duration: 0.3s; background: var(--accent); }
-    .eq-bar:nth-child(5) { animation-duration: 0.55s; }
-
-    @keyframes eqBounce {
-      0% { height: 4px; }
-      100% { height: 22px; }
-    }
-
-    /* Next Track / Up Next Widget */
+    /* Legacy Next Track Container (hidden by default) */
     .next-track-container {
-      display: flex;
-      align-items: center;
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      border-radius: 14px;
-      padding: 8px 14px;
-      gap: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      position: absolute;
-      left: 40px;
-      top: 190px;
-      width: 480px;
-      transform-origin: top left;
-      animation: fadeIn 0.4s ease;
-    }
-
-    .next-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 5px;
-      background: rgba(168, 85, 247, 0.2);
-      border: 1px solid #a855f7;
-      color: #c084fc;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
-
-    .next-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .next-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #ffffff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .next-artist {
-      font-size: 11.5px;
-      color: var(--subtext);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .next-bpm {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      font-weight: 700;
-      color: #38bdf8;
-      white-space: nowrap;
+      display: none !important;
     }
 
     /* Synced Lyrics Widget */
@@ -881,7 +854,7 @@ function getObsOverlayHtml() {
 </head>
 <body>
   <div class="obs-wrapper">
-    <!-- 1. Current Track Live HUD -->
+    <!-- 1. Unified Current Track & Up Next Live HUD -->
     <div class="widget-container" id="currentTrackWidget">
       <div class="hype-banner" id="hypeBanner">⚡ ACAPELLA DROP</div>
 
@@ -891,29 +864,39 @@ function getObsOverlayHtml() {
       </div>
 
       <div class="meta-content">
-        <div class="badges-row">
-          <span class="deck-badge" id="deckBadge">DECK A</span>
-          <span class="bpm-badge" id="bpmBadge">126.0 BPM • 8A</span>
+        <!-- Row 1: Header / Status -->
+        <div class="header-row">
+          <span class="live-dot">●</span>
+          <span class="now-playing-label">
+            NOW PLAYING
+            <span class="mini-eq" id="miniEq">
+              <span class="mini-bar"></span>
+              <span class="mini-bar"></span>
+              <span class="mini-bar"></span>
+            </span>
+          </span>
+          <span class="header-sep">•</span>
+          <span class="deck-bpm-label" id="deckBpmLabel">DECK A • 126.0 BPM</span>
         </div>
-        <div class="track-title" id="trackTitle">Loading CloudMix Pro...</div>
-        <div class="track-artist" id="trackArtist">CloudMix Pro Broadcast Engine</div>
 
-        <div class="progress-bar-wrap">
-          <div class="progress-fill" id="progressFill"></div>
+        <!-- Row 2: Track Title -->
+        <div class="track-title" id="trackTitle">Loading CloudMix Pro...</div>
+
+        <!-- Row 3: Next Track Integrated Line -->
+        <div class="next-track-row" id="nextTrackRow">
+          <span class="next-badge">NEXT</span>
+          <span class="next-text" id="nextTrackText">Standby Deck Ready • CloudMix Pro</span>
         </div>
       </div>
 
-      <div class="eq-bars" id="eqBars">
-        <div class="eq-bar"></div>
-        <div class="eq-bar"></div>
-        <div class="eq-bar"></div>
-        <div class="eq-bar"></div>
-        <div class="eq-bar"></div>
+      <!-- Bottom Edge Sleek Progress Line -->
+      <div class="progress-bar-wrap">
+        <div class="progress-fill" id="progressFill"></div>
       </div>
     </div>
 
-    <!-- 2. Next Track / Up Next Widget -->
-    <div class="next-track-container" id="nextTrackWidget" style="display: none;">
+    <!-- 2. Legacy Standalone Next Track (kept hidden; unified inside main HUD above) -->
+    <div class="next-track-container" id="nextTrackWidget" style="display: none !important;">
       <span class="next-badge">UP NEXT</span>
       <div class="next-info">
         <span class="next-title" id="nextTitle">Queued Track</span>
@@ -993,17 +976,32 @@ function getObsOverlayHtml() {
       // Current Track Info
       if (allowCurrent) {
         titleEl.innerText = data.title || 'Playing...';
-        artistEl.innerText = data.artist || 'CloudMix Pro DJ';
 
         const deck = (data.deck || data.activeDeck || 'A').toUpperCase();
-        deckBadgeEl.innerText = 'DECK ' + deck;
-        if (deck === 'B') {
-          deckBadgeEl.classList.add('deck-b');
-        } else {
-          deckBadgeEl.classList.remove('deck-b');
+        const bpmStr = (data.bpm ? parseFloat(data.bpm).toFixed(1) : '126.0') + ' BPM' + (data.key ? ' • ' + data.key : '');
+        const deckBpmEl = document.getElementById('deckBpmLabel');
+        if (deckBpmEl) {
+          deckBpmEl.innerText = 'DECK ' + deck + ' • ' + bpmStr;
         }
 
-        bpmBadgeEl.innerText = (data.bpm ? parseFloat(data.bpm).toFixed(1) : '126.0') + ' BPM • ' + (data.key || '8A');
+        // Integrated Next Track in Row 3
+        const nextRowEl = document.getElementById('nextTrackRow');
+        const nextTextEl = document.getElementById('nextTrackText');
+        if (nextRowEl && nextTextEl) {
+          if (cfg.showNextTrack !== false) {
+            nextRowEl.style.display = 'flex';
+            if (data.nextTrack && data.nextTrack.title) {
+              const ntArtist = data.nextTrack.artist ? ' - ' + data.nextTrack.artist : '';
+              nextTextEl.innerText = data.nextTrack.title + ntArtist;
+            } else if (data.artist && data.artist !== 'CloudMix Pro DJ' && data.artist !== 'Ready for mix') {
+              nextTextEl.innerText = data.artist;
+            } else {
+              nextTextEl.innerText = 'Standby Deck Ready • CloudMix Pro';
+            }
+          } else {
+            nextRowEl.style.display = 'none';
+          }
+        }
 
         if (data.duration && data.duration > 0) {
           const pct = Math.min(100, Math.max(0, ((data.elapsedSec || 0) / data.duration) * 100));
@@ -1018,10 +1016,12 @@ function getObsOverlayHtml() {
 
         if (data.isPlaying) {
           vinylEl.classList.add('spinning');
-          eqBarsEl.style.opacity = '1';
+          const miniEq = document.getElementById('miniEq');
+          if (miniEq) miniEq.style.opacity = '1';
         } else {
           vinylEl.classList.remove('spinning');
-          eqBarsEl.style.opacity = '0.3';
+          const miniEq = document.getElementById('miniEq');
+          if (miniEq) miniEq.style.opacity = '0.3';
         }
 
         // Stem isolation or drop alert
@@ -1039,13 +1039,8 @@ function getObsOverlayHtml() {
         }
       }
 
-      // 2. Next Track / Up Next
-      if (allowNext && data.nextTrack && data.nextTrack.title) {
-        nextTrackWidget.style.display = 'flex';
-        nextTitleEl.innerText = data.nextTrack.title;
-        nextArtistEl.innerText = data.nextTrack.artist ? '• ' + data.nextTrack.artist : '';
-        nextBpmEl.innerText = (data.nextTrack.bpm ? parseFloat(data.nextTrack.bpm).toFixed(1) : '126.0') + ' BPM • ' + (data.nextTrack.key || '8A');
-      } else {
+      // 2. Legacy Standalone Next Track (kept hidden since it is unified inside the main HUD)
+      if (nextTrackWidget) {
         nextTrackWidget.style.display = 'none';
       }
 

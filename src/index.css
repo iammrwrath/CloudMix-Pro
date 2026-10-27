@@ -595,10 +595,23 @@
 
 [data-theme="light"] .bg-amber-950,
 [data-theme="light"] .bg-amber-950\/90,
-[data-theme="light"] .bg-amber-950\/80 {
+[data-theme="light"] .bg-amber-950\/80,
+[data-theme="light"] .bg-amber-950\/70,
+[data-theme="light"] .bg-amber-950\/60,
+[data-theme="light"] .bg-amber-950\/50,
+[data-theme="light"] .bg-amber-950\/40,
+[data-theme="light"] .bg-amber-950\/30 {
   background-color: #fef3c7 !important;
-  color: #b45309 !important;
-  border-color: #fcd34d !important;
+  color: #92400e !important;
+  border-color: #f59e0b !important;
+}
+
+[data-theme="light"] .bg-amber-950\/60 .text-white,
+[data-theme="light"] .bg-amber-950\/60 .text-slate-400,
+[data-theme="light"] .bg-amber-950\/60 .text-amber-200,
+[data-theme="light"] .bg-amber-950 .text-white,
+[data-theme="light"] .bg-amber-950 .text-slate-400 {
+  color: #78350f !important;
 }
 
 [data-theme="light"] .bg-blue-950,

@@ -102,6 +102,8 @@ async function runComprehensiveSimulation() {
   assert(serverCode.includes('/api/youtube/playlist'), 'YouTube playlist items API', 'Extracts and maps playlist items for import');
   assert(serverCode.includes('/api/streamerbot/request'), 'Streamer.bot song request endpoint', 'Receives viewer requests via POST webhook');
   assert(serverCode.includes('/api/streamerbot/sample') || serverCode.includes('/api/sampler/trigger'), 'Streamer.bot soundboard endpoint', 'Fires sampler pads 1-8 from channel points');
+  assert(serverCode.includes('next-track-row') && serverCode.includes('mini-eq'), 'Unified OBS Now Playing & Up Next HUD', 'Combines active track and upcoming track into a single sleek glassmorphic HUD widget');
+  assert(serverCode.includes('deck-bpm-label') && serverCode.includes('next-badge'), 'HUD metadata rows', 'Row 1 displays live dot with mini EQ, Row 2 title, Row 3 next badge and upcoming track');
 
   // --------------------------------------------------------------------------
   // SECTION 4: Audio Engine DSP, 4-Stem Neural Separation & Turntable Physics
@@ -204,6 +206,10 @@ async function runComprehensiveSimulation() {
   const cssCode = fs.readFileSync(cssPath, 'utf8');
   assert(cssCode.includes('.waveform-screen-housing') && cssCode.includes('.waveform-screen-legend *'), 'Waveform Display Dark LCD Protection', 'Waveforms and tri-band legends maintain 100% luminous contrast in Light Mode');
   assert(cssCode.includes('button.bg-slate-900') && cssCode.includes('.bg-cyan-500\\/20'), 'Light Mode WCAG High-Contrast Theme Layer', 'Eliminates pale pastel clashes and elevates hardware buttons to crisp titanium in Light Mode');
+  assert(cssCode.includes('.bg-amber-950\\/60'), 'Light Mode Amber & Badge Contrast', 'Guarantees readable contrast on active MIDI hardware profiles in Light Mode');
+  const streamerOverlayPath = path.join(__dirname, '..', 'src', 'components', 'StreamerOverlay.tsx');
+  const streamerOverlayCode = fs.readFileSync(streamerOverlayPath, 'utf8');
+  assert(streamerOverlayCode.includes('Unified Now Playing & Up Next HUD Widget'), 'In-App Live Streamer Hub HUD Preview', 'Streamer Hub preview reflects unified single-card HUD widget');
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);

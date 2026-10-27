@@ -571,48 +571,61 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                   {/* Subtle Background Visual Grid */}
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b0a_1px,transparent_1px),linear-gradient(to_bottom,#1e293b0a_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
 
-                  {/* Active Track Glassmorphic Widget */}
+                  {/* Unified Now Playing & Up Next HUD Widget */}
                   {overlayConfig.showCurrentTrack && (
-                    <div className="relative flex items-center space-x-3.5 p-3 rounded-xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-md shadow-lg max-w-lg">
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-tr from-purple-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-md">
-                        {activeTrack?.coverArtUrl ? (
-                          <img src={activeTrack.coverArtUrl} alt="Cover" className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                          <Sparkles className="w-6 h-6 text-black" />
-                        )}
+                    <div className="relative flex items-center p-3 rounded-2xl bg-[#060a14]/90 border-[1.5px] border-cyan-400/70 backdrop-blur-md shadow-[0_10px_32px_rgba(0,0,0,0.75),0_0_20px_rgba(0,240,255,0.25)] max-w-lg overflow-hidden">
+                      {/* Spinning Vinyl Platter */}
+                      <div className="relative w-14 h-14 rounded-full bg-[#020617] border-[1.5px] border-cyan-400/50 shadow-[0_0_14px_rgba(0,240,255,0.35)] flex items-center justify-center shrink-0 mr-3.5 overflow-hidden">
+                        <div className="absolute inset-0 rounded-full bg-[repeating-radial-gradient(circle_at_50%_50%,#050508,#050508_2px,#151824_3px,#050508_4px)]" />
+                        <div className="relative w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-500 z-10 flex items-center justify-center shadow-inner overflow-hidden">
+                          {activeTrack?.coverArtUrl ? (
+                            <img src={activeTrack.coverArtUrl} alt="Cover" className="w-full h-full object-cover" />
+                          ) : (
+                            <Music className="w-3.5 h-3.5 text-black" />
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 overflow-hidden">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 uppercase">
-                            DECK {activeDeck}
+
+                      <div className="flex-1 overflow-hidden flex flex-col justify-center gap-0.5">
+                        {/* Row 1: Status & Deck/BPM */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#00f0ff] animate-pulse" />
+                          <span className="text-[10px] font-mono font-extrabold text-cyan-400 tracking-wider flex items-center gap-1">
+                            NOW PLAYING
+                            <span className="inline-flex items-end gap-0.5 h-2.5 ml-1">
+                              <span className="w-0.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" />
+                              <span className="w-0.5 h-2.5 bg-purple-400 rounded-full animate-bounce [animation-delay:0.15s]" />
+                              <span className="w-0.5 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.3s]" />
+                            </span>
                           </span>
-                          <span className="text-xs font-mono text-amber-300 font-bold">
-                            {activeTrack?.camelotKey || activeTrack?.key || '8A'} • {activeTrack ? (activeTrack.bpm * (activeDeck === 'A' ? deckA.playbackRate : deckB.playbackRate)).toFixed(1) : '126.0'} BPM
+                          <span className="text-[10px] text-slate-500">•</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-400">
+                            DECK {activeDeck} • {activeTrack ? (activeTrack.bpm * (activeDeck === 'A' ? deckA.playbackRate : deckB.playbackRate)).toFixed(1) : '126.0'} BPM
                           </span>
                         </div>
-                        <h4 className="font-extrabold text-sm text-white truncate mt-0.5">
+
+                        {/* Row 2: Track Title */}
+                        <h4 className="font-extrabold text-[15px] text-white truncate leading-tight">
                           {activeTrack?.title || 'No Track Loaded'}
                         </h4>
-                        <p className="text-xs text-slate-300 truncate">
-                          {activeTrack?.artist || 'Ready for mix'}
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Up Next Pill */}
-                  {overlayConfig.showNextTrack && nextTrack && (
-                    <div className="relative flex items-center justify-between p-2.5 rounded-lg bg-purple-950/40 border border-purple-800/40 max-w-lg">
-                      <div className="flex items-center space-x-2 overflow-hidden">
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-700/60 uppercase">
-                          UP NEXT
-                        </span>
-                        <span className="text-xs font-bold text-white truncate">{nextTrack.title}</span>
-                        <span className="text-xs text-slate-400 truncate hidden sm:inline">• {nextTrack.artist}</span>
+                        {/* Row 3: Next Track Integrated Line */}
+                        {overlayConfig.showNextTrack && (
+                          <div className="flex items-center gap-1.5 overflow-hidden mt-0.5">
+                            <span className="text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-purple-600 border border-purple-400/60 text-white uppercase shrink-0 shadow-[0_0_8px_rgba(168,85,247,0.4)]">
+                              NEXT
+                            </span>
+                            <span className="text-xs font-semibold text-slate-300 truncate">
+                              {nextTrack ? `${nextTrack.title}${nextTrack.artist ? ` - ${nextTrack.artist}` : ''}` : (activeTrack?.artist || 'Standby Deck Ready • CloudMix Pro')}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-xs font-mono font-bold text-cyan-400 shrink-0">
-                        {nextTrack.bpm.toFixed(1)} BPM
-                      </span>
+
+                      {/* Bottom Edge Neon Gradient Progress Line */}
+                      <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-white/10 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-cyan-400 via-sky-400 to-purple-500 w-1/2 shadow-[0_0_8px_rgba(0,240,255,0.6)]" />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -728,7 +741,8 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                       const leftPercent = ((w.x || 0) / canvasConfig.width) * 100;
                       const topPercent = ((w.y || 0) / canvasConfig.height) * 100;
                       const defaultW = key === 'video' ? 480 : 520;
-                      const defaultH = key === 'video' ? 270 : key === 'lyrics' ? 70 : key === 'nextTrack' ? 60 : 120;
+                      const defaultW = key === 'currentTrack' ? 480 : key === 'video' ? 480 : 520;
+                      const defaultH = key === 'currentTrack' ? 86 : key === 'video' ? 270 : key === 'lyrics' ? 70 : key === 'nextTrack' ? 60 : 120;
                       const currentW = (w.width || defaultW) * (w.scale || 1);
                       const currentH = (w.height || defaultH) * (w.scale || 1);
                       const widthPercent = (currentW / canvasConfig.width) * 100;
