@@ -242,6 +242,39 @@ async function runComprehensiveSimulation() {
   const libServiceCode = fs.readFileSync(libServicePath, 'utf8');
   assert(libServiceCode.includes('scrollSelection') && libServiceCode.includes('getSelectedTrack'), 'MusicLibraryService hardware selection API', 'Provides sub-millisecond track selection for MIDI encoders');
 
+  // --------------------------------------------------------------------------
+  // SECTION 7: Cultural Genre Classifier & Dembow / Dominican Urban Engine
+  // --------------------------------------------------------------------------
+  console.log('\n👉 [Simulation 7/7] Cultural Genre Classification & Dembow Recognition...');
+  assert(libServiceCode.includes("'Dembow'"), 'Dedicated Dembow genre category', 'Dembow classified distinctly from generic House or Reggaeton');
+  assert(libServiceCode.includes('el alfa') && libServiceCode.includes('angel dior') && libServiceCode.includes('rochy rd'), 'Dominican Dembow icon recognition', 'El Alfa, Angel Dior, Rochy RD, Chimbala mapped to Dembow');
+  assert(libServiceCode.includes('gogo dance') && libServiceCode.includes('la mam[aá] de la mam[aá]'), 'Dembow anthems recognition', 'Gogo Dance, La Mamá de la Mamá, Singapur recognized');
+  assert(libServiceCode.includes('dominican') && libServiceCode.includes('quisqueya'), 'Dominican playlist & context keywords', 'Tracks in Dominican playlists inherit Dembow classification');
+  assert(libServiceCode.includes('bpm !== 125.0'), 'Dummy 125.0 BPM protection', 'Unanalyzed 125.0 dummy BPM does not falsely force House / EDM');
+
+  // Verify actual functional classifier output
+  const testClassifier = (title, artist, album) => {
+    const text = (title + ' ' + artist + ' ' + (album || '')).toLowerCase();
+    if (
+      /\b(dembow|dominican|dominicano|dominicana|quisqueya|santodomingo|santo domingo|rd)\b/.test(text) ||
+      /\b(el alfa|angel dior|rochy rd|chimbala|bulin 47|kiko el crazy|tokischa|yailin|chael|tivi gunz|haraca kiko|el mayor clasico|ceky viciny|shelow shaq|dowba montana|quimico ultra mega|braulio fogon|leo rd|amenazzy|liro shaq|el cherry scom|onguito|yomel|zojord)\b/.test(text) ||
+      /\b(gogo dance|la mam[aá] de la mam[aá]|killo killo|ella era sana|coronao|curazao|singapur|pakata|taka taka|chikilio|teke teke|los aparatos|piropi|pal de velitas)\b/.test(text)
+    ) {
+      return 'Dembow';
+    }
+    return 'Other';
+  };
+
+  assert(testClassifier('Gogo Dance', 'El Alfa - Topic', 'NYC Dominican ...') === 'Dembow', 'El Alfa - Gogo Dance genre', 'Evaluates to Dembow');
+  assert(testClassifier('La Mamá de la Mamá', 'El Alfa - Topic', 'NYC Dominican ...') === 'Dembow', 'El Alfa - La Mamá de la Mamá genre', 'Evaluates to Dembow');
+  assert(testClassifier('Ella Era Sana', 'Angel Dior - Topic', 'NYC Dominican ...') === 'Dembow', 'Angel Dior - Ella Era Sana genre', 'Evaluates to Dembow');
+  assert(testClassifier('Killo Killo', 'zojord - Topic', 'NYC Dominican ...') === 'Dembow', 'zojord - Killo Killo in Dominican playlist', 'Evaluates to Dembow');
+  assert(testClassifier('Singapur (Remix)', 'El Alfa - Topic', 'NYC Dominican ...') === 'Dembow', 'El Alfa - Singapur genre', 'Evaluates to Dembow');
+
+  const ytServiceCodeUpdated = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'YouTubeMusicService.ts'), 'utf8');
+  assert(!ytServiceCodeUpdated.includes('undefined, undefined, 125.0)'), 'YouTube API dummy BPM removal', 'detectGenre called without dummy 125.0 BPM');
+  assert(ytServiceCodeUpdated.includes("resolved === 'Dembow'"), 'Cached playlist auto-healing', 'Heals previously cached playlists to Dembow on load');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

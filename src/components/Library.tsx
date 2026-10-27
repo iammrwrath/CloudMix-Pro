@@ -131,9 +131,24 @@ const TrackRow = React.memo<TrackRowProps>(({ isSelected = false,
       <td className="py-2 px-2 text-slate-400 text-[13px] truncate hidden md:table-cell">
         <span className="px-2 py-0.5 rounded text-[12px] font-medium bg-slate-800/80 border border-slate-700/60 text-slate-300 whitespace-nowrap">
           {decodeEntities(
-            track.genre && track.genre !== 'Music' && track.genre !== 'Various'
-              ? track.genre
-              : musicLibraryService.detectGenre(cleanTitle, cleanArtist, track.album, track.fileUrl, track.bpm)
+            (() => {
+              const detected = musicLibraryService.detectGenre(cleanTitle, cleanArtist, track.album || currentPlaylistName, track.fileUrl, track.bpm);
+              if (
+                !track.genre ||
+                track.genre === 'Music' ||
+                track.genre === 'Various' ||
+                track.genre === 'House / EDM' ||
+                track.genre === 'Electronic / Club' ||
+                detected === 'Dembow' ||
+                detected === 'Reggaeton' ||
+                detected === 'Dancehall' ||
+                detected === 'Afrobeats' ||
+                detected === 'Bachata'
+              ) {
+                return detected;
+              }
+              return track.genre;
+            })()
           )}
         </span>
       </td>

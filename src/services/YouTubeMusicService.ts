@@ -641,7 +641,7 @@ class YouTubeMusicService {
               title = decodeHtmlEntities(parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
-            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, undefined);
             return {
               id: `yt_${videoId}`,
               title,
@@ -731,7 +731,27 @@ class YouTubeMusicService {
     // 2. Check cached tracks from imported playlist
     const cachedTracks = await storageCache.getSetting<TrackMetadata[] | null>(`yt_pl_tracks_${playlistId}`, null);
     if (cachedTracks && cachedTracks.length > 0) {
-      return cachedTracks.map((t) => sanitizeTrackMetadata(t));
+      const matchingPl = this.cachedPlaylists?.find((p) => p.id === playlistId);
+      const plTitle = matchingPl?.title || '';
+      return cachedTracks.map((t) => {
+        const sanitized = sanitizeTrackMetadata(t);
+        const resolved = musicLibraryService.detectGenre(sanitized.title, sanitized.artist, sanitized.album || plTitle, sanitized.fileUrl, undefined);
+        if (
+          !sanitized.genre ||
+          sanitized.genre === 'House / EDM' ||
+          sanitized.genre === 'Electronic / Club' ||
+          sanitized.genre === 'Music' ||
+          sanitized.genre === 'Various' ||
+          resolved === 'Dembow' ||
+          resolved === 'Reggaeton' ||
+          resolved === 'Dancehall' ||
+          resolved === 'Afrobeats' ||
+          resolved === 'Bachata'
+        ) {
+          sanitized.genre = resolved;
+        }
+        return sanitized;
+      });
     }
 
     // 3. Try OAuth first if token present (guarantees private user playlists and Liked Music work)
@@ -766,7 +786,7 @@ class YouTubeMusicService {
               title = decodeHtmlEntities(parts.slice(1).join(' - ').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
-            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, undefined);
             return {
               id: `yt_${videoId}`,
               title,
@@ -818,7 +838,7 @@ class YouTubeMusicService {
               title = decodeHtmlEntities(parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '';
-            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, undefined);
             return {
               id: `yt_${videoId}`,
               title,
@@ -901,7 +921,7 @@ class YouTubeMusicService {
               title = decodeHtmlEntities(parts.slice(1).join(' - ').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim());
             }
             const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
-            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
+            const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, undefined);
             return {
               id: `yt_${videoId}`,
               title,
@@ -955,7 +975,7 @@ class YouTubeMusicService {
               const title = decodeHtmlEntities(item.snippet?.title || 'Unknown Title');
               const artist = decodeHtmlEntities(item.snippet?.channelTitle || 'YouTube Artist');
               const thumbnailUrl = item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url;
-              const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, 125.0);
+              const genre = musicLibraryService.detectGenre(title, artist, undefined, undefined, undefined);
               return {
                 id: `yt_${videoId}`,
                 title,
@@ -997,7 +1017,7 @@ class YouTubeMusicService {
               id: `yt_${r.videoId}`,
               title: cleanTitle,
               artist: cleanArtist,
-              genre: musicLibraryService.detectGenre(cleanTitle, cleanArtist, undefined, undefined, 125.0),
+              genre: musicLibraryService.detectGenre(cleanTitle, cleanArtist, undefined, undefined, undefined),
               duration: r.duration || 210,
               bpm: 125.0,
               key: '8A',
