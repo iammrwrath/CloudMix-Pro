@@ -661,10 +661,15 @@ export const App: React.FC = () => {
             const wf = AudioAnalyzer.extractWaveformData(buf);
             if (!track.bpm || track.bpm <= 0) track.bpm = AudioAnalyzer.estimateBPM(buf).bpm;
 
-            // Proactively separate 4 discrete neural stems in background immediately
+            // 1. Instant zero-wait responsive stems (active immediately upon load)
+            const instantStems = stemSeparatorService.createInstantStems(buf);
+            audioEngine.handOffToStems(deckId, instantStems);
+            console.log(`[NeuralStems] Instant zero-wait stems active for Deck ${deckId} (${track.title})`);
+
+            // 2. High-precision discrete neural stems via GPU CUDA HTDemucs v4 in background
             const filePath = youtubeDeckBridge.getTrackFilePath(deckId);
             stemSeparatorService.separateTrack(track.id, buf, undefined, filePath).then((stems) => {
-              console.log(`[NeuralStems] 4 discrete stems loaded for Deck ${deckId} (${track.title})`);
+              console.log(`[NeuralStems] 4 discrete neural stems upgraded for Deck ${deckId} (${track.title})`);
               if (audioEngine.getDeckBuffer(deckId) === buf) {
                 audioEngine.handOffToStems(deckId, stems);
               }
@@ -781,7 +786,14 @@ export const App: React.FC = () => {
       // Proactively separate 4 discrete neural stems in the background immediately upon track load
       // Seamlessly crossfades to stems at exact playhead with 30ms equal-power crossfade once complete
       if (!cachedStems) {
+        // 1. Instant zero-wait responsive stems (active immediately upon load)
+        const instantStems = stemSeparatorService.createInstantStems(audioBuffer);
+        audioEngine.handOffToStems(deckId, instantStems);
+        console.log(`[NeuralStems] Instant zero-wait stems active for Deck ${deckId} (${track.title})`);
+
+        // 2. High-precision discrete neural stems via GPU CUDA HTDemucs v4 in background
         stemSeparatorService.separateTrack(track.id, audioBuffer, undefined, resolvedFilePath).then((stems) => {
+          console.log(`[NeuralStems] 4 discrete neural stems upgraded for Deck ${deckId} (${track.title})`);
           if (audioEngine.getDeckBuffer(deckId) === audioBuffer) {
             audioEngine.handOffToStems(deckId, stems);
           }

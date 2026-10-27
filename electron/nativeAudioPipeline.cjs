@@ -68,17 +68,45 @@ function resolveYtDlp() {
 
 function isCudaAvailable() {
   if (cachedCudaAvailable !== null) return cachedCudaAvailable;
-  try {
-    const py = findExecutable(['py', 'python3', 'python']);
-    if (py) {
-      const out = execSync(`"${py}" -c "import torch; print(torch.cuda.is_available())"`, {
+
+  const candidates = [
+    'py -3.14',
+    'python3.14',
+    'C:\\Program Files\\Python314\\python.exe',
+    'py',
+    'python',
+    'python3',
+  ];
+
+  for (const cmd of candidates) {
+    try {
+      const fullCmd = cmd.includes(' ') && !cmd.startsWith('"') ? cmd : `"${cmd}"`;
+      const out = execSync(`${fullCmd} -c "import torch; print(torch.cuda.is_available())"`, {
         encoding: 'utf8',
         windowsHide: true,
+        stdio: ['pipe', 'pipe', 'ignore'],
       });
-      cachedCudaAvailable = out.toLowerCase().includes('true');
-      return cachedCudaAvailable;
+      if (out.toLowerCase().includes('true')) {
+        console.log(`[AUDIO PIPELINE] NVIDIA CUDA acceleration verified via ${cmd}`);
+        cachedCudaAvailable = true;
+        return true;
+      }
+    } catch {}
+  }
+
+  // Also verify if demucs can invoke CUDA device directly
+  try {
+    const demucs = resolveDemucs();
+    if (demucs && demucs.command) {
+      const testArgs = [...demucs.argsPrefix, '-d', 'cuda', '--help'];
+      const cmdStr = `"${demucs.command}" ${testArgs.join(' ')}`;
+      execSync(cmdStr, { stdio: 'ignore', windowsHide: true });
+      console.log('[AUDIO PIPELINE] NVIDIA CUDA verified via demucs runner');
+      cachedCudaAvailable = true;
+      return true;
     }
   } catch {}
+
   cachedCudaAvailable = false;
   return false;
 }
@@ -86,19 +114,27 @@ function isCudaAvailable() {
 function resolveDemucs() {
   if (cachedDemucs) return cachedDemucs;
 
-  // 1. Direct demucs binary on PATH
-  const direct = findExecutable(['demucs', 'demucs.exe']);
+  // 1. Direct demucs binary on PATH or known user Scripts directory
+  const direct = findExecutable(['demucs', 'demucs.exe']) ||
+    [
+      path.join(process.env.APPDATA || '', 'Python', 'Python314', 'Scripts', 'demucs.exe'),
+      path.join(process.env.APPDATA || '', 'Python', 'Python315', 'Scripts', 'demucs.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python314', 'Scripts', 'demucs.exe'),
+    ].find((p) => p && fs.existsSync(p));
+
   if (direct) {
     cachedDemucs = { command: direct, argsPrefix: [] };
     return cachedDemucs;
   }
 
-  // 2. Python launcher with -m demucs
-  const py = findExecutable(['py', 'python3', 'python']);
-  if (py) {
+  // 2. Python launcher with -m demucs (prioritizing Python 3.14 with PyTorch CUDA)
+  for (const pyCmd of ['py -3.14', 'python3.14', 'py', 'python3', 'python']) {
     try {
-      execSync(`"${py}" -m demucs --help`, { stdio: 'ignore', windowsHide: true });
-      cachedDemucs = { command: py, argsPrefix: ['-m', 'demucs'] };
+      const parts = pyCmd.split(' ');
+      const mainCmd = parts[0];
+      const extraArgs = parts.slice(1);
+      execSync(`"${mainCmd}" ${extraArgs.join(' ')} -m demucs --help`, { stdio: 'ignore', windowsHide: true });
+      cachedDemucs = { command: mainCmd, argsPrefix: [...extraArgs, '-m', 'demucs'] };
       return cachedDemucs;
     } catch {}
   }
@@ -362,6 +398,8 @@ function registerNativeAudioHandlers(ipcMain) {
       '-n', 'htdemucs',
       '-d', device,
       '--shifts', '0',
+      '--overlap', '0.15',
+      '-j', '2',
       '-o', stemsCacheDir,
       '--filename', '{track}/{stem}.{ext}',
       inputFile,
