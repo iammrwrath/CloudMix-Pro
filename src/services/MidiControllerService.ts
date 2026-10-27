@@ -90,6 +90,122 @@ const buildStandard2DeckMappings = (deckACh = 0, deckBCh = 1): MidiMappingRule[]
   { controlName: 'Master_Volume', statusByte: 0xb0, data1: 0x02, channel: 0, type: 'knob' },
 ];
 
+// Dedicated native Reloop Buddy hardware mapping matching Algoriddim djay specification
+const buildReloopBuddyMappings = (): MidiMappingRule[] => [
+  // ================= DECK A (Ch 0: 0x90 / 0xB0) =================
+  // Transport
+  { controlName: 'DeckA_Play', statusByte: 0x90, data1: 0x00, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Play_Shift', statusByte: 0x90, data1: 0x10, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Cue', statusByte: 0x90, data1: 0x01, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Cue_Shift', statusByte: 0x90, data1: 0x05, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Sync', statusByte: 0x90, data1: 0x02, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Sync_Shift', statusByte: 0x90, data1: 0x03, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Pitch', statusByte: 0xB0, data1: 0x09, channel: 0, type: 'slider' },
+  { controlName: 'DeckA_JogTurn', statusByte: 0xB0, data1: 0x06, channel: 0, type: 'jog' },
+  { controlName: 'DeckA_JogTouch', statusByte: 0x90, data1: 0x06, channel: 0, type: 'button' },
+  { controlName: 'DeckA_JogBend', statusByte: 0xB0, data1: 0x2B, channel: 0, type: 'jog' },
+
+  // Mixer, EQ & Filter (Deck A)
+  { controlName: 'DeckA_Fader', statusByte: 0xB0, data1: 0x1C, channel: 0, type: 'slider' },
+  { controlName: 'DeckA_Filter', statusByte: 0xB0, data1: 0x1A, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_EQ_Low', statusByte: 0xB0, data1: 0x19, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_EQ_High', statusByte: 0xB0, data1: 0x17, channel: 0, type: 'knob' },
+  { controlName: 'Headphone_Cue_A', statusByte: 0x90, data1: 0x1B, channel: 0, type: 'button' },
+  { controlName: 'DeckA_EQ_ModeToggle', statusByte: 0x90, data1: 0x23, channel: 0, type: 'button' },
+
+  // ================= DECK B (Ch 1: 0x91 / 0xB1) =================
+  // Transport
+  { controlName: 'DeckB_Play', statusByte: 0x91, data1: 0x00, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Play_Shift', statusByte: 0x91, data1: 0x10, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Cue', statusByte: 0x91, data1: 0x01, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Cue_Shift', statusByte: 0x91, data1: 0x05, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Sync', statusByte: 0x91, data1: 0x02, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Sync_Shift', statusByte: 0x91, data1: 0x03, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Pitch', statusByte: 0xB1, data1: 0x09, channel: 1, type: 'slider' },
+  { controlName: 'DeckB_JogTurn', statusByte: 0xB1, data1: 0x06, channel: 1, type: 'jog' },
+  { controlName: 'DeckB_JogTouch', statusByte: 0x91, data1: 0x06, channel: 1, type: 'button' },
+  { controlName: 'DeckB_JogBend', statusByte: 0xB1, data1: 0x2B, channel: 1, type: 'jog' },
+
+  // Mixer, EQ & Filter (Deck B)
+  { controlName: 'DeckB_Fader', statusByte: 0xB1, data1: 0x1C, channel: 1, type: 'slider' },
+  { controlName: 'DeckB_Filter', statusByte: 0xB1, data1: 0x1A, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_EQ_Low', statusByte: 0xB1, data1: 0x19, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_EQ_High', statusByte: 0xB1, data1: 0x17, channel: 1, type: 'knob' },
+  { controlName: 'Headphone_Cue_B', statusByte: 0x91, data1: 0x1B, channel: 1, type: 'button' },
+  { controlName: 'DeckB_EQ_ModeToggle', statusByte: 0x91, data1: 0x23, channel: 1, type: 'button' },
+
+  // ================= MASTER & LIBRARY (Ch 14: 0x9E / 0xBE) =================
+  { controlName: 'Crossfader', statusByte: 0xBE, data1: 0x08, channel: 14, type: 'slider' },
+  { controlName: 'Master_Volume', statusByte: 0xBE, data1: 0x0A, channel: 14, type: 'knob' },
+  { controlName: 'Headphone_Volume', statusByte: 0xBE, data1: 0x0C, channel: 14, type: 'knob' },
+  { controlName: 'Headphone_Mix', statusByte: 0xBE, data1: 0x0D, channel: 14, type: 'knob' },
+  { controlName: 'Library_Scroll', statusByte: 0xBE, data1: 0x00, channel: 14, type: 'knob' },
+  { controlName: 'DeckA_Load', statusByte: 0x9E, data1: 0x02, channel: 14, type: 'button' },
+  { controlName: 'DeckB_Load', statusByte: 0x9E, data1: 0x03, channel: 14, type: 'button' },
+  { controlName: 'Library_Back', statusByte: 0x9E, data1: 0x7B, channel: 14, type: 'button' },
+  { controlName: 'Library_SourceToggle', statusByte: 0x9E, data1: 0x06, channel: 14, type: 'button' },
+
+  // ================= FX PADDLES (Ch 8: 0x98 / 0xB8, Ch 9: 0x99 / 0xB9) =================
+  { controlName: 'DeckA_FX_Paddle', statusByte: 0x98, data1: 0x00, channel: 8, type: 'button' },
+  { controlName: 'DeckA_FX_WetDry', statusByte: 0xB8, data1: 0x00, channel: 8, type: 'knob' },
+  { controlName: 'DeckB_FX_Paddle', statusByte: 0x99, data1: 0x00, channel: 9, type: 'button' },
+  { controlName: 'DeckB_FX_WetDry', statusByte: 0xB9, data1: 0x00, channel: 9, type: 'knob' },
+
+  // ================= DECK A PADS & LOOPS (Ch 4: 0x94 / 0xB4) =================
+  { controlName: 'DeckA_Loop_Toggle', statusByte: 0x94, data1: 0x40, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Loop_Halve', statusByte: 0xB4, data1: 0x34, channel: 4, type: 'knob' },
+  { controlName: 'DeckA_PadMode_HotCue', statusByte: 0x94, data1: 0x00, channel: 4, type: 'button' },
+  { controlName: 'DeckA_PadMode_InstantFX', statusByte: 0x94, data1: 0x02, channel: 4, type: 'button' },
+  { controlName: 'DeckA_PadMode_Neural', statusByte: 0x94, data1: 0x08, channel: 4, type: 'button' },
+  { controlName: 'DeckA_PadMode_Bounce', statusByte: 0x94, data1: 0x09, channel: 4, type: 'button' },
+  { controlName: 'DeckA_PadMode_Sampler', statusByte: 0x94, data1: 0x0B, channel: 4, type: 'button' },
+  { controlName: 'DeckA_PadMode_Slicer', statusByte: 0x94, data1: 0x0F, channel: 4, type: 'button' },
+  { controlName: 'DeckA_PadMode_Loop', statusByte: 0x94, data1: 0x11, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_1', statusByte: 0x94, data1: 20, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_2', statusByte: 0x94, data1: 21, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_3', statusByte: 0x94, data1: 22, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_4', statusByte: 0x94, data1: 23, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_5', statusByte: 0x94, data1: 24, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_6', statusByte: 0x94, data1: 25, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_7', statusByte: 0x94, data1: 26, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_8', statusByte: 0x94, data1: 27, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_1_Shift', statusByte: 0x94, data1: 28, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_2_Shift', statusByte: 0x94, data1: 29, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_3_Shift', statusByte: 0x94, data1: 30, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_4_Shift', statusByte: 0x94, data1: 31, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_5_Shift', statusByte: 0x94, data1: 32, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_6_Shift', statusByte: 0x94, data1: 33, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_7_Shift', statusByte: 0x94, data1: 34, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Pad_8_Shift', statusByte: 0x94, data1: 35, channel: 4, type: 'button' },
+
+  // ================= DECK B PADS & LOOPS (Ch 5: 0x95 / 0xB5) =================
+  { controlName: 'DeckB_Loop_Toggle', statusByte: 0x95, data1: 0x40, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Loop_Halve', statusByte: 0xB5, data1: 0x34, channel: 5, type: 'knob' },
+  { controlName: 'DeckB_PadMode_HotCue', statusByte: 0x95, data1: 0x00, channel: 5, type: 'button' },
+  { controlName: 'DeckB_PadMode_InstantFX', statusByte: 0x95, data1: 0x02, channel: 5, type: 'button' },
+  { controlName: 'DeckB_PadMode_Neural', statusByte: 0x95, data1: 0x08, channel: 5, type: 'button' },
+  { controlName: 'DeckB_PadMode_Bounce', statusByte: 0x95, data1: 0x09, channel: 5, type: 'button' },
+  { controlName: 'DeckB_PadMode_Sampler', statusByte: 0x95, data1: 0x0B, channel: 5, type: 'button' },
+  { controlName: 'DeckB_PadMode_Slicer', statusByte: 0x95, data1: 0x0F, channel: 5, type: 'button' },
+  { controlName: 'DeckB_PadMode_Loop', statusByte: 0x95, data1: 0x11, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_1', statusByte: 0x95, data1: 20, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_2', statusByte: 0x95, data1: 21, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_3', statusByte: 0x95, data1: 22, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_4', statusByte: 0x95, data1: 23, channel: 5, type: 'button' }, // User button exact match!
+  { controlName: 'DeckB_Pad_5', statusByte: 0x95, data1: 24, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_6', statusByte: 0x95, data1: 25, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_7', statusByte: 0x95, data1: 26, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_8', statusByte: 0x95, data1: 27, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_1_Shift', statusByte: 0x95, data1: 28, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_2_Shift', statusByte: 0x95, data1: 29, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_3_Shift', statusByte: 0x95, data1: 30, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_4_Shift', statusByte: 0x95, data1: 31, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_5_Shift', statusByte: 0x95, data1: 32, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_6_Shift', statusByte: 0x95, data1: 33, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_7_Shift', statusByte: 0x95, data1: 34, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Pad_8_Shift', statusByte: 0x95, data1: 35, channel: 5, type: 'button' },
+];
+
 export const BUILT_IN_PROFILES: MidiProfile[] = [
   {
     id: 'reloop_buddy',
@@ -98,7 +214,7 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     description: 'Algoriddim djay dedicated 2-deck controller featuring Neural Mix toggles, FX paddle switches, dedicated loop encoder, and 8 performance pads per deck.',
     tags: ['Algoriddim djay', 'Neural Mix', 'Paddle FX', '8 RGB Pads', 'Portable'],
     deviceMatchNames: ['buddy', 'reloop buddy', 'reloop_buddy'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    mappings: buildReloopBuddyMappings(),
   },
   {
     id: 'reloop_ready',
@@ -107,7 +223,7 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     description: 'Ultra-compact performance controller engineered for travel and sitting directly over 13-inch laptop keyboards with 16 RGB pads.',
     tags: ['Compact', '16 RGB Pads', 'djay Pro', 'Serato'],
     deviceMatchNames: ['ready', 'reloop ready', 'reloop_ready'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    mappings: buildReloopBuddyMappings(),
   },
   {
     id: 'reloop_mixon',

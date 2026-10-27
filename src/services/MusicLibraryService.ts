@@ -15,6 +15,52 @@ export class MusicLibraryService {
   private isLoaded: boolean = false;
   private loadPromise: Promise<CortexTrack[]> | null = null;
   private listeners: Set<(tracks: CortexTrack[]) => void> = new Set();
+  private selectedIndex: number = 0;
+  private selectionListeners: Set<(track: TrackMetadata | null, index: number) => void> = new Set();
+
+  public scrollSelection(delta: number): TrackMetadata | null {
+    if (this.tracks.length === 0) return null;
+    this.selectedIndex = Math.max(0, Math.min(this.tracks.length - 1, this.selectedIndex + delta));
+    const track = this.convertPulseToDjTrack(this.tracks[this.selectedIndex]);
+    for (const listener of this.selectionListeners) {
+      try {
+        listener(track, this.selectedIndex);
+      } catch (err) {
+        console.error('Error notifying selection listener:', err);
+      }
+    }
+    return track;
+  }
+
+  public getSelectedTrack(): TrackMetadata | null {
+    if (this.tracks.length === 0 || this.selectedIndex < 0 || this.selectedIndex >= this.tracks.length) return null;
+    return this.convertPulseToDjTrack(this.tracks[this.selectedIndex]);
+  }
+
+  public getSelectedIndex(): number {
+    return this.selectedIndex;
+  }
+
+  public setSelectedIndex(idx: number): void {
+    if (this.tracks.length === 0) return;
+    this.selectedIndex = Math.max(0, Math.min(this.tracks.length - 1, idx));
+    const track = this.convertPulseToDjTrack(this.tracks[this.selectedIndex]);
+    for (const listener of this.selectionListeners) {
+      try {
+        listener(track, this.selectedIndex);
+      } catch (err) {
+        console.error('Error notifying selection listener:', err);
+      }
+    }
+  }
+
+  public onSelectionChange(listener: (track: TrackMetadata | null, index: number) => void): () => void {
+    this.selectionListeners.add(listener);
+    if (this.tracks.length > 0) {
+      listener(this.getSelectedTrack(), this.selectedIndex);
+    }
+    return () => this.selectionListeners.delete(listener);
+  }
 
   public async getTracks(): Promise<CortexTrack[]> {
     if (this.isLoaded) return this.tracks;

@@ -24,6 +24,7 @@ import { samplerEngine } from './audio/SamplerEngine';
 import { automixService } from './services/AutomixService';
 import { storageCache } from './services/StorageCacheService';
 import { autoErrorHealingService } from './services/AutoErrorHealingService';
+import { musicLibraryService } from './services/MusicLibraryService';
 import { Header } from './components/Header';
 import { Deck } from './components/Deck';
 import { Mixer } from './components/Mixer';
@@ -528,16 +529,28 @@ export const App: React.FC = () => {
     }
   };
 
-  // WebMIDI Controller Binding
+  // WebMIDI Controller Binding (Reloop Buddy & Universal DJ Hardware)
   useEffect(() => {
-    const unsubscribe = midiControllerService.onControl((controlName, value) => {
-      // Transport
+    const unsubscribe = midiControllerService.onControl((controlName, value, rawData) => {
+      // Relative rotary delta calculation for encoders and jog wheels
+      const rawByte = rawData ? rawData[2] : Math.round(value * 127);
+      const rotaryDelta = rawByte < 64 ? rawByte : rawByte - 128;
+
+      // Transport (Deck A)
       if (controlName === 'DeckA_Play' && value > 0.5) handlePlayToggle('A');
-      else if (controlName === 'DeckB_Play' && value > 0.5) handlePlayToggle('B');
+      else if (controlName === 'DeckA_Play_Shift' && value > 0.5) handleCueClick('A');
       else if (controlName === 'DeckA_Cue' && value > 0.5) handleCueClick('A');
-      else if (controlName === 'DeckB_Cue' && value > 0.5) handleCueClick('B');
+      else if (controlName === 'DeckA_Cue_Shift' && value > 0.5) audioEngine.seekDeck('A', 0);
       else if (controlName === 'DeckA_Sync' && value > 0.5) handleSyncClick('A');
+      else if (controlName === 'DeckA_Sync_Shift' && value > 0.5) handleRateChange('A', 1.0);
+
+      // Transport (Deck B)
+      else if (controlName === 'DeckB_Play' && value > 0.5) handlePlayToggle('B');
+      else if (controlName === 'DeckB_Play_Shift' && value > 0.5) handleCueClick('B');
+      else if (controlName === 'DeckB_Cue' && value > 0.5) handleCueClick('B');
+      else if (controlName === 'DeckB_Cue_Shift' && value > 0.5) audioEngine.seekDeck('B', 0);
       else if (controlName === 'DeckB_Sync' && value > 0.5) handleSyncClick('B');
+      else if (controlName === 'DeckB_Sync_Shift' && value > 0.5) handleRateChange('B', 1.0);
 
       // Faders & Mixer
       else if (controlName === 'Crossfader') handleCrossfaderChange(value * 2.0 - 1.0);
@@ -552,33 +565,139 @@ export const App: React.FC = () => {
       else if (controlName === 'DeckB_EQ_Mid') handleEQChange('B', 'mid', value * 2.0 - 1.0);
       else if (controlName === 'DeckB_EQ_Low') handleEQChange('B', 'low', value * 2.0 - 1.0);
       else if (controlName === 'Master_Volume') handleMasterVolumeChange(value);
+      else if (controlName === 'Headphone_Volume') setMixer((p) => ({ ...p, headphoneVolume: value }));
+      else if (controlName === 'Headphone_Mix') setMixer((p) => ({ ...p, headphoneMix: value }));
 
-      // Pitch Faders
+      // Pitch Sliders
       else if (controlName === 'DeckA_Pitch') handleRateChange('A', 1.0 + (value - 0.5) * 0.16);
       else if (controlName === 'DeckB_Pitch') handleRateChange('B', 1.0 + (value - 0.5) * 0.16);
 
-      // Jog Wheel Scratch / Nudge
-      else if (controlName === 'DeckA_JogTurn') handleScratch('A', (value - 0.5) * 0.4);
-      else if (controlName === 'DeckB_JogTurn') handleScratch('B', (value - 0.5) * 0.4);
+      // Jog Wheels: Touch Detection & Scratch / Nudge
+      else if (controlName === 'DeckA_JogTouch') {
+        if (value > 0.5) handleScratchStart('A');
+        else handleScratchEnd('A');
+      } else if (controlName === 'DeckB_JogTouch') {
+        if (value > 0.5) handleScratchStart('B');
+        else handleScratchEnd('B');
+      } else if (controlName === 'DeckA_JogTurn' || controlName === 'DeckA_JogBend') {
+        handleScratch('A', rotaryDelta * 0.04);
+      } else if (controlName === 'DeckB_JogTurn' || controlName === 'DeckB_JogBend') {
+        handleScratch('B', rotaryDelta * 0.04);
+      }
 
-      // Loop Encoder / Controls
+      // Loop Encoder / Rotary Controls
       else if (controlName === 'DeckA_Loop_Toggle' && value > 0.5) {
         if (deckA.activeLoop) handleExitLoop('A');
         else handleSetAutoLoop('A', 4);
       } else if (controlName === 'DeckB_Loop_Toggle' && value > 0.5) {
         if (deckB.activeLoop) handleExitLoop('B');
         else handleSetAutoLoop('B', 4);
-      } else if (controlName === 'DeckA_Loop_Halve' && value > 0.5) {
-        handleSetAutoLoop('A', Math.max(0.25, (deckA.activeLoop?.beats || 4) / 2));
-      } else if (controlName === 'DeckB_Loop_Halve' && value > 0.5) {
-        handleSetAutoLoop('B', Math.max(0.25, (deckB.activeLoop?.beats || 4) / 2));
+      } else if (controlName === 'DeckA_Loop_Halve') {
+        const curBeats = deckA.activeLoop?.beats || 4;
+        const newBeats = rotaryDelta > 0 ? Math.min(64, curBeats * 2) : Math.max(0.125, curBeats / 2);
+        handleSetAutoLoop('A', newBeats);
+      } else if (controlName === 'DeckB_Loop_Halve') {
+        const curBeats = deckB.activeLoop?.beats || 4;
+        const newBeats = rotaryDelta > 0 ? Math.min(64, curBeats * 2) : Math.max(0.125, curBeats / 2);
+        handleSetAutoLoop('B', newBeats);
       }
 
-      // FX Paddles
+      // FX Paddles & Controls
       else if (controlName === 'DeckA_FX_Paddle') handleToggleFX('A', 'echo');
       else if (controlName === 'DeckB_FX_Paddle') handleToggleFX('B', 'echo');
+      else if (controlName === 'DeckA_FX_WetDry') handleFXWetDry('A', value);
+      else if (controlName === 'DeckB_FX_WetDry') handleFXWetDry('B', value);
 
-      // 4-Stem Neural Mix Mutes
+      // Neural Mix / EQ Mode Toggle
+      else if (controlName === 'DeckA_EQ_ModeToggle' && value > 0.5) {
+        setDeckA((p) => ({ ...p, eqMode: p.eqMode === 'neural' ? 'isolator' : 'neural' }));
+      } else if (controlName === 'DeckB_EQ_ModeToggle' && value > 0.5) {
+        setDeckB((p) => ({ ...p, eqMode: p.eqMode === 'neural' ? 'isolator' : 'neural' }));
+      }
+
+      // Performance Pad Mode Selectors
+      else if (controlName === 'DeckA_PadMode_HotCue' && value > 0.5) setDeckA((p) => ({ ...p, selectedPadMode: 'hotcue' }));
+      else if (controlName === 'DeckA_PadMode_Neural' && value > 0.5) setDeckA((p) => ({ ...p, selectedPadMode: 'neural' }));
+      else if (controlName === 'DeckA_PadMode_Sampler' && value > 0.5) setDeckA((p) => ({ ...p, selectedPadMode: 'sampler' }));
+      else if (controlName === 'DeckA_PadMode_Loop' && value > 0.5) setDeckA((p) => ({ ...p, selectedPadMode: 'loop' }));
+      else if (controlName === 'DeckA_PadMode_Bounce' && value > 0.5) setDeckA((p) => ({ ...p, selectedPadMode: 'bounce' as any }));
+
+      else if (controlName === 'DeckB_PadMode_HotCue' && value > 0.5) setDeckB((p) => ({ ...p, selectedPadMode: 'hotcue' }));
+      else if (controlName === 'DeckB_PadMode_Neural' && value > 0.5) setDeckB((p) => ({ ...p, selectedPadMode: 'neural' }));
+      else if (controlName === 'DeckB_PadMode_Sampler' && value > 0.5) setDeckB((p) => ({ ...p, selectedPadMode: 'sampler' }));
+      else if (controlName === 'DeckB_PadMode_Loop' && value > 0.5) setDeckB((p) => ({ ...p, selectedPadMode: 'loop' }));
+      else if (controlName === 'DeckB_PadMode_Bounce' && value > 0.5) setDeckB((p) => ({ ...p, selectedPadMode: 'bounce' as any }));
+
+      // Performance Pads 1-8 (Deck A)
+      else if (controlName.startsWith('DeckA_Pad_') && value > 0.5) {
+        const isShift = controlName.endsWith('_Shift');
+        const padNum = parseInt(controlName.replace('DeckA_Pad_', '').replace('_Shift', ''), 10);
+        if (isShift) {
+          handleClearCue('A', padNum - 1);
+        } else {
+          const mode = deckA.selectedPadMode || 'hotcue';
+          if (mode === 'neural') {
+            if (padNum === 1) handleStemMuteToggle('A', 'vocals');
+            else if (padNum === 2) handleStemMuteToggle('A', 'harmonics');
+            else if (padNum === 3) handleStemMuteToggle('A', 'bass');
+            else if (padNum === 4) handleStemMuteToggle('A', 'drums');
+            else if (padNum === 5) handleStemSoloToggle('A', 'vocals');
+            else if (padNum === 6) handleStemSoloToggle('A', 'harmonics');
+            else if (padNum === 7) handleStemSoloToggle('A', 'bass');
+            else if (padNum === 8) handleStemSoloToggle('A', 'drums');
+          } else if (mode === 'sampler') {
+            samplerEngine.playSample(padNum - 1);
+          } else if (mode === 'loop' || (mode as any) === 'bounce') {
+            const loopBeats = [0.25, 0.5, 1, 2, 4, 8, 16, 32][padNum - 1] || 4;
+            handleSetAutoLoop('A', loopBeats);
+          } else {
+            handleTriggerCue('A', padNum - 1);
+          }
+        }
+      }
+
+      // Performance Pads 1-8 (Deck B - matches user's Reloop Buddy hardware!)
+      else if (controlName.startsWith('DeckB_Pad_') && value > 0.5) {
+        const isShift = controlName.endsWith('_Shift');
+        const padNum = parseInt(controlName.replace('DeckB_Pad_', '').replace('_Shift', ''), 10);
+        if (isShift) {
+          handleClearCue('B', padNum - 1);
+        } else {
+          const mode = deckB.selectedPadMode || 'hotcue';
+          if (mode === 'neural') {
+            if (padNum === 1) handleStemMuteToggle('B', 'vocals');
+            else if (padNum === 2) handleStemMuteToggle('B', 'harmonics');
+            else if (padNum === 3) handleStemMuteToggle('B', 'bass');
+            else if (padNum === 4) handleStemMuteToggle('B', 'drums');
+            else if (padNum === 5) handleStemSoloToggle('B', 'vocals');
+            else if (padNum === 6) handleStemSoloToggle('B', 'harmonics');
+            else if (padNum === 7) handleStemSoloToggle('B', 'bass');
+            else if (padNum === 8) handleStemSoloToggle('B', 'drums');
+          } else if (mode === 'sampler') {
+            samplerEngine.playSample(padNum - 1);
+          } else if (mode === 'loop' || (mode as any) === 'bounce') {
+            const loopBeats = [0.25, 0.5, 1, 2, 4, 8, 16, 32][padNum - 1] || 4;
+            handleSetAutoLoop('B', loopBeats);
+          } else {
+            handleTriggerCue('B', padNum - 1);
+          }
+        }
+      }
+
+      // Library Navigation & Loading (Channel 14)
+      else if (controlName === 'Library_Scroll') {
+        musicLibraryService.scrollSelection(rotaryDelta > 0 ? 1 : -1);
+      } else if (controlName === 'DeckA_Load' && value > 0.5) {
+        const sel = musicLibraryService.getSelectedTrack();
+        if (sel) handleLoadTrack('A', sel);
+      } else if (controlName === 'DeckB_Load' && value > 0.5) {
+        const sel = musicLibraryService.getSelectedTrack();
+        if (sel) handleLoadTrack('B', sel);
+      } else if (controlName === 'Library_Back' && value > 0.5) {
+        setDrawerMode((p) => (p === 'collapsed' ? 'split' : 'collapsed'));
+      }
+
+      // Fallback Direct Stem Mutes
       else if (controlName === 'DeckA_Stem_Vocals' && value > 0.5) handleStemMuteToggle('A', 'vocals');
       else if (controlName === 'DeckA_Stem_Harmonics' && value > 0.5) handleStemMuteToggle('A', 'harmonics');
       else if (controlName === 'DeckA_Stem_Bass' && value > 0.5) handleStemMuteToggle('A', 'bass');
@@ -588,7 +707,7 @@ export const App: React.FC = () => {
       else if (controlName === 'DeckB_Stem_Bass' && value > 0.5) handleStemMuteToggle('B', 'bass');
       else if (controlName === 'DeckB_Stem_Drums' && value > 0.5) handleStemMuteToggle('B', 'drums');
 
-      // Hot Cues 1-8
+      // Fallback Direct Hot Cues 1-8
       else if (controlName.startsWith('DeckA_HotCue_') && value > 0.5) {
         const cueIdx = parseInt(controlName.replace('DeckA_HotCue_', '')) - 1;
         handleTriggerCue('A', cueIdx);

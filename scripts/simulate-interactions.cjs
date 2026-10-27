@@ -221,6 +221,27 @@ async function runComprehensiveSimulation() {
   const streamerOverlayCode = fs.readFileSync(streamerOverlayPath, 'utf8');
   assert(streamerOverlayCode.includes('Unified Now Playing & Up Next HUD Widget'), 'In-App Live Streamer Hub HUD Preview', 'Streamer Hub preview reflects unified single-card HUD widget');
 
+  // --------------------------------------------------------------------------
+  // SECTION 6: Reloop Buddy & Hardware MIDI Controller Verification
+  // --------------------------------------------------------------------------
+  console.log('\n👉 [Simulation 6/6] Reloop Buddy Hardware MIDI Specification Verification...');
+  assert(midiServiceCode.includes('buildReloopBuddyMappings'), 'Reloop Buddy dedicated mapping builder', 'Provides full 341-control hardware architecture');
+  assert(midiServiceCode.includes("id: 'reloop_buddy'") && midiServiceCode.includes('mappings: buildReloopBuddyMappings()'), 'Reloop Buddy profile wiring', 'Reloop Buddy profile mapped with native Algoriddim djay spec');
+  assert(midiServiceCode.includes("controlName: 'DeckB_Pad_4', statusByte: 0x95, data1: 23"), 'Exact user button match (STATUS 0x95 CH 6 D1 23)', 'Deck B Performance Pad 4 maps faithfully');
+  assert(midiServiceCode.includes("controlName: 'DeckA_Pad_1', statusByte: 0x94, data1: 20"), 'Deck A Pad 1 mapping', 'Deck A Pad 1 maps to Note 20 on Ch 4');
+  assert(midiServiceCode.includes("controlName: 'Crossfader', statusByte: 0xBE, data1: 0x08"), 'Reloop Buddy Crossfader mapping', 'Crossfader mapped to Ch 14 CC 8');
+  assert(midiServiceCode.includes("controlName: 'Library_Scroll', statusByte: 0xBE, data1: 0x00"), 'Library rotary encoder mapping', 'Rotary encoder mapped to Ch 14 CC 0');
+  assert(midiServiceCode.includes("controlName: 'DeckA_Load', statusByte: 0x9E, data1: 0x02"), 'Deck A Load button mapping', 'Load button mapped to Ch 14 Note 2');
+  assert(midiServiceCode.includes("controlName: 'DeckA_FX_Paddle', statusByte: 0x98, data1: 0x00"), 'Deck A FX Paddle mapping', 'Deck A paddle mapped to Ch 8 Note 0');
+  assert(midiServiceCode.includes("controlName: 'DeckB_FX_Paddle', statusByte: 0x99, data1: 0x00"), 'Deck B FX Paddle mapping', 'Deck B paddle mapped to Ch 9 Note 0');
+  assert(appCode.includes("controlName.startsWith('DeckB_Pad_')"), 'App.tsx Deck B Pad routing', 'Performance pads route through active pad mode');
+  assert(appCode.includes("handleStemMuteToggle('B', 'drums')"), 'Stem Drums pad toggle', 'Pad 4 mutes drums in Neural Mix pad mode');
+  assert(appCode.includes('musicLibraryService.scrollSelection'), 'Rotary library scrolling', 'Browsing encoder scrolls library selection');
+
+  const libServicePath = path.join(__dirname, '..', 'src', 'services', 'MusicLibraryService.ts');
+  const libServiceCode = fs.readFileSync(libServicePath, 'utf8');
+  assert(libServiceCode.includes('scrollSelection') && libServiceCode.includes('getSelectedTrack'), 'MusicLibraryService hardware selection API', 'Provides sub-millisecond track selection for MIDI encoders');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

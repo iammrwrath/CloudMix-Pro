@@ -78,7 +78,7 @@ interface TrackRowProps {
   currentMasterKey?: string;
 }
 
-const TrackRow = React.memo<TrackRowProps>(({
+const TrackRow = React.memo<TrackRowProps>(({ isSelected = false,
   track,
   idx,
   onLoadTrack,
@@ -100,7 +100,7 @@ const TrackRow = React.memo<TrackRowProps>(({
         onContextMenu(e, track);
       }}
       onDoubleClick={() => onLoadTrack('A', track)}
-      className="hover:bg-slate-800/80 transition-colors group cursor-pointer"
+      className={`transition-colors group cursor-pointer ${isSelected ? "bg-cyan-950/70 border-l-4 border-cyan-400 shadow-[inset_0_0_12px_rgba(6,182,212,0.15)]" : "hover:bg-slate-800/80"}`}
     >
       <td className="py-2.5 px-3 font-mono text-slate-400 font-semibold text-[13px]">{idx + 1}</td>
 
@@ -259,6 +259,7 @@ export const Library = React.memo<LibraryProps>(({
   const [ytPlaylists, setYtPlaylists] = useState<any[]>([]);
   const [selectedYtPlaylistId, setSelectedYtPlaylistId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(100);
+  const [selectedLibraryIndex, setSelectedLibraryIndex] = useState(0);
   const [isLoadingYtPlaylists, setIsLoadingYtPlaylists] = useState(false);
   const [isImportingYtPlaylist, setIsImportingYtPlaylist] = useState(false);
   const [ytImportUrl, setYtImportUrl] = useState('');
@@ -276,6 +277,10 @@ export const Library = React.memo<LibraryProps>(({
     const unsubH = automixService.subscribeHistory(setHistory);
 
     // Subscribe to real-time music library updates (from folder scan or djay Pro import)
+    const unsubSel = musicLibraryService.onSelectionChange((_, selIdx) => {
+      setSelectedLibraryIndex(selIdx);
+    });
+
     const unsubLib = musicLibraryService.subscribe((pulseTracks) => {
       if (pulseTracks && pulseTracks.length > 0) {
         const djTracks = pulseTracks.map((pt) => musicLibraryService.convertPulseToDjTrack(pt));
