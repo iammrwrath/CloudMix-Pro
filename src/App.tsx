@@ -605,8 +605,8 @@ export const App: React.FC = () => {
       // FX Paddles & Controls
       else if (controlName === 'DeckA_FX_Paddle') handleToggleFX('A', 'echo');
       else if (controlName === 'DeckB_FX_Paddle') handleToggleFX('B', 'echo');
-      else if (controlName === 'DeckA_FX_WetDry') handleFXWetDry('A', value);
-      else if (controlName === 'DeckB_FX_WetDry') handleFXWetDry('B', value);
+      else if (controlName === 'DeckA_FX_WetDry') handleUpdateDeckAFX({ ...deckA.fx, wetDry: value });
+      else if (controlName === 'DeckB_FX_WetDry') handleUpdateDeckBFX({ ...deckB.fx, wetDry: value });
 
       // Neural Mix / EQ Mode Toggle
       else if (controlName === 'DeckA_EQ_ModeToggle' && value > 0.5) {
@@ -646,7 +646,7 @@ export const App: React.FC = () => {
             else if (padNum === 7) handleStemSoloToggle('A', 'bass');
             else if (padNum === 8) handleStemSoloToggle('A', 'drums');
           } else if (mode === 'sampler') {
-            samplerEngine.playSample(padNum - 1);
+            samplerEngine.triggerSlot(padNum - 1);
           } else if (mode === 'loop' || (mode as any) === 'bounce') {
             const loopBeats = [0.25, 0.5, 1, 2, 4, 8, 16, 32][padNum - 1] || 4;
             handleSetAutoLoop('A', loopBeats);
@@ -674,7 +674,7 @@ export const App: React.FC = () => {
             else if (padNum === 7) handleStemSoloToggle('B', 'bass');
             else if (padNum === 8) handleStemSoloToggle('B', 'drums');
           } else if (mode === 'sampler') {
-            samplerEngine.playSample(padNum - 1);
+            samplerEngine.triggerSlot(padNum - 1);
           } else if (mode === 'loop' || (mode as any) === 'bounce') {
             const loopBeats = [0.25, 0.5, 1, 2, 4, 8, 16, 32][padNum - 1] || 4;
             handleSetAutoLoop('B', loopBeats);

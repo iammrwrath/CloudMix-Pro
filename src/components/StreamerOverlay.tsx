@@ -740,7 +740,6 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                       if (!w || !w.visible) return null;
                       const leftPercent = ((w.x || 0) / canvasConfig.width) * 100;
                       const topPercent = ((w.y || 0) / canvasConfig.height) * 100;
-                      const defaultW = key === 'video' ? 480 : 520;
                       const defaultW = key === 'currentTrack' ? 480 : key === 'video' ? 480 : 520;
                       const defaultH = key === 'currentTrack' ? 86 : key === 'video' ? 270 : key === 'lyrics' ? 70 : key === 'nextTrack' ? 60 : 120;
                       const currentW = (w.width || defaultW) * (w.scale || 1);

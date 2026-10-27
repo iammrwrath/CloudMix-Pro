@@ -979,7 +979,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.52'}</div>
+                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.53'}</div>
                       <span className="text-[10px] font-mono text-slate-500">GitHub Updates</span>
                     </div>
                   </button>

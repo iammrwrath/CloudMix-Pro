@@ -68,6 +68,8 @@ const DEFAULT_PLAYLIST_NAMES = [
 // (defining a memo'd component INSIDE another component creates a new type on every
 //  parent render, making memo useless and causing full re-mounts)
 interface TrackRowProps {
+  isSelected?: boolean;
+  currentPlaylistName?: string;
   track: TrackMetadata;
   idx: number;
   isDownloading: boolean;
@@ -79,6 +81,7 @@ interface TrackRowProps {
 }
 
 const TrackRow = React.memo<TrackRowProps>(({ isSelected = false,
+  currentPlaylistName,
   track,
   idx,
   onLoadTrack,
@@ -1179,6 +1182,7 @@ export const Library = React.memo<LibraryProps>(({
                   onContextMenu={handleContextMenu}
                   onAddToQueue={automixService.addToQueue}
                   currentMasterKey={currentMasterKey}
+                  currentPlaylistName={getActivePlaylistName()}
                 />
               ))}
             </tbody>

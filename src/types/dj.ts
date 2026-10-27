@@ -84,7 +84,7 @@ export type NeuralTransitionMode =
   | 'harmonic_sustain'
   | 'vocal_cut'
   | 'drum_cut';
-export type EQMode = 'isolator' | 'stems';
+export type EQMode = 'classic' | 'isolator' | 'kill' | 'neural' | 'stems';
 
 export interface DeckState {
   deckId: DeckId;
@@ -115,7 +115,7 @@ export interface DeckState {
   sandboxMode: boolean;
   shadowPlayheadTime: number; // Time tracking during scratch or slip
   isScratching: boolean;
-  selectedPadMode: 'hotcue' | 'loop' | 'beatjump' | 'stems';
+  selectedPadMode: 'hotcue' | 'loop' | 'beatjump' | 'stems' | 'sampler' | 'neural' | 'bounce';
   meterLevelL: number; // 0.0 to 1.0 for VU meter
   meterLevelR: number;
   fx: FXUnit;
