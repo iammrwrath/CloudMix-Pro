@@ -137,4 +137,5 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   submitAutoIssueReport: (report) => ipcRenderer.invoke('submit-auto-issue-report', report),
   reportUITelemetry: (telemetry) => ipcRenderer.invoke('report-ui-telemetry', telemetry),
   captureWindowSnapshot: () => ipcRenderer.invoke('capture-window-snapshot'),
+  sendWindowDrag: (coords) => ipcRenderer.send('window-drag-move', coords),
 });

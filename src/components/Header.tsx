@@ -215,8 +215,26 @@ export const Header: React.FC<HeaderProps> = ({
       ? connectedMidiDevices[0].name
       : 'MIDI Ready (WebMIDI)';
 
+  const handleMouseDownDrag = (e: React.MouseEvent) => {
+    if (e.target !== e.currentTarget) return;
+    const desktopAPI = (window as any).desktopAPI;
+    if (!desktopAPI?.sendWindowDrag) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const onMouseMove = () => {
+      desktopAPI.sendWindowDrag({ mouseX: startX, mouseY: startY });
+    };
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   return (
     <header
+      onMouseDown={handleMouseDownDrag}
       onDoubleClick={(e) => {
         if (e.target === e.currentTarget) handleMaximize();
       }}
@@ -979,7 +997,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.53'}</div>
+                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.54'}</div>
                       <span className="text-[10px] font-mono text-slate-500">GitHub Updates</span>
                     </div>
                   </button>

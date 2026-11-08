@@ -363,8 +363,26 @@ export const MiniDeckHeader: React.FC<MiniDeckHeaderProps> = ({
     );
   };
 
+  const handleMouseDownDrag = (e: React.MouseEvent) => {
+    if (e.target !== e.currentTarget) return;
+    const desktopAPI = (window as any).desktopAPI;
+    if (!desktopAPI?.sendWindowDrag) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const onMouseMove = () => {
+      desktopAPI.sendWindowDrag({ mouseX: startX, mouseY: startY });
+    };
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   return (
     <div
+      onMouseDown={handleMouseDownDrag}
       onDoubleClick={(e) => {
         if (e.target === e.currentTarget && typeof window !== 'undefined' && (window as any).desktopAPI?.maximizeWindow) {
           (window as any).desktopAPI.maximizeWindow();

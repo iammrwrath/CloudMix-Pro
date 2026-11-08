@@ -196,43 +196,33 @@ class YouTubeMusicService {
    * Uses implicit grant (response_type=token) for client-side OAuth without requiring a client_secret.
    */
   public async signIn(): Promise<void> {
-    const userClientId = (await storageCache.getSetting<string>('yt_client_id', '')) || '';
-    const CLIENT_ID = userClientId.trim() || DEFAULT_GOOGLE_CLIENT_ID;
-    const REDIRECT_URI = 'http://127.0.0.1:42813/callback';
-    const SCOPES = [
-      'https://www.googleapis.com/auth/youtube.readonly',
-      'https://www.googleapis.com/auth/userinfo.email',
-    ].join(' ');
-
-    // Use implicit grant token response so public desktop apps authenticate directly without client_secret
-    const authUrl =
-      `https://accounts.google.com/o/oauth2/v2/auth` +
-      `?client_id=${encodeURIComponent(CLIENT_ID)}` +
-      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=token` +
-      `&prompt=select_account` +
-      `&scope=${encodeURIComponent(SCOPES)}`;
-
     const desktopAPI = (window as any).desktopAPI;
     if (desktopAPI?.openOAuthWindow || desktopAPI?.youtubeSessionSignIn) {
+      // Let main process initiate RFC 8252 PKCE loopback to secure permanent refresh_token
       const invokeSignIn = desktopAPI.youtubeSessionSignIn
-        ? () => desktopAPI.youtubeSessionSignIn(authUrl)
-        : () => desktopAPI.openOAuthWindow(authUrl);
+        ? () => desktopAPI.youtubeSessionSignIn()
+        : () => desktopAPI.openOAuthWindow();
 
       const result: any = await invokeSignIn();
       if (result) {
         let accessToken: string | null = null;
+        let refreshToken: string | null = null;
 
         if (typeof result === 'string') {
           accessToken = result;
         } else if (result.token) {
           accessToken = result.token;
+          if (result.refreshToken) refreshToken = result.refreshToken;
         }
 
         if (accessToken) {
           this._accessToken = accessToken;
           this._isExpired = false;
           await storageCache.setSetting('yt_oauth_token', accessToken);
+          if (refreshToken) {
+            this._refreshToken = refreshToken;
+            await storageCache.setSetting('yt_refresh_token', refreshToken);
+          }
           await this._fetchUserEmail(accessToken);
           this.cachedPlaylists = null;
           this._fetchPlaylistsPromise = null;

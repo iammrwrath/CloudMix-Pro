@@ -159,7 +159,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState<string>('v1.8.6');
+  const [appVersion, setAppVersion] = useState<string>('v2.0.54');
 
   // Audio Device Routing State
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -553,7 +553,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       <input type="checkbox" defaultChecked className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
                     </label>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <label className="flex items-center justify-between cursor-pointer">
                         <div>
                           <span className="text-xs font-mono font-bold text-white block">Quantize Hot Cues & Loops</span>
@@ -563,7 +563,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </label>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <label className="flex items-center justify-between cursor-pointer">
                         <div>
                           <span className="text-xs font-mono font-bold text-white block">Playhead Protection (Lock Playing Deck)</span>
@@ -593,7 +593,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                           window.open('https://github.com/iammrwrath/CloudMix-Pro/blob/main/docs/USER_GUIDE.md', '_blank');
                         }
                       }}
-                      className="text-cyan-400 hover:text-white underline font-mono text-[11px] cursor-pointer shrink-0 ml-2"
+                      className="text-cyan-400 hover:text-white dark:hover:text-white hover:underline font-mono text-[11px] cursor-pointer shrink-0 ml-2"
                     >
                       GitHub Docs ↗
                     </button>
@@ -715,7 +715,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       ))}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+                    <div className="flex items-center justify-between pt-2 border-t border-dj-border text-[11px] font-mono text-slate-400">
                       <span>Hardware Sample Rate: <strong className="text-cyan-300">{audioEngine.getSampleRate()} Hz</strong></span>
                       <span>Base Engine Latency: <strong className="text-emerald-400">{audioEngine.getBaseLatency().toFixed(1)} ms</strong></span>
                     </div>
@@ -745,7 +745,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       />
                     </label>
 
-                    <div className="border-t border-slate-800 pt-3 space-y-2">
+                    <div className="border-t border-dj-border pt-3 space-y-2">
                       <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block">Turntable Mode</span>
                       <div className="grid grid-cols-2 gap-3">
                         <button
@@ -775,7 +775,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3 flex items-center justify-between">
+                    <div className="border-t border-dj-border pt-3 flex items-center justify-between">
                       <div>
                         <span className="text-xs font-mono font-bold text-white block">Lead-in Silence Margin</span>
                         <span className="text-[11px] text-slate-400">Turntable needle drop buffer at beginning of timecode</span>
@@ -825,7 +825,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block mb-2">Mix Headroom Margin</span>
                       <div className="grid grid-cols-3 gap-2">
                         {(['-6dB', '-9dB', '-12dB'] as const).map((db) => (
@@ -846,7 +846,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       <span className="text-[10.5px] text-slate-500 mt-1.5 block">Recommended: -9dB gives dynamic punch without clipping master limiter</span>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <label className="flex items-center justify-between cursor-pointer">
                         <div>
                           <span className="text-xs font-mono font-bold text-white block">Master Transparent Peak Limiter</span>
@@ -889,7 +889,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       />
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <label className="flex items-center justify-between cursor-pointer">
                         <div>
                           <span className="text-xs font-mono font-bold text-white block">Automatic Tempo & Beat Sync</span>
@@ -904,7 +904,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </label>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block mb-2">Auto-Crossfade Curve</span>
                       <div className="grid grid-cols-2 gap-3">
                         <button
@@ -1021,7 +1021,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                     </div>
                     {!ytConnected ? (
                       <div className="space-y-3">
-                        <div className="flex flex-col gap-2.5 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        <div className="flex flex-col gap-2.5 bg-slate-900/60 p-3.5 rounded-xl border border-dj-border">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                               <span className="text-xs font-bold text-white block">1-Click Sign In with Google</span>
@@ -1061,7 +1061,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                           <summary className="cursor-pointer hover:text-slate-400 select-none transition-colors">
                             ▸ Advanced: Override with Custom Google Cloud Client ID (Optional)
                           </summary>
-                          <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1">
+                          <div className="mt-2 pt-2 border-t border-dj-border/80 space-y-1">
                             <label className="text-[10px] font-mono text-slate-400 block mb-1">
                               Custom Google Cloud OAuth Client ID (Overrides built-in CloudMix Pro client)
                             </label>
@@ -1201,7 +1201,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <span className="text-xs font-mono font-bold text-white block">Workstation UI Zoom</span>
@@ -1293,7 +1293,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3">
+                    <div className="border-t border-dj-border pt-3">
                       <label className="flex items-center justify-between cursor-pointer">
                         <div>
                           <span className="text-xs font-mono font-bold text-white block">Hardware GPU Acceleration</span>
@@ -1308,7 +1308,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                       </label>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-3 flex items-center justify-between">
+                    <div className="border-t border-dj-border pt-3 flex items-center justify-between">
                       <div>
                         <span className="text-xs font-mono font-bold text-white block">Purge Audio Buffer & Waveform Cache</span>
                         <span className="text-[11px] text-slate-400">Clears transient decoded audio files to free system RAM</span>
@@ -1347,7 +1347,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
 
                     {connectedMidiDevices.length > 0 ? (
                       connectedMidiDevices.map((dev) => (
-                        <div key={dev.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                        <div key={dev.id} className="p-3 bg-slate-900 border border-dj-border rounded-xl space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-white font-mono">{dev.name}</span>
                             <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-mono font-bold">Connected</span>
@@ -1356,13 +1356,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                         </div>
                       ))
                     ) : (
-                      <div className="p-4 bg-slate-900/60 border border-slate-800/80 rounded-xl text-center space-y-1">
+                      <div className="p-4 bg-slate-900/60 border border-dj-border/80 rounded-xl text-center space-y-1">
                         <p className="text-xs font-mono font-bold text-slate-300">No MIDI Controllers Connected</p>
                         <p className="text-[11px] text-slate-500">Plug in a USB MIDI controller (Pioneer, Reloop, Numark, Denon, Hercules) to enable hardware control.</p>
                       </div>
                     )}
 
-                    <div className="border-t border-slate-800 pt-3 flex items-center justify-between">
+                    <div className="border-t border-dj-border pt-3 flex items-center justify-between">
                       <div>
                         <span className="text-xs font-mono font-bold text-white block">Jog Wheel Touch Sensitivity</span>
                         <span className="text-[11px] text-slate-400">Calibrate vinyl touch sensitivity and scratch response curve</span>

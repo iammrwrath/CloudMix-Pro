@@ -563,7 +563,11 @@
 [data-theme="light"] .bg-cyan-950\/90,
 [data-theme="light"] .bg-cyan-950\/80,
 [data-theme="light"] .bg-cyan-950\/70,
-[data-theme="light"] .bg-cyan-950\/60 {
+[data-theme="light"] .bg-cyan-950\/60,
+[data-theme="light"] .bg-cyan-950\/50,
+[data-theme="light"] .bg-cyan-950\/40,
+[data-theme="light"] .bg-cyan-950\/30,
+[data-theme="light"] .bg-cyan-950\/20 {
   background-color: #e0f2fe !important;
   color: #0369a1 !important;
   border-color: #7dd3fc !important;
@@ -576,9 +580,40 @@
   border-color: #cbd5e1 !important;
 }
 
+/* Keyboard shortcut badges in Light Mode */
+[data-theme="light"] kbd,
+[data-theme="light"] kbd.bg-slate-800,
+[data-theme="light"] kbd.bg-zinc-800 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Form Select, Text Inputs, and Dropdowns in Light Mode */
+[data-theme="light"] select.bg-slate-900,
+[data-theme="light"] select.bg-slate-950,
+[data-theme="light"] input.bg-slate-900,
+[data-theme="light"] input.bg-slate-950 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] select.bg-slate-900 option,
+[data-theme="light"] select.bg-slate-950 option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
 [data-theme="light"] .bg-rose-950,
 [data-theme="light"] .bg-rose-950\/90,
-[data-theme="light"] .bg-rose-950\/80 {
+[data-theme="light"] .bg-rose-950\/80,
+[data-theme="light"] .bg-rose-950\/60,
+[data-theme="light"] .bg-rose-950\/50,
+[data-theme="light"] .bg-rose-950\/40,
+[data-theme="light"] .bg-rose-950\/30,
+[data-theme="light"] .bg-rose-950\/20 {
   background-color: #ffe4e6 !important;
   color: #be123c !important;
   border-color: #fda4af !important;
@@ -587,6 +622,11 @@
 [data-theme="light"] .bg-purple-950,
 [data-theme="light"] .bg-purple-950\/90,
 [data-theme="light"] .bg-purple-950\/80,
+[data-theme="light"] .bg-purple-950\/60,
+[data-theme="light"] .bg-purple-950\/50,
+[data-theme="light"] .bg-purple-950\/40,
+[data-theme="light"] .bg-purple-950\/30,
+[data-theme="light"] .bg-purple-950\/20,
 [data-theme="light"] .bg-purple-900\/80 {
   background-color: #f3e8ff !important;
   color: #6d28d9 !important;
@@ -600,7 +640,8 @@
 [data-theme="light"] .bg-amber-950\/60,
 [data-theme="light"] .bg-amber-950\/50,
 [data-theme="light"] .bg-amber-950\/40,
-[data-theme="light"] .bg-amber-950\/30 {
+[data-theme="light"] .bg-amber-950\/30,
+[data-theme="light"] .bg-amber-950\/20 {
   background-color: #fef3c7 !important;
   color: #92400e !important;
   border-color: #f59e0b !important;
@@ -617,13 +658,18 @@
 [data-theme="light"] .bg-blue-950,
 [data-theme="light"] .bg-blue-950\/80,
 [data-theme="light"] .bg-blue-950\/60,
+[data-theme="light"] .bg-blue-950\/50,
 [data-theme="light"] .bg-blue-950\/40,
+[data-theme="light"] .bg-blue-950\/30,
 [data-theme="light"] .bg-blue-950\/20,
 [data-theme="light"] .bg-indigo-950,
 [data-theme="light"] .bg-indigo-950\/90,
 [data-theme="light"] .bg-indigo-950\/80,
 [data-theme="light"] .bg-indigo-950\/60,
-[data-theme="light"] .bg-indigo-950\/40 {
+[data-theme="light"] .bg-indigo-950\/50,
+[data-theme="light"] .bg-indigo-950\/40,
+[data-theme="light"] .bg-indigo-950\/30,
+[data-theme="light"] .bg-indigo-950\/20 {
   background-color: #e0e7ff !important;
   color: #3730a3 !important;
   border-color: #a5b4fc !important;
@@ -634,7 +680,10 @@
 [data-theme="light"] .bg-emerald-950\/80,
 [data-theme="light"] .bg-emerald-950\/70,
 [data-theme="light"] .bg-emerald-950\/60,
+[data-theme="light"] .bg-emerald-950\/50,
 [data-theme="light"] .bg-emerald-950\/40,
+[data-theme="light"] .bg-emerald-950\/30,
+[data-theme="light"] .bg-emerald-950\/20,
 [data-theme="light"] .bg-teal-950,
 [data-theme="light"] .bg-teal-950\/60 {
   background-color: #dcfce7 !important;
@@ -646,10 +695,71 @@
 [data-theme="light"] .bg-orange-950\/60,
 [data-theme="light"] .bg-red-950,
 [data-theme="light"] .bg-red-950\/80,
-[data-theme="light"] .bg-red-950\/60 {
+[data-theme="light"] .bg-red-950\/60,
+[data-theme="light"] .bg-red-950\/40,
+[data-theme="light"] .bg-red-950\/20 {
   background-color: #ffedd5 !important;
   color: #9a3412 !important;
   border-color: #fdba74 !important;
+}
+
+/* 4.6.1 Tinted Border Colors in Light Mode */
+[data-theme="light"] .border-blue-800,
+[data-theme="light"] .border-blue-800\/60,
+[data-theme="light"] .border-blue-800\/50,
+[data-theme="light"] .border-blue-800\/40,
+[data-theme="light"] .border-blue-800\/30,
+[data-theme="light"] .border-blue-800\/20,
+[data-theme="light"] .border-blue-700\/40,
+[data-theme="light"] .border-blue-700\/50 {
+  border-color: #93c5fd !important;
+}
+
+[data-theme="light"] .border-cyan-800,
+[data-theme="light"] .border-cyan-800\/60,
+[data-theme="light"] .border-cyan-800\/50,
+[data-theme="light"] .border-cyan-800\/40,
+[data-theme="light"] .border-cyan-800\/30,
+[data-theme="light"] .border-cyan-800\/20,
+[data-theme="light"] .border-cyan-700\/40,
+[data-theme="light"] .border-cyan-700\/50 {
+  border-color: #7dd3fc !important;
+}
+
+[data-theme="light"] .border-purple-800,
+[data-theme="light"] .border-purple-800\/60,
+[data-theme="light"] .border-purple-800\/50,
+[data-theme="light"] .border-purple-800\/40,
+[data-theme="light"] .border-purple-800\/30,
+[data-theme="light"] .border-purple-800\/20 {
+  border-color: #d8b4fe !important;
+}
+
+[data-theme="light"] .border-amber-800,
+[data-theme="light"] .border-amber-800\/60,
+[data-theme="light"] .border-amber-800\/50,
+[data-theme="light"] .border-amber-800\/40,
+[data-theme="light"] .border-amber-800\/30,
+[data-theme="light"] .border-amber-800\/20 {
+  border-color: #fcd34d !important;
+}
+
+[data-theme="light"] .border-rose-800,
+[data-theme="light"] .border-rose-800\/60,
+[data-theme="light"] .border-rose-800\/50,
+[data-theme="light"] .border-rose-800\/40,
+[data-theme="light"] .border-rose-800\/30,
+[data-theme="light"] .border-rose-800\/20 {
+  border-color: #fda4af !important;
+}
+
+[data-theme="light"] .border-emerald-800,
+[data-theme="light"] .border-emerald-800\/60,
+[data-theme="light"] .border-emerald-800\/50,
+[data-theme="light"] .border-emerald-800\/40,
+[data-theme="light"] .border-emerald-800\/30,
+[data-theme="light"] .border-emerald-800\/20 {
+  border-color: #86efac !important;
 }
 
 /* 4.7 Clean Borders */
