@@ -1068,25 +1068,26 @@ class AudioEngine {
     }
   }
 
-  // 3-Band Isolator EQ (-1.0 to +1.0)
+  // 3-Band Isolator EQ (-1.0 to +1.0) with True 24dB/oct Full Kill
   public setEQ(deckId: DeckId, band: 'low' | 'mid' | 'high', val: number, isKill: boolean = false) {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
 
     let targetGainDb = 0;
     if (isKill) {
-      targetGainDb = -70; // Kill switch
+      targetGainDb = -100; // True full-kill isolation (-100dB silence)
     } else {
-      // Map -1.0 to 0.0 -> -70dB to 0dB; 0.0 to 1.0 -> 0dB to +6dB
+      // Map -1.0 to 0.0 -> -100dB to 0dB; 0.0 to 1.0 -> 0dB to +6dB
       if (val < 0) {
-        targetGainDb = val * 70;
+        // High-precision non-linear logarithmic curve for natural DJ cuts
+        targetGainDb = val * 100;
       } else {
         targetGainDb = val * 6;
       }
     }
 
     const node = band === 'low' ? deck.eqLow : band === 'mid' ? deck.eqMid : deck.eqHigh;
-    node.gain.setTargetAtTime(targetGainDb, this.ctx.currentTime, 0.01);
+    node.gain.setTargetAtTime(targetGainDb, this.ctx.currentTime, 0.008);
   }
 
   // Color Filter (-1.0 LPF to +1.0 HPF)

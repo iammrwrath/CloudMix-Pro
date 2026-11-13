@@ -1,7 +1,8 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { DeckId, HotCue, StemState, TrackMetadata, WaveformData } from '../types/dj';
 import { audioEngine } from '../audio/AudioEngine';
 import { youtubeDeckBridge } from '../services/YouTubeDeckBridge';
+import { PhraseDetector, MusicalPhrase } from '../services/PhraseDetector';
 
 interface WaveformDisplayProps {
   deckId: DeckId;
@@ -38,6 +39,13 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
 
   const [isDragging, setIsDragging] = useState(false);
   const [zoomSeconds, setZoomSeconds] = useState(5.5);
+
+  // Analyze Musical Phrasing (Intro, Verse, Buildup, Drop, Outro)
+  const phrases = useMemo<MusicalPhrase[]>(() => {
+    if (!duration || duration <= 0) return [];
+    const bpm = track?.bpm || 120;
+    return PhraseDetector.analyzePhrases(duration, bpm, 0.0);
+  }, [duration, track?.bpm]);
 
   // 1. Pre-render & Cache Static Overview Peaks onto Offscreen Canvas
   useEffect(() => {
@@ -288,6 +296,43 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
       const totalPoints = waveformData.lowPeaks.length;
       const pointsPerSecond = totalPoints / duration;
 
+      // 1.5 Draw Musical Phrase Section Underlays (16/32-Bar Mixxx / Pioneer Style)
+      if (phrases.length > 0) {
+        for (const phrase of phrases) {
+          const pStartX = centerX + (phrase.startTimeSec - liveTime) * pixelsPerSecond;
+          const pEndX = centerX + (phrase.endTimeSec - liveTime) * pixelsPerSecond;
+          if (pEndX < 0 || pStartX > width) continue;
+
+          // Render phrase block bottom strip
+          ctx.fillStyle = phrase.color;
+          ctx.globalAlpha = 0.22;
+          ctx.fillRect(Math.max(0, pStartX), height - 8, Math.min(width, pEndX) - Math.max(0, pStartX), 8);
+          ctx.globalAlpha = 1.0;
+
+          // Phrase boundary marker line
+          ctx.strokeStyle = phrase.color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(pStartX, 0);
+          ctx.lineTo(pStartX, height);
+          ctx.stroke();
+
+          // Phrase label pill at top
+          if (pStartX >= -50 && pStartX < width) {
+            ctx.fillStyle = '#0a0e17';
+            ctx.fillRect(pStartX + 3, 2, 56, 12);
+            ctx.strokeStyle = phrase.color;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(pStartX + 3, 2, 56, 12);
+
+            ctx.fillStyle = phrase.color;
+            ctx.font = 'bold 8px JetBrains Mono, monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(phrase.label, pStartX + 6, 11);
+          }
+        }
+      }
+
       // Draw Beatgrid lines (BPM based) with neon downbeats
       const bpm = track?.bpm || 120;
       if (bpm > 0) {
@@ -479,7 +524,7 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
 
     renderScrolling();
     return () => cancelAnimationFrame(animId);
-  }, [deckId, waveformData, duration, isPlaying, track, hotCues, activeLoop, accentColor, zoomSeconds, drawOverview]);
+  }, [deckId, waveformData, duration, isPlaying, track, hotCues, activeLoop, accentColor, zoomSeconds, drawOverview, phrases]);
 
   // Handle overview click seeking
   const handleOverviewClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
