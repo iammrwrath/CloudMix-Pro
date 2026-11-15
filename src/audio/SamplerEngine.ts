@@ -46,6 +46,20 @@ export const SAMPLER_BANKS: Record<SamplerBankPreset, BankDefinition> = {
       { id: 7, name: 'LASER FX', color: '#10b981', volume: 0.85, sampleUrl: '/samples/laser.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
     ],
   },
+  edm_club: {
+    id: 'edm_club',
+    title: 'EDM, Festival & Party Drops (VirtualDJ Pack)',
+    slots: [
+      { id: 0, name: 'BUILD RISER', color: '#ec4899', volume: 0.95, sampleUrl: '/samples/laser.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 1, name: 'COUNTDOWN', color: '#8b5cf6', volume: 0.95, sampleUrl: '/samples/damn_son.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 2, name: 'SUB DROP', color: '#06b6d4', volume: 1.0, sampleUrl: '/samples/boom.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 3, name: 'CLUB HORN', color: '#e11d48', volume: 0.95, sampleUrl: '/samples/airhorn.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 4, name: 'PARTY VOX', color: '#10b981', volume: 0.90, sampleUrl: '/samples/yeah.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 5, name: 'TURNTABLE', color: '#f59e0b', volume: 0.85, sampleUrl: '/samples/scratch.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 6, name: 'REWIND STOP', color: '#ef4444', volume: 0.90, sampleUrl: '/samples/rewind.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+      { id: 7, name: 'SIREN DROP', color: '#3b82f6', volume: 0.90, sampleUrl: '/samples/siren.mp3', triggerMode: 'one_shot', pitchSemitones: 0 },
+    ],
+  },
   custom: {
     id: 'custom',
     title: 'Custom User Bank (Drag & Drop)',

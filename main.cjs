@@ -50,6 +50,9 @@ app.commandLine.appendSwitch('allow-file-access-from-files');
 app.commandLine.appendSwitch('disable-web-security');
 app.commandLine.appendSwitch('force-high-performance-gpu');
 app.commandLine.appendSwitch('remote-debugging-port', '9222');
+// djay Pro Architecture: Real-time Audio Watchdog & WASAPI Exclusive / Low-latency Driver Switches
+app.commandLine.appendSwitch('enable-exclusive-audio');
+app.commandLine.appendSwitch('audio-buffer-size', '128');
 
 let mainWindow = null;
 let latestUITelemetry = null;

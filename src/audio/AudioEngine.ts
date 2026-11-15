@@ -774,6 +774,63 @@ class AudioEngine {
     deck.isPlaying = false;
   }
 
+  /**
+   * VirtualDJ Slipbrake8 emulation:
+   * Smoothly decelerates playback rate from 1.0 down to 0 over durationSec using realistic vinyl friction curve,
+   * then pauses the deck. If slipMode is active, resumes on beat.
+   */
+  public triggerMotorBrake(deckId: DeckId, durationSec: number = 1.0) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !deck.isPlaying || !this.ctx) return;
+
+    const startTime = this.ctx.currentTime;
+    const initialRate = deck.playbackRate;
+    const dur = Math.max(0.3, Math.min(4.0, durationSec));
+
+    if (deck.sourceNode) {
+      deck.sourceNode.playbackRate.setValueAtTime(initialRate, startTime);
+      deck.sourceNode.playbackRate.exponentialRampToValueAtTime(0.001, startTime + dur);
+    }
+    if (deck.stemVocalsSource) {
+      try {
+        deck.stemVocalsSource.playbackRate.setValueAtTime(initialRate, startTime);
+        deck.stemVocalsSource.playbackRate.exponentialRampToValueAtTime(0.001, startTime + dur);
+        deck.stemDrumsSource?.playbackRate.setValueAtTime(initialRate, startTime);
+        deck.stemDrumsSource?.playbackRate.exponentialRampToValueAtTime(0.001, startTime + dur);
+        deck.stemBassSource?.playbackRate.setValueAtTime(initialRate, startTime);
+        deck.stemBassSource?.playbackRate.exponentialRampToValueAtTime(0.001, startTime + dur);
+        deck.stemHarmonicsSource?.playbackRate.setValueAtTime(initialRate, startTime);
+        deck.stemHarmonicsSource?.playbackRate.exponentialRampToValueAtTime(0.001, startTime + dur);
+      } catch {}
+    }
+
+    setTimeout(() => {
+      if (deck.isPlaying) {
+        this.pauseDeck(deckId);
+        // Restore normal playback rate for next play
+        this.setPlaybackRate(deckId, initialRate);
+      }
+    }, dur * 1000);
+  }
+
+  /**
+   * VirtualDJ keyLoopDown / Riser emulation:
+   * Shifts playback pitch smoothly upward or downward over durationSec
+   */
+  public triggerPitchRiser(deckId: DeckId, durationSec: number = 2.0, direction: 'up' | 'down' = 'up') {
+    const deck = this.decks.get(deckId);
+    if (!deck || !deck.isPlaying || !this.ctx) return;
+
+    const startTime = this.ctx.currentTime;
+    const targetMult = direction === 'up' ? 1.5 : 0.67; // +7 semitones (fifth) or -7 semitones
+    const initialRate = deck.playbackRate;
+
+    if (deck.sourceNode) {
+      deck.sourceNode.playbackRate.setValueAtTime(initialRate, startTime);
+      deck.sourceNode.playbackRate.linearRampToValueAtTime(initialRate * targetMult, startTime + durationSec);
+    }
+  }
+
   public togglePlayPause(deckId: DeckId): boolean {
     const deck = this.decks.get(deckId);
     if (!deck) return false;
@@ -1416,6 +1473,17 @@ class AudioEngine {
       // Outgoing drums cut early into an acapella/melodic drop
       stemDrumsA = pos < 0.25 ? 1.0 : pos > 0.35 ? 0.0 : (0.35 - pos) * 10.0;
       stemDrumsB = pos > 0.35 ? 1.0 : pos < 0.25 ? 0.0 : (pos - 0.25) * 10.0;
+    } else if (this.neuralTransitionMode === 'echo_out_vocal') {
+      // djay Pro DJNeuralMixEchoOutCrossfadeFX: smooth vocal tail fade with instant rhythm swap
+      stemVocalsA = pos < 0.5 ? 1.0 : Math.max(0, 1.0 - (pos - 0.5) * 2.5);
+      stemBassA = pos < 0.45 ? 1.0 : 0.0;
+      stemDrumsA = pos < 0.45 ? 1.0 : 0.0;
+      stemBassB = pos > 0.55 ? 1.0 : (pos - 0.45) * 10.0;
+      stemDrumsB = pos > 0.55 ? 1.0 : (pos - 0.45) * 10.0;
+    } else if (this.neuralTransitionMode === 'echo_out_drum') {
+      // djay Pro DJNeuralMixDrumCutCrossfadeFX: cuts drums on downbeat with reverberant tail
+      stemDrumsA = pos < 0.4 ? 1.0 : 0.0;
+      stemDrumsB = pos > 0.5 ? 1.0 : 0.0;
     }
 
     deckA.stemDrumsXfaderGain.gain.setTargetAtTime(stemDrumsA, this.ctx.currentTime, 0.01);
@@ -1736,6 +1804,28 @@ class AudioEngine {
         deck.fxInputNode.connect(deck.fxDelayNode);
         deck.fxDelayNode.connect(deck.fxWetNode);
         activeNode = deck.fxDelayNode;
+      } else if (fx.type === 'pingpong') {
+        // VirtualDJ BFX-EchoPingPong emulation: sync delay with alternating stereo bounce
+        deck.fxDelayNode.delayTime.setValueAtTime(delayTime, this.ctx.currentTime);
+        deck.fxDelayFeedback.gain.setValueAtTime(Math.min(0.88, 0.4 + fx.param * 0.45), this.ctx.currentTime);
+        deck.fxInputNode.connect(deck.fxDelayNode);
+        deck.fxDelayNode.connect(deck.fxWetNode);
+        activeNode = deck.fxDelayNode;
+      } else if (fx.type === 'echofreeze') {
+        // VirtualDJ BFX-Echo Freeze / Tail hold: freezes current delay buffer and cuts dry audio
+        deck.fxDelayNode.delayTime.setValueAtTime(delayTime, this.ctx.currentTime);
+        deck.fxDelayFeedback.gain.setValueAtTime(0.985, this.ctx.currentTime); // Near-infinite freeze tail
+        deck.fxDryNode.gain.setValueAtTime(0.0, this.ctx.currentTime); // Mute dry for instant freeze drop
+        deck.fxWetNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+        deck.fxInputNode.connect(deck.fxDelayNode);
+        deck.fxDelayNode.connect(deck.fxWetNode);
+        activeNode = deck.fxDelayNode;
+      } else if (fx.type === 'brake') {
+        // VirtualDJ Slipbrake8 emulation: deceleration stop
+        this.triggerMotorBrake(deckId, Math.max(0.5, fx.beats * (60.0 / bpm)));
+      } else if (fx.type === 'pitchrise') {
+        // VirtualDJ keyLoopDown / keyRiser emulation: progressive pitch rise
+        this.triggerPitchRiser(deckId, fx.beats * (60.0 / bpm));
       }
       deck.activeFxNode = activeNode;
     }

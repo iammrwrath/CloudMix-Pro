@@ -306,23 +306,28 @@ export const Deck = React.memo<DeckProps>(({
           </button>
         </div>
 
-        {/* 3-Slot Multi-FX Instant Punch Bar */}
+        {/* Performance FX Instant Punch Bar (Echo, PingPong, Brake, Flanger) */}
         <div className="flex items-center space-x-1.5">
           <span className="text-xs font-mono text-slate-400 font-bold uppercase mr-0.5 hidden xs:inline">FX</span>
-          {(['echo', 'reverb', 'flanger'] as FXType[]).map((fxType) => {
-            const isActive = deckState.fx.enabled && deckState.fx.type === fxType;
+          {([
+            { id: 'echo', label: 'ECHO' },
+            { id: 'pingpong', label: 'PING' },
+            { id: 'brake', label: 'BRAKE' },
+            { id: 'flanger', label: 'FLG' },
+          ] as { id: FXType; label: string }[]).map((fxItem) => {
+            const isActive = deckState.fx.enabled && deckState.fx.type === fxItem.id;
             return (
               <button
-                key={fxType}
-                onClick={() => onToggleFX?.(fxType)}
-                title={`Instant ${fxType.toUpperCase()} FX Punch-In`}
+                key={fxItem.id}
+                onClick={() => onToggleFX?.(fxItem.id)}
+                title={`Instant ${fxItem.label} Punch-In (VirtualDJ / CloudMix DSP)`}
                 className={`px-2 h-6 rounded font-mono text-xs font-bold uppercase border transition-all cursor-pointer active:scale-95 ${
                   isActive
                     ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.8)]'
                     : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white'
                 }`}
               >
-                {fxType === 'echo' ? 'ECHO' : fxType}
+                {fxItem.label}
               </button>
             );
           })}

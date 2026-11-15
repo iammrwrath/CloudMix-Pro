@@ -74,7 +74,7 @@ export const SamplerBank: React.FC = () => {
 
           {/* Sound Banks */}
           <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-white/10">
-            {(['reggae_soundclash', 'hiphop_trap', 'custom'] as SamplerBankPreset[]).map((bankKey) => {
+            {(['reggae_soundclash', 'hiphop_trap', 'edm_club', 'custom'] as SamplerBankPreset[]).map((bankKey) => {
               const bank = SAMPLER_BANKS[bankKey];
               const isSelected = currentBank === bankKey;
               return (
@@ -88,7 +88,7 @@ export const SamplerBank: React.FC = () => {
                   }`}
                   title={bank.title}
                 >
-                  {bankKey === 'reggae_soundclash' ? 'SOUNDCLASH' : bankKey === 'hiphop_trap' ? 'HIP-HOP' : 'CUSTOM'}
+                  {bankKey === 'reggae_soundclash' ? 'SOUNDCLASH' : bankKey === 'hiphop_trap' ? 'HIP-HOP' : bankKey === 'edm_club' ? 'PARTY/EDM' : 'CUSTOM'}
                 </button>
               );
             })}

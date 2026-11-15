@@ -550,8 +550,47 @@ export class MidiControllerService {
     if (mapping) {
       // Normalize value: 0 to 127 mapped to 0.0 to 1.0
       const normalizedValue = data2 / 127.0;
+
+      // Soft Takeover / Fader Pickup check for sliders and continuous knobs
+      if (mapping.type === 'slider' || mapping.type === 'knob') {
+        const target = this.softTakeoverTargets.get(mapping.controlName);
+        const isEngaged = this.softTakeoverActive.get(mapping.controlName);
+
+        if (target !== undefined && !isEngaged) {
+          // Check if hardware physical fader has crossed or reached within 3% threshold of software value
+          if (Math.abs(normalizedValue - target) <= 0.04) {
+            this.softTakeoverActive.set(mapping.controlName, true);
+          } else {
+            // Still in pickup state - ignore sudden physical jumps to protect audio mix
+            return;
+          }
+        }
+      }
+
       this.listeners.forEach((cb) => cb(mapping.controlName, normalizedValue, data));
     }
+  }
+
+  // Algoriddim djay Pro Soft Takeover / Fader Pickup State (ARMidiPitchFaderPickupLEDModel)
+  private softTakeoverTargets: Map<string, number> = new Map();
+  private softTakeoverActive: Map<string, boolean> = new Map(); // true once physical controller catches software value
+
+  public setSoftwareControlTarget(controlName: string, value: number) {
+    this.softTakeoverTargets.set(controlName, value);
+    // When target changes significantly, require pickup again
+    this.softTakeoverActive.set(controlName, false);
+  }
+
+  public getSoftTakeoverState(controlName: string): { active: boolean; target?: number } {
+    return {
+      active: this.softTakeoverActive.get(controlName) ?? true,
+      target: this.softTakeoverTargets.get(controlName),
+    };
+  }
+
+  public resetSoftTakeover() {
+    this.softTakeoverTargets.clear();
+    this.softTakeoverActive.clear();
   }
 
   public onControl(callback: MidiEventCallback): () => void {

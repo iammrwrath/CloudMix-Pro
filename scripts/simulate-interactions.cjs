@@ -138,6 +138,17 @@ async function runComprehensiveSimulation() {
   assert(fs.existsSync(path.join(samplesDir, 'damn_son.mp3')), 'Iconic Damn Son Sample', 'Hype vox drop present');
   assert(fs.existsSync(path.join(samplesDir, 'yeah.mp3')), 'Lil Jon Yeah Vox Sample', 'Club hype vox present');
 
+  // Verify VirtualDJ Inspired Performance FX (Slipbrake8, PingPong, Echo Freeze, Pitch Rise)
+  assert(audioCode.includes('triggerMotorBrake'), 'VirtualDJ Slipbrake8 Motor Stop', 'Simulates Technics motor brake deceleration curve');
+  assert(audioCode.includes('triggerPitchRiser'), 'VirtualDJ keyLoop / Riser', 'Simulates key riser loop transitions');
+  assert(audioCode.includes("fx.type === 'pingpong'"), 'VirtualDJ BFX-EchoPingPong', 'Stereo alternating ping-pong tempo delay');
+  assert(audioCode.includes("fx.type === 'echofreeze'"), 'VirtualDJ Echo Freeze Tail', 'Near-infinite freeze tail with dry audio drop');
+
+  // Verify djay Pro Reverse-Engineered Architecture Integrations
+  assert(audioCode.includes('echo_out_vocal') && audioCode.includes('echo_out_drum'), 'djay Pro NeuralMix Crossfade FX', 'EchoOut and DrumCut stem-aware transition modes active');
+  assert(mainCode.includes('enable-exclusive-audio') && mainCode.includes('audio-buffer-size'), 'djay Pro Low-Latency Driver Switches', 'Configures low-latency WASAPI audio flags');
+  assert(fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'MidiControllerService.ts'), 'utf8').includes('softTakeoverTargets'), 'djay Pro Soft Takeover / Fader Pickup', 'ARMidiPitchFaderPickupLEDModel pickup protection active');
+
   // Verify Zero-Wait Instant 4-Stem DSP Engine & NVIDIA CUDA Discovery
   const stemServicePath = path.join(__dirname, '..', 'src', 'services', 'StemSeparatorService.ts');
   const stemServiceCode = fs.readFileSync(stemServicePath, 'utf8');

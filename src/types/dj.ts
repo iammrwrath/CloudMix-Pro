@@ -83,7 +83,9 @@ export type NeuralTransitionMode =
   | 'vocal_sustain'
   | 'harmonic_sustain'
   | 'vocal_cut'
-  | 'drum_cut';
+  | 'drum_cut'
+  | 'echo_out_vocal'
+  | 'echo_out_drum';
 export type EQMode = 'classic' | 'isolator' | 'kill' | 'neural' | 'stems';
 
 export interface DeckState {
@@ -122,7 +124,7 @@ export interface DeckState {
   fxSlots?: [FXUnit, FXUnit, FXUnit];
 }
 
-export type FXType = 'echo' | 'reverb' | 'flanger' | 'bitcrusher' | 'roll' | 'filter';
+export type FXType = 'echo' | 'reverb' | 'flanger' | 'bitcrusher' | 'roll' | 'filter' | 'brake' | 'pingpong' | 'echofreeze' | 'pitchrise';
 export type FXTarget = 'master' | 'vocals' | 'bass' | 'harmonics' | 'drums';
 
 export interface FXUnit {
@@ -162,7 +164,7 @@ export interface AutomixState {
 }
 
 export type SamplerTriggerMode = 'one_shot' | 'hold' | 'toggle' | 'loop';
-export type SamplerBankPreset = 'reggae_soundclash' | 'hiphop_trap' | 'custom';
+export type SamplerBankPreset = 'reggae_soundclash' | 'hiphop_trap' | 'edm_club' | 'custom';
 
 export interface SamplerSlot {
   id: number;

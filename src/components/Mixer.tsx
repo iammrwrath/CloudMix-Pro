@@ -61,6 +61,8 @@ export const Mixer = React.memo<MixerProps>(({
     { id: 'harmonic_swap', label: 'Harmonic Swap', desc: 'Melody swaps keeping bass groove locked' },
     { id: 'vocal_cut', label: 'Vocal Cut', desc: 'Cuts vocals early for clear incoming entry' },
     { id: 'drum_cut', label: 'Drum Cut', desc: 'Rhythm cuts into melodic breakdown' },
+    { id: 'echo_out_vocal', label: 'Echo-Out Vocal (djay Pro)', desc: 'Reverberant delay tail on vocals with clean rhythm handoff' },
+    { id: 'echo_out_drum', label: 'Drum Cut Drop (djay Pro)', desc: 'Cuts drums sharply on downbeat into vocal breakdown' },
     { id: 'standard', label: 'Standard Crossfade', desc: 'Smooth full-frequency power blend' },
   ];
 

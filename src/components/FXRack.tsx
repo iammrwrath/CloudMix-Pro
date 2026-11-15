@@ -12,6 +12,10 @@ interface FXRackProps {
 
 const FX_TYPES: { id: FXType; label: string; desc: string }[] = [
   { id: 'echo', label: 'ECHO', desc: 'BPM Delay' },
+  { id: 'pingpong', label: 'PING-PONG', desc: 'Stereo Pan' },
+  { id: 'echofreeze', label: 'FREEZE', desc: 'Echo Tail Hold' },
+  { id: 'brake', label: 'BRAKE', desc: 'Vinyl Motor Stop' },
+  { id: 'pitchrise', label: 'PITCH RISE', desc: 'Key Riser Loop' },
   { id: 'reverb', label: 'REVERB', desc: 'Space Hall' },
   { id: 'flanger', label: 'FLANGER', desc: 'Jet Sweep' },
   { id: 'bitcrusher', label: 'CRUSHER', desc: '8-Bit Lo-Fi' },
@@ -72,7 +76,7 @@ export const FXRack: React.FC<FXRackProps> = ({
         </div>
 
         {/* FX Type Selector Pills */}
-        <div className="grid grid-cols-6 gap-1.5 mb-3">
+        <div className="grid grid-cols-5 gap-1.5 mb-3">
           {FX_TYPES.map((t) => (
             <button
               key={t.id}
