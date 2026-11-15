@@ -479,6 +479,48 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
+          {/* In-App GitHub Patch & Updater Widget */}
+          {updateStatus.status === 'available' ? (
+            <button
+              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.startDownload())}
+              title="A new patch is available on GitHub! Click to review and download."
+              className="h-7 px-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(236,72,153,0.6)] animate-pulse cursor-pointer transition-all flex items-center space-x-1 shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>v{updateStatus.version}</span>
+            </button>
+          ) : updateStatus.status === 'downloading' ? (
+            <button
+              onClick={() => onOpenPatchModal?.()}
+              title={`Downloading update: ${updateStatus.percent || 0}%`}
+              className="h-7 px-2 rounded-lg bg-purple-950/80 border border-purple-500/50 text-[11px] font-mono text-purple-200 cursor-pointer flex items-center space-x-1 shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" />
+              <span>{updateStatus.percent || 0}%</span>
+            </button>
+          ) : updateStatus.status === 'downloaded' ? (
+            <button
+              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.restartAndApply())}
+              title="Patch downloaded. Click to apply and relaunch."
+              className="h-7 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.7)] animate-pulse cursor-pointer transition-all flex items-center space-x-1 shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>APPLY</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
+              title={`CloudMix Pro v${updateStatus.version || '2.0.55'} - Click to check GitHub for patches`}
+              className="h-7 px-2 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-white/10 font-mono text-[11px] font-bold flex items-center space-x-1 shrink-0 cursor-pointer transition-colors shadow-xs group"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
+              <span className="hidden 2xl:inline">v{updateStatus.version || '2.0.55'}</span>
+              {updateStatus.status === 'checking' && (
+                <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
+              )}
+            </button>
+          )}
+
           {/* User Guide & Manual (F1) */}
           <button
             onClick={onToggleUserGuide}
@@ -997,7 +1039,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.54'}</div>
+                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.55'}</div>
                       <span className="text-[10px] font-mono text-slate-500">GitHub Updates</span>
                     </div>
                   </button>
