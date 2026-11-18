@@ -16,6 +16,11 @@
 
 ---
 
+## ⚠️ Project Status & Known Issues
+
+> [!NOTE]
+> **Active Development / Alpha Notice**: CloudMix-Pro is in active, early development. You may encounter bugs, quirks, or unexpected edge cases as features evolve. If you run into issues or have feedback, please feel free to open an issue on the [GitHub Issues](https://github.com/iammrwrath/CloudMix-Pro/issues) page to help improve the project!
+
 ## 🌟 Why CloudMix Pro?
 
 Traditional DJ applications like Serato, Traktor, VirtualDJ, and Algoriddim djay Pro either lock your music behind local offline hard drives, disable stem separation on streaming audio, or lack direct integration for live streamers and content creators.
