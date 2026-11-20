@@ -317,6 +317,42 @@ async function runComprehensiveSimulation() {
   assert(waveformDisplayCode.includes('arCoreGlowRadius') && waveformDisplayCode.includes('currentBassEnergy'), 'ARCore beat-reactive playhead shader', 'Modulates GPU playhead bloom & halo width with real-time low-frequency peaks');
   assert(autoHealCode.includes('saveGigCheckpoint(') && autoHealCode.includes('getLatestGigCheckpoint(') && autoHealCode.includes('startAutoCheckpointing(') && autoHealCode.includes('cloudmix_cpad_gig_checkpoint'), 'Crashpad CPAD live gig state checkpointing', 'Snapshots live deck state to persistent storage & attaches recovery telemetry on faults');
 
+  // --------------------------------------------------------------------------
+  // SECTION 10: Algoriddim djay Pro NeuralMix (ARUnmixer / AVAUMUnmixerV2) Deep Dissection Verification
+  // --------------------------------------------------------------------------
+  console.log('\n👉 [Simulation 10/10] Algoriddim djay Pro NeuralMix (ARUnmixer / AVAUMUnmixerV2) Deep Dissection Verification...');
+  const stemSepCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'StemSeparatorService.ts'), 'utf8');
+  const fxRackCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'FXRack.tsx'), 'utf8');
+
+  assert(stemSepCode.includes('ARUnmixer2SuperLight') && stemSepCode.includes('ARUnmixer2Light') && stemSepCode.includes('ARUnmixer2Medium'), 'Adaptive AUMModelV2 quality tiering', 'Supports SuperLight, Light, and Medium Unmixer model selection');
+  assert(stemSepCode.includes('selectOptimalModelTier') && stemSepCode.includes('setUnmixerTrackMode'), 'Unmixer model strategy & 2/3/4-track topology', 'Selects hardware compute backend and switches 2ch/3ch/4ch stem modes');
+  assert(audioEngineCode.includes('toggleStemSwap(') && audioEngineCode.includes('instantDoubleWithStems('), 'Live Stem Swap & Instant Doubles Stem Transfer', 'Swaps individual stems across Deck A/B and transfers selective stems on Instant Doubles');
+  assert(audioEngineCode.includes('setUnmixerMuteFxEnabled(') && audioEngineCode.includes('triggerUnmixerMuteEchoTail('), 'ARUnmixerMuteWithFx Echo-Out Tail', 'Applies smooth 0.18s echo-out decay tail when muting active stems');
+  assert(audioEngineCode.includes('setFXStemRouting(') && audioEngineCode.includes('triggerStemBounceLoop('), 'Per-Stem FX & Bounce Loop routing', 'Routes Multi-FX and Bounce Loop stutters directly onto isolated Vocals/Drums/Bass/Harmonics');
+
+  const expectedInstantFx = [
+    'InstantFXNeuralMixChiptune',
+    'InstantFXNeuralMixDistance',
+    'InstantFXNeuralMixDrumBlur',
+    'InstantFXNeuralMixDrumRemoverImpact',
+    'InstantFXNeuralMixEchoOutFull',
+    'InstantFXNeuralMixLoFi',
+    'InstantFXNeuralMixRhythmicizer',
+    'InstantFXNeuralMixRythmRemover',
+    'InstantFXNeuralMixRythmRemoverWashy',
+    'InstantFXNeuralMixSidechain',
+  ];
+  assert(
+    expectedInstantFx.every((id) => audioEngineCode.includes(id)),
+    '10 NeuralMix Instant FX presets',
+    'All 10 djayApp.exe InstantFXNeuralMix* DSP presets registered in AudioEngine'
+  );
+  assert(
+    fxRackCode.includes('setFXStemRouting(') && fxRackCode.includes('NEURAL_MIX_INSTANT_FX_PRESETS') && fxRackCode.includes('triggerNeuralMixInstantFX('),
+    'FXRack Per-Stem Target & InstantFX UI controls',
+    'Exposes STEM TARGET routing pills and NEURAL MIX INSTANT FX pad grid'
+  );
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

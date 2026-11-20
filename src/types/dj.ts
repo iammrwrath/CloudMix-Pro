@@ -71,6 +71,11 @@ export interface StemState {
   harmonicsSolo: boolean;
   bassSolo: boolean;
   drumsSolo: boolean;
+  vocalsSwapped?: boolean;
+  harmonicsSwapped?: boolean;
+  bassSwapped?: boolean;
+  drumsSwapped?: boolean;
+  muteFxEchoOut?: boolean;
 }
 
 export type NeuralTransitionMode =
@@ -126,6 +131,18 @@ export interface DeckState {
 
 export type FXType = 'echo' | 'reverb' | 'flanger' | 'bitcrusher' | 'roll' | 'filter' | 'brake' | 'pingpong' | 'echofreeze' | 'pitchrise';
 export type FXTarget = 'master' | 'vocals' | 'bass' | 'harmonics' | 'drums';
+
+export type NeuralMixInstantFXId =
+  | 'InstantFXNeuralMixChiptune'
+  | 'InstantFXNeuralMixDistance'
+  | 'InstantFXNeuralMixDrumBlur'
+  | 'InstantFXNeuralMixDrumRemoverImpact'
+  | 'InstantFXNeuralMixEchoOutFull'
+  | 'InstantFXNeuralMixLoFi'
+  | 'InstantFXNeuralMixRhythmicizer'
+  | 'InstantFXNeuralMixRythmRemover'
+  | 'InstantFXNeuralMixRythmRemoverWashy'
+  | 'InstantFXNeuralMixSidechain';
 
 export interface FXUnit {
   enabled: boolean;

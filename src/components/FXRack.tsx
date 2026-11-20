@@ -1,5 +1,6 @@
-import React from 'react';
-import { DeckId, FXType, FXUnit } from '../types/dj';
+import React, { useState } from 'react';
+import { DeckId, FXTarget, FXType, FXUnit, NeuralMixInstantFXId } from '../types/dj';
+import { audioEngine, NEURAL_MIX_INSTANT_FX_PRESETS } from '../audio/AudioEngine';
 import { RotaryKnob } from './RotaryKnob';
 import { Sparkles, Power, Activity } from 'lucide-react';
 
@@ -38,6 +39,10 @@ export const FXRack: React.FC<FXRackProps> = ({
   onUpdateDeckAFX,
   onUpdateDeckBFX,
 }) => {
+  const [activeInstantFxByDeck, setActiveInstantFxByDeck] = useState<
+    Partial<Record<DeckId, NeuralMixInstantFXId | null>>
+  >({});
+
   const renderDeckUnit = (
     deckId: DeckId,
     fx: FXUnit,
@@ -45,6 +50,8 @@ export const FXRack: React.FC<FXRackProps> = ({
     accentColor: string,
     glowColor: string
   ) => {
+    const activeInstantId = activeInstantFxByDeck[deckId] || null;
+    const currentTarget: FXTarget = fx.target || audioEngine.getFXStemRouting(deckId);
     return (
       <div className="flex-1 bg-slate-950/70 backdrop-blur-xl rounded-xl p-3 border border-white/10 shadow-lg flex flex-col justify-between">
         {/* Unit Header */}
@@ -98,6 +105,89 @@ export const FXRack: React.FC<FXRackProps> = ({
               </div>
             </button>
           ))}
+        </div>
+
+        {/* ARMidiUnmixerRouting Per-Stem FX Target */}
+        <div className="flex items-center justify-between gap-1.5 mb-2 bg-slate-900/60 rounded-lg px-2 py-1.5 border border-white/5">
+          <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+            STEM TARGET
+          </span>
+          <div className="flex items-center space-x-1 flex-wrap justify-end">
+            {(
+              [
+                { id: 'master', label: 'MASTER' },
+                { id: 'vocals', label: 'VOCALS' },
+                { id: 'drums', label: 'DRUMS' },
+                { id: 'bass', label: 'BASS' },
+                { id: 'harmonics', label: 'MELODY' },
+              ] as { id: FXTarget; label: string }[]
+            ).map((st) => (
+              <button
+                key={st.id}
+                onClick={() => {
+                  audioEngine.setFXStemRouting(deckId, st.id);
+                  onUpdate({ ...fx, target: st.id });
+                }}
+                className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-bold transition-all cursor-pointer border ${
+                  currentTarget === st.id
+                    ? 'bg-cyan-500/25 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.35)]'
+                    : 'bg-slate-800/70 text-slate-400 border-slate-700/50 hover:text-white'
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* NeuralMix Instant FX (10 djay Pro ARUnmixer Presets) */}
+        <div className="mb-2.5 bg-slate-900/60 rounded-lg p-2 border border-white/5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9px] font-mono font-bold text-fuchsia-300 uppercase tracking-wider">
+              NEURAL MIX INSTANT FX
+            </span>
+            {activeInstantId && (
+              <button
+                onClick={() => {
+                  audioEngine.triggerNeuralMixInstantFX(deckId, null, false);
+                  setActiveInstantFxByDeck((prev) => ({ ...prev, [deckId]: null }));
+                }}
+                className="text-[9px] font-mono font-bold text-rose-400 hover:text-rose-200 cursor-pointer"
+              >
+                CLEAR
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-5 gap-1">
+            {NEURAL_MIX_INSTANT_FX_PRESETS.map((preset) => {
+              const isActive = activeInstantId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  title={`${preset.label} (${preset.target.toUpperCase()} -> ${preset.fxType.toUpperCase()})`}
+                  onClick={() => {
+                    const nextActive = !isActive;
+                    audioEngine.triggerNeuralMixInstantFX(
+                      deckId,
+                      nextActive ? preset.id : null,
+                      nextActive
+                    );
+                    setActiveInstantFxByDeck((prev) => ({
+                      ...prev,
+                      [deckId]: nextActive ? preset.id : null,
+                    }));
+                  }}
+                  className={`py-1 px-1 rounded text-[9px] font-mono font-extrabold transition-all cursor-pointer border truncate ${
+                    isActive
+                      ? 'bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-black border-white shadow-[0_0_10px_rgba(217,70,239,0.6)]'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700/50 hover:text-white hover:border-fuchsia-400/50'
+                  }`}
+                >
+                  {preset.shortLabel}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Lower Controls: Beat Divisions + Wet/Dry & Param Dials */}

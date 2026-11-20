@@ -1,5 +1,9 @@
 import { storageCache } from './StorageCacheService';
 
+export type UnmixerModelTier = 'ARUnmixer2SuperLight' | 'ARUnmixer2Light' | 'ARUnmixer2Medium';
+export type UnmixerComputeDevice = 'auto' | 'directml_gpu' | 'qnn_npu' | 'cpu_simd';
+export type UnmixerTrackMode = 2 | 3 | 4;
+
 export interface DiscreteStems {
   vocals: AudioBuffer;
   drums: AudioBuffer;
@@ -26,6 +30,69 @@ export interface StemSeparationProgress {
 export class StemSeparatorService {
   private memoryCache: Map<string, DiscreteStems> = new Map();
   private activeJobs: Map<string, Promise<DiscreteStems>> = new Map();
+  private modelTier: UnmixerModelTier = 'ARUnmixer2Medium';
+  private computeDevice: UnmixerComputeDevice = 'auto';
+  private trackMode: UnmixerTrackMode = 4;
+
+  /**
+   * Adaptive Unmixer model & backend selection (ARUnmixer::AUMModelSelectionStrategy).
+   */
+  public selectOptimalModelTier(): {
+    modelTier: UnmixerModelTier;
+    computeDevice: UnmixerComputeDevice;
+    hardwareConcurrency: number;
+  } {
+    const hardwareConcurrency =
+      typeof navigator !== 'undefined' && typeof navigator.hardwareConcurrency === 'number'
+        ? navigator.hardwareConcurrency
+        : 4;
+
+    if (hardwareConcurrency >= 8) {
+      this.modelTier = 'ARUnmixer2Medium';
+    } else if (hardwareConcurrency >= 4) {
+      this.modelTier = 'ARUnmixer2Light';
+    } else {
+      this.modelTier = 'ARUnmixer2SuperLight';
+    }
+
+    if (this.computeDevice === 'auto') {
+      const hasWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
+      this.computeDevice = hasWebGpu || hardwareConcurrency >= 6 ? 'directml_gpu' : 'cpu_simd';
+    }
+
+    return {
+      modelTier: this.modelTier,
+      computeDevice: this.computeDevice,
+      hardwareConcurrency,
+    };
+  }
+
+  public setModelTier(tier: UnmixerModelTier): void {
+    this.modelTier = tier;
+  }
+
+  public getModelTier(): UnmixerModelTier {
+    return this.modelTier;
+  }
+
+  public setComputeDevice(device: UnmixerComputeDevice): void {
+    this.computeDevice = device;
+  }
+
+  public getComputeDevice(): UnmixerComputeDevice {
+    return this.computeDevice;
+  }
+
+  /**
+   * Set NeuralMix topology: 2-Track (Instrumental/Acappella), 3-Track (Drums/Harmonic/Vocals), or 4-Track.
+   */
+  public setUnmixerTrackMode(mode: UnmixerTrackMode): void {
+    this.trackMode = mode;
+  }
+
+  public getUnmixerTrackMode(): UnmixerTrackMode {
+    return this.trackMode;
+  }
 
   /**
    * Check if stems are already cached in memory or IndexedDB

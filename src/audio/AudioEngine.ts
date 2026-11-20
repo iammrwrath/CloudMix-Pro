@@ -1,4 +1,126 @@
-import { DeckId, FXType, FXUnit, HotCue, NeuralTransitionMode, StemState, TrackMetadata } from '../types/dj';
+import { DeckId, FXTarget, FXType, FXUnit, HotCue, NeuralMixInstantFXId, NeuralTransitionMode, StemState, TrackMetadata } from '../types/dj';
+
+export interface NeuralMixInstantFXPreset {
+  id: NeuralMixInstantFXId;
+  label: string;
+  shortLabel: string;
+  target: FXTarget;
+  fxType: FXType;
+  wetDry: number;
+  param: number;
+  beats: number;
+  stemMultipliers?: Partial<Record<'vocals' | 'drums' | 'bass' | 'harmonics', number>>;
+  muteStems?: ('vocals' | 'drums' | 'bass' | 'harmonics')[];
+}
+
+export const NEURAL_MIX_INSTANT_FX_PRESETS: NeuralMixInstantFXPreset[] = [
+  {
+    id: 'InstantFXNeuralMixChiptune',
+    label: 'Neural Chiptune',
+    shortLabel: 'CHIPTUNE',
+    target: 'harmonics',
+    fxType: 'bitcrusher',
+    wetDry: 0.75,
+    param: 0.85,
+    beats: 0.5,
+  },
+  {
+    id: 'InstantFXNeuralMixDistance',
+    label: 'Neural Distance',
+    shortLabel: 'DISTANCE',
+    target: 'vocals',
+    fxType: 'reverb',
+    wetDry: 0.8,
+    param: 0.9,
+    beats: 1.0,
+    stemMultipliers: { drums: 0.55, bass: 0.65 },
+  },
+  {
+    id: 'InstantFXNeuralMixDrumBlur',
+    label: 'Drum Blur',
+    shortLabel: 'DRM BLUR',
+    target: 'drums',
+    fxType: 'reverb',
+    wetDry: 0.78,
+    param: 0.8,
+    beats: 0.5,
+  },
+  {
+    id: 'InstantFXNeuralMixDrumRemoverImpact',
+    label: 'Drum Remover Impact',
+    shortLabel: 'NO DRM IMP',
+    target: 'drums',
+    fxType: 'echo',
+    wetDry: 0.7,
+    param: 0.65,
+    beats: 0.5,
+    muteStems: ['drums'],
+  },
+  {
+    id: 'InstantFXNeuralMixEchoOutFull',
+    label: 'Neural Echo Out',
+    shortLabel: 'NM ECHO OUT',
+    target: 'vocals',
+    fxType: 'echofreeze',
+    wetDry: 0.85,
+    param: 0.8,
+    beats: 0.5,
+    muteStems: ['drums', 'bass'],
+  },
+  {
+    id: 'InstantFXNeuralMixLoFi',
+    label: 'Neural Lo-Fi',
+    shortLabel: 'NM LO-FI',
+    target: 'harmonics',
+    fxType: 'bitcrusher',
+    wetDry: 0.6,
+    param: 0.55,
+    beats: 1.0,
+  },
+  {
+    id: 'InstantFXNeuralMixRhythmicizer',
+    label: 'Rhythmicizer',
+    shortLabel: 'RHYTHM',
+    target: 'drums',
+    fxType: 'roll',
+    wetDry: 0.85,
+    param: 0.75,
+    beats: 0.25,
+  },
+  {
+    id: 'InstantFXNeuralMixRythmRemover',
+    label: 'Rhythm Remover',
+    shortLabel: 'NO RHYM',
+    target: 'master',
+    fxType: 'filter',
+    wetDry: 0.45,
+    param: 0.7,
+    beats: 1.0,
+    muteStems: ['drums', 'bass'],
+  },
+  {
+    id: 'InstantFXNeuralMixRythmRemoverWashy',
+    label: 'Rhythm Remover Wash',
+    shortLabel: 'WASH OUT',
+    target: 'harmonics',
+    fxType: 'reverb',
+    wetDry: 0.82,
+    param: 0.85,
+    beats: 1.0,
+    muteStems: ['drums', 'bass'],
+  },
+  {
+    id: 'InstantFXNeuralMixSidechain',
+    label: 'Neural Sidechain',
+    shortLabel: 'SIDECHAIN',
+    target: 'harmonics',
+    fxType: 'flanger',
+    wetDry: 0.55,
+    param: 0.75,
+    beats: 0.5,
+    stemMultipliers: { harmonics: 0.72, vocals: 0.88, bass: 1.1 },
+  },
+];
 import { mixRecorder } from './MixRecorder';
 import { samplerEngine } from './SamplerEngine';
 import { DiscreteStems } from '../services/StemSeparatorService';
@@ -35,6 +157,7 @@ export interface DeckAudioNodes {
   fxInputNode: GainNode;
   fxDryNode: GainNode;
   fxWetNode: GainNode;
+  fxBypassDryGain: GainNode;
   fxDelayNode: DelayNode;
   fxDelayFeedback: GainNode;
   fxDelayFilter: BiquadFilterNode;
@@ -94,6 +217,15 @@ class AudioEngine {
   private crossfaderVal: number = 0.0; // -1.0 (A) to +1.0 (B)
   private crossfaderCurve: 'smooth' | 'linear' | 'scratch' = 'linear';
   private neuralTransitionMode: NeuralTransitionMode = 'standard';
+  private unmixerMuteFxEnabled: boolean = true;
+  private fxStemTargets: Map<DeckId, FXTarget> = new Map([
+    ['A', 'master'],
+    ['B', 'master'],
+    ['C', 'master'],
+    ['D', 'master'],
+  ]);
+  private activeInstantFx: Map<DeckId, NeuralMixInstantFXId | null> = new Map();
+  private preInstantFxStems: Map<DeckId, StemState> = new Map();
   private scratchSampleBuffer: AudioBuffer | null = null;
   private scratchSampleLoading: boolean = false;
 
@@ -344,6 +476,10 @@ class AudioEngine {
     fxInputNode.connect(fxDryNode);
     fxDryNode.connect(crossfaderGain);
     fxWetNode.connect(crossfaderGain);
+    const fxBypassDryGain = this.ctx.createGain();
+    fxBypassDryGain.gain.setValueAtTime(0.0, this.ctx.currentTime);
+    analyser.connect(fxBypassDryGain);
+    fxBypassDryGain.connect(crossfaderGain);
     crossfaderGain.connect(this.masterGain);
 
     // Pre-fader Cue Listen (PFL): Tap signal after EQ & filter strip, before channel volume fader
@@ -396,6 +532,7 @@ class AudioEngine {
       fxInputNode,
       fxDryNode,
       fxWetNode,
+      fxBypassDryGain,
       fxDelayNode,
       fxDelayFeedback,
       fxDelayFilter,
@@ -1236,6 +1373,47 @@ class AudioEngine {
     return this.neuralTransitionMode;
   }
 
+  public setUnmixerMuteFxEnabled(enabled: boolean): void {
+    this.unmixerMuteFxEnabled = enabled;
+  }
+
+  public isUnmixerMuteFxEnabled(): boolean {
+    return this.unmixerMuteFxEnabled;
+  }
+
+  private triggerUnmixerMuteEchoTail(
+    deck: DeckAudioNodes,
+    stem: 'vocals' | 'harmonics' | 'bass' | 'drums'
+  ): void {
+    if (!this.ctx || deck.activeFxNode) return;
+    const stemNodeMap = {
+      vocals: deck.stemVocalsXfaderGain,
+      bass: deck.stemBassXfaderGain,
+      harmonics: deck.stemHarmonicsXfaderGain,
+      drums: deck.stemDrumsXfaderGain,
+    };
+    const sendNode = stemNodeMap[stem];
+    if (!sendNode) return;
+
+    const now = this.ctx.currentTime;
+    try {
+      sendNode.connect(deck.fxDelayNode);
+      deck.fxDelayNode.connect(deck.fxWetNode);
+      deck.fxDelayNode.delayTime.setValueAtTime(0.24, now);
+      deck.fxDelayFeedback.gain.setValueAtTime(0.42, now);
+      deck.fxWetNode.gain.setValueAtTime(0.38, now);
+      deck.fxWetNode.gain.setTargetAtTime(0.0, now + 0.05, 0.18);
+      setTimeout(() => {
+        if (!deck.activeFxNode) {
+          try {
+            sendNode.disconnect(deck.fxDelayNode);
+            deck.fxDelayNode.disconnect(deck.fxWetNode);
+          } catch {}
+        }
+      }, 900);
+    } catch {}
+  }
+
   // Neural Mix 4-Stem Methods
   public setStemGain(deckId: DeckId, stem: 'vocals' | 'harmonics' | 'bass' | 'drums', val: number) {
     const deck = this.decks.get(deckId);
@@ -1250,6 +1428,10 @@ class AudioEngine {
     if (!deck || !this.ctx) return false;
     const muteKey = `${stem}Muted` as 'vocalsMuted' | 'harmonicsMuted' | 'bassMuted' | 'drumsMuted';
     deck.stemState[muteKey] = !deck.stemState[muteKey];
+    deck.stemState.muteFxEchoOut = this.unmixerMuteFxEnabled;
+    if (deck.stemState[muteKey] && this.unmixerMuteFxEnabled && !deck.activeFxNode) {
+      this.triggerUnmixerMuteEchoTail(deck, stem);
+    }
     this.recalculateStemGains(deck);
     return deck.stemState[muteKey];
   }
@@ -1362,7 +1544,85 @@ class AudioEngine {
     deck.stemState.harmonicsSolo = false;
     deck.stemState.bassSolo = false;
     deck.stemState.drumsSolo = false;
+    deck.stemState.vocalsSwapped = false;
+    deck.stemState.harmonicsSwapped = false;
+    deck.stemState.bassSwapped = false;
+    deck.stemState.drumsSwapped = false;
     this.recalculateStemGains(deck);
+  }
+
+  /**
+   * Live Stem Swap between Deck A & Deck B (turntable.unmixerFourTrackChannel1..4Swapped)
+   */
+  public toggleStemSwap(stem: 'vocals' | 'harmonics' | 'bass' | 'drums'): boolean {
+    const deckA = this.decks.get('A');
+    const deckB = this.decks.get('B');
+    if (!deckA || !deckB) return false;
+
+    const swapKey = `${stem}Swapped` as 'vocalsSwapped' | 'harmonicsSwapped' | 'bassSwapped' | 'drumsSwapped';
+    const muteKey = `${stem}Muted` as 'vocalsMuted' | 'harmonicsMuted' | 'bassMuted' | 'drumsMuted';
+    const nextSwapped = !deckA.stemState[swapKey];
+
+    deckA.stemState[swapKey] = nextSwapped;
+    deckB.stemState[swapKey] = nextSwapped;
+
+    if (nextSwapped) {
+      deckA.stemState[muteKey] = true;
+      deckB.stemState[muteKey] = false;
+    } else {
+      deckA.stemState[muteKey] = false;
+      deckB.stemState[muteKey] = false;
+    }
+
+    this.recalculateStemGains(deckA);
+    this.recalculateStemGains(deckB);
+    return nextSwapped;
+  }
+
+  /**
+   * Instant Doubles with selective NeuralMix stem transfer (copyTurntable:toTurntable:unloadOld:unmixerChannelsToMove:)
+   */
+  public instantDoubleWithStems(
+    sourceDeckId: DeckId,
+    targetDeckId: DeckId,
+    stemsToMove?: ('vocals' | 'harmonics' | 'bass' | 'drums')[]
+  ): boolean {
+    const src = this.decks.get(sourceDeckId);
+    const dst = this.decks.get(targetDeckId);
+    if (!src || !dst || !src.audioBuffer) return false;
+
+    const currentPos = this.getCurrentTime(sourceDeckId);
+    const wasPlaying = src.isPlaying;
+    const targetRate = src.playbackRate;
+    const targetPitch = src.pitchSemitones;
+
+    this.loadTrackToDeck(targetDeckId, src.audioBuffer, src.stemBuffers || undefined);
+    const refreshedDst = this.decks.get(targetDeckId);
+    if (!refreshedDst) return false;
+
+    refreshedDst.playbackRate = targetRate;
+    refreshedDst.pitchSemitones = targetPitch;
+    refreshedDst.pauseOffset = currentPos;
+
+    if (stemsToMove && stemsToMove.length > 0) {
+      const allStems: ('vocals' | 'harmonics' | 'bass' | 'drums')[] = ['vocals', 'harmonics', 'bass', 'drums'];
+      for (const stem of allStems) {
+        const muteKey = `${stem}Muted` as 'vocalsMuted' | 'harmonicsMuted' | 'bassMuted' | 'drumsMuted';
+        const soloKey = `${stem}Solo` as 'vocalsSolo' | 'harmonicsSolo' | 'bassSolo' | 'drumsSolo';
+        const moved = stemsToMove.includes(stem);
+        src.stemState[muteKey] = moved;
+        src.stemState[soloKey] = false;
+        refreshedDst.stemState[muteKey] = !moved;
+        refreshedDst.stemState[soloKey] = false;
+      }
+      this.recalculateStemGains(src);
+      this.recalculateStemGains(refreshedDst);
+    }
+
+    if (wasPlaying) {
+      this.playDeck(targetDeckId, currentPos);
+    }
+    return true;
   }
 
   // VirtualDJ Sandbox Mode: Private Headphone Transition Auditioning
@@ -1420,11 +1680,12 @@ class AudioEngine {
       ? (deck.stemState.harmonicsSolo ? deck.stemState.harmonics : 0)
       : deck.stemState.harmonics;
 
-    // 15ms anti-pop exponential ramp for click-free stem mute/solo modulation
-    deck.stemVocalsGain.gain.setTargetAtTime(effVocals, this.ctx.currentTime, 0.015);
-    deck.stemBassGain.gain.setTargetAtTime(effBass, this.ctx.currentTime, 0.015);
-    deck.stemDrumsGain.gain.setTargetAtTime(effDrums, this.ctx.currentTime, 0.015);
-    deck.stemHarmonicsGain.gain.setTargetAtTime(effHarmonics, this.ctx.currentTime, 0.015);
+    // Musical 0.18s echo-out decay when ARUnmixerMuteWithFx is enabled vs 15ms anti-pop ramp
+    const decayConst = (targetGain: number) => (targetGain === 0 && this.unmixerMuteFxEnabled ? 0.18 : 0.015);
+    deck.stemVocalsGain.gain.setTargetAtTime(effVocals, this.ctx.currentTime, decayConst(effVocals));
+    deck.stemBassGain.gain.setTargetAtTime(effBass, this.ctx.currentTime, decayConst(effBass));
+    deck.stemDrumsGain.gain.setTargetAtTime(effDrums, this.ctx.currentTime, decayConst(effDrums));
+    deck.stemHarmonicsGain.gain.setTargetAtTime(effHarmonics, this.ctx.currentTime, decayConst(effHarmonics));
   }
 
   private updateCrossfaderGains() {
@@ -1777,14 +2038,130 @@ class AudioEngine {
     return this.decks.get(deckId);
   }
 
-  // Multi-FX Studio Engine
+  public setFXStemRouting(deckId: DeckId, target: FXTarget): void {
+    this.fxStemTargets.set(deckId, target);
+  }
+
+  public getFXStemRouting(deckId: DeckId): FXTarget {
+    return this.fxStemTargets.get(deckId) || 'master';
+  }
+
+  /**
+   * Per-Stem Bounce Loop Routing (turntable.bounceLoopRouting.routingFourTrackChannel1..4)
+   */
+  public triggerStemBounceLoop(
+    deckId: DeckId,
+    stem: FXTarget,
+    beats: number = 0.25,
+    bpm: number = 126
+  ): void {
+    this.setFXStemRouting(deckId, stem);
+    this.setDeckFX(
+      deckId,
+      {
+        enabled: true,
+        type: 'roll',
+        wetDry: 0.9,
+        beats: Math.max(0.03125, beats),
+        param: 0.85,
+        target: stem,
+      },
+      bpm
+    );
+  }
+
+  public getActiveNeuralMixInstantFX(deckId: DeckId): NeuralMixInstantFXId | null {
+    return this.activeInstantFx.get(deckId) || null;
+  }
+
+  /**
+   * Trigger one of the 10 Algoriddim djay Pro InstantFXNeuralMix* presets
+   */
+  public triggerNeuralMixInstantFX(
+    deckId: DeckId,
+    presetId: NeuralMixInstantFXId | null,
+    active: boolean = true,
+    bpm: number = 126
+  ): void {
+    const deck = this.decks.get(deckId);
+    if (!deck) return;
+
+    if (!active || !presetId) {
+      this.activeInstantFx.set(deckId, null);
+      const savedStems = this.preInstantFxStems.get(deckId);
+      if (savedStems) {
+        deck.stemState = { ...savedStems };
+        this.preInstantFxStems.delete(deckId);
+        this.recalculateStemGains(deck);
+      }
+      this.setDeckFX(
+        deckId,
+        {
+          enabled: false,
+          type: 'echo',
+          wetDry: 0,
+          beats: 0.5,
+          param: 0.5,
+          target: 'master',
+        },
+        bpm
+      );
+      return;
+    }
+
+    const preset = NEURAL_MIX_INSTANT_FX_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+
+    if (!this.preInstantFxStems.has(deckId)) {
+      this.preInstantFxStems.set(deckId, { ...deck.stemState });
+    }
+    const baseStems = this.preInstantFxStems.get(deckId)!;
+    deck.stemState = { ...baseStems };
+
+    if (preset.muteStems) {
+      for (const s of preset.muteStems) {
+        const muteKey = `${s}Muted` as 'vocalsMuted' | 'harmonicsMuted' | 'bassMuted' | 'drumsMuted';
+        deck.stemState[muteKey] = true;
+      }
+    }
+    if (preset.stemMultipliers) {
+      (['vocals', 'drums', 'bass', 'harmonics'] as const).forEach((s) => {
+        const mult = preset.stemMultipliers?.[s];
+        if (typeof mult === 'number') {
+          deck.stemState[s] = Math.max(0, Math.min(1.5, baseStems[s] * mult));
+        }
+      });
+    }
+
+    this.recalculateStemGains(deck);
+    this.activeInstantFx.set(deckId, presetId);
+    this.setFXStemRouting(deckId, preset.target);
+    this.setDeckFX(
+      deckId,
+      {
+        enabled: true,
+        type: preset.fxType,
+        wetDry: preset.wetDry,
+        beats: preset.beats,
+        param: preset.param,
+        target: preset.target,
+      },
+      bpm
+    );
+  }
+
+  // Multi-FX Studio Engine (ARMidiUnmixerRouting per-stem capable)
   public setDeckFX(deckId: DeckId, fx: FXUnit, deckBpm: number = 126) {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
 
-    const wet = fx.enabled ? Math.max(0, Math.min(1, fx.wetDry)) : 0.0;
-    const dry = 1.0 - wet * 0.6; // Studio DJ send balance
+    const target: FXTarget = fx.target || this.fxStemTargets.get(deckId) || 'master';
+    this.fxStemTargets.set(deckId, target);
 
+    const wet = fx.enabled ? Math.max(0, Math.min(1, fx.wetDry)) : 0.0;
+    const dry = target === 'master' ? 1.0 - wet * 0.6 : 0.0;
+
+    deck.fxBypassDryGain.gain.setValueAtTime(target === 'master' ? 0.0 : 1.0, this.ctx.currentTime);
     deck.fxDryNode.gain.setValueAtTime(dry, this.ctx.currentTime);
     deck.fxWetNode.gain.setValueAtTime(wet, this.ctx.currentTime);
 
@@ -1799,9 +2176,25 @@ class AudioEngine {
       deck.activeFxNode = null;
     }
 
-    // Reset fx input connection
+    // Rewire FX input from either full deck mix or discrete target stem bus
+    const stemBusMap: Record<Exclude<FXTarget, 'master'>, AudioNode> = {
+      vocals: deck.stemVocalsXfaderGain,
+      bass: deck.stemBassXfaderGain,
+      harmonics: deck.stemHarmonicsXfaderGain,
+      drums: deck.stemDrumsXfaderGain,
+    };
+    try { deck.analyser.disconnect(deck.fxInputNode); } catch {}
+    Object.values(stemBusMap).forEach((node) => {
+      try { node.disconnect(deck.fxInputNode); } catch {}
+    });
     try { deck.fxInputNode.disconnect(); } catch {}
     deck.fxInputNode.connect(deck.fxDryNode);
+
+    if (target === 'master') {
+      deck.analyser.connect(deck.fxInputNode);
+    } else {
+      stemBusMap[target].connect(deck.fxInputNode);
+    }
 
     if (fx.enabled && wet > 0.01) {
       let activeNode: AudioNode | null = null;
