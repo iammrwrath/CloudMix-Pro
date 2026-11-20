@@ -485,14 +485,22 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
         }
       });
 
-      // Center Laser Playhead with ambient bloom effect
+      // Center Laser Playhead with ARCore_GraphicalEffects Beat-Reactive Shader Bloom
+      const livePointIdx = Math.min(totalPoints - 1, Math.max(0, Math.floor(liveTime * pointsPerSecond)));
+      const currentBassEnergy = waveformData.lowPeaks[livePointIdx] || 0;
+      const arCoreGlowRadius = 10 + currentBassEnergy * 18;
+      const arCoreHaloHalfWidth = 3 + currentBassEnergy * 6;
+      const arCoreHaloAlpha = Math.min(255, Math.round(68 + currentBassEnergy * 110))
+        .toString(16)
+        .padStart(2, '0');
+
       ctx.shadowColor = accentColor;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = `${accentColor}44`;
-      ctx.fillRect(centerX - 3, 0, 6, height);
+      ctx.shadowBlur = arCoreGlowRadius;
+      ctx.fillStyle = `${accentColor}${arCoreHaloAlpha}`;
+      ctx.fillRect(centerX - arCoreHaloHalfWidth, 0, arCoreHaloHalfWidth * 2, height);
 
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 + currentBassEnergy * 0.8;
       ctx.beginPath();
       ctx.moveTo(centerX, 0);
       ctx.lineTo(centerX, height);

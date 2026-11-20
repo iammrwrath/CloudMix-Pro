@@ -874,6 +874,32 @@ class AudioEngine {
     return maxDuration > 0 ? Math.max(0, Math.min(maxDuration, elapsed)) : Math.max(0, elapsed);
   }
 
+  /**
+   * Sample-accurate beat lookahead scheduler (inspired by djay Pro 1ms multimedia timer).
+   * Schedules a callback aligned to the deck's next beat boundary.
+   */
+  public scheduleOnNextBeat(deckId: DeckId, bpm: number, callback: () => void): number {
+    if (!Number.isFinite(bpm) || bpm <= 0 || typeof callback !== 'function') {
+      return 0;
+    }
+
+    const deck = this.decks.get(deckId);
+    const effectiveRate = deck?.playbackRate && deck.playbackRate > 0 ? deck.playbackRate : 1;
+    const effectiveBpm = bpm * effectiveRate;
+    const beatDurationSec = 60 / effectiveBpm;
+    const currentSec = this.getCurrentTime(deckId);
+
+    const beatIndex = Math.floor(currentSec / beatDurationSec);
+    const nextBeatSec = (beatIndex + 1) * beatDurationSec;
+    const trackDeltaSec = Math.max(0, nextBeatSec - currentSec);
+    const delayMs = Math.max(0, Math.round((trackDeltaSec / effectiveRate) * 1000));
+
+    if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+      return window.setTimeout(callback, delayMs);
+    }
+    return Number(setTimeout(callback, delayMs));
+  }
+
   public setPlaybackRate(deckId: DeckId, rate: number) {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;

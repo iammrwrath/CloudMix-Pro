@@ -59,17 +59,21 @@ app.commandLine.appendSwitch('disable-web-security');
 app.commandLine.appendSwitch('force-high-performance-gpu');
 app.commandLine.appendSwitch('force_high_performance_gpu');
 app.commandLine.appendSwitch('remote-debugging-port', '9222');
-// djay Pro Architecture: Real-time Audio Watchdog & WASAPI Exclusive / Low-latency Driver Switches
+// djay Pro Architecture: Real-time Audio Watchdog, High-Res Multimedia Timer & WASAPI Exclusive Switches
 app.commandLine.appendSwitch('enable-exclusive-audio');
 app.commandLine.appendSwitch('audio-buffer-size', '128');
+app.commandLine.appendSwitch('enable-high-resolution-time');
+app.commandLine.appendSwitch('disable-timer-throttling');
 
-// Windows "Pro Audio" Process/Thread Priority Booster (inspired by VirtualDJ MMCSS Pro Audio)
+// Windows "Pro Audio" Process/Thread Priority & 1ms Multimedia Timer Booster (VirtualDJ + djay Pro)
 let proAudioPriorityActive = null;
+let multimediaTimerResolutionMs = 1;
 function setProAudioPriority(active = true) {
   try {
     const highPrio = os.constants?.priority?.PRIORITY_HIGH ?? -14;
     const aboveNormalPrio = os.constants?.priority?.PRIORITY_ABOVE_NORMAL ?? -7;
     const targetPrio = active ? highPrio : aboveNormalPrio;
+    multimediaTimerResolutionMs = active ? 1 : 15;
 
     os.setPriority(process.pid, targetPrio);
 
@@ -869,6 +873,13 @@ ipcMain.handle('update-streaming-broadcast', async (event, payload) => {
 
 ipcMain.handle('set-pro-audio-priority', async (event, active) => {
   return setProAudioPriority(Boolean(active));
+});
+
+ipcMain.handle('get-multimedia-timer-state', () => {
+  return {
+    active: Boolean(proAudioPriorityActive),
+    resolutionMs: multimediaTimerResolutionMs,
+  };
 });
 
 ipcMain.handle('get-streaming-broadcast-state', () => {

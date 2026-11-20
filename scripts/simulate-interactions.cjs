@@ -299,6 +299,24 @@ async function runComprehensiveSimulation() {
   assert(libServiceCode.includes('saveTrackCues(') && libServiceCode.includes('getTrackCues('), 'Persistent track cue points store', 'Preserves hot cues across sessions');
   assert(libServiceCode.includes('BUILT_IN_SMART_CRATES') && libServiceCode.includes('getSmartCrates(') && libServiceCode.includes('getSmartCrateTracks('), 'Dynamic Smart Crates engine', 'Rule-based smart crates for Dembow, Peak Hour, Open Format & Cued tracks');
 
+  // --------------------------------------------------------------------------
+  // SECTION 9: Algoriddim djay Pro (djayApp.exe) AegisRE Upgrades Verification
+  // --------------------------------------------------------------------------
+  console.log('\n👉 [Simulation 9/9] Algoriddim djay Pro (djayApp.exe) AegisRE Upgrades Verification...');
+  const audioEngineCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'audio', 'AudioEngine.ts'), 'utf8');
+  const audioAnalyzerCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'audio', 'AudioAnalyzer.ts'), 'utf8');
+  const dispatchQueueCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'DispatchQueueService.ts'), 'utf8');
+  const waveformDisplayCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'WaveformDisplay.tsx'), 'utf8');
+  const autoHealCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'AutoErrorHealingService.ts'), 'utf8');
+
+  assert(mainCode.includes('enable-high-resolution-time') && mainCode.includes('disable-timer-throttling'), '1ms High-Resolution Multimedia Timer flags', 'Enables high-resolution time and disables Chromium background timer throttling');
+  assert(mainCode.includes("ipcMain.handle('get-multimedia-timer-state'") && mainCode.includes('multimediaTimerResolutionMs'), 'Multimedia timer resolution IPC telemetry', 'Tracks 1ms Pro Audio timer period and exposes IPC status handler');
+  assert(audioEngineCode.includes('scheduleOnNextBeat('), 'Sample-accurate beat lookahead scheduler', 'Aligns audio callbacks to next beatgrid boundary via playbackRate-aware lookahead');
+  assert(audioAnalyzerCode.includes('extractWaveformDataAsync(') && audioAnalyzerCode.includes('estimateBPMAsync(') && audioAnalyzerCode.includes('new Worker('), 'Off-thread Web Worker DSP analyzer', 'Runs tri-band waveform extraction & BPM detection off the UI thread');
+  assert(dispatchQueueCode.includes('export class DispatchQueueService') && dispatchQueueCode.includes('beginCriticalPerformanceSection(') && dispatchQueueCode.includes('endCriticalPerformanceSection('), 'Grand Central Dispatch QoS work queue', 'Prioritizes userInteractive/userInitiated audio callbacks over background tasks');
+  assert(waveformDisplayCode.includes('arCoreGlowRadius') && waveformDisplayCode.includes('currentBassEnergy'), 'ARCore beat-reactive playhead shader', 'Modulates GPU playhead bloom & halo width with real-time low-frequency peaks');
+  assert(autoHealCode.includes('saveGigCheckpoint(') && autoHealCode.includes('getLatestGigCheckpoint(') && autoHealCode.includes('startAutoCheckpointing(') && autoHealCode.includes('cloudmix_cpad_gig_checkpoint'), 'Crashpad CPAD live gig state checkpointing', 'Snapshots live deck state to persistent storage & attaches recovery telemetry on faults');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

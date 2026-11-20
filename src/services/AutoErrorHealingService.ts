@@ -30,12 +30,31 @@ export interface IssueReport {
   timestamp: number;
 }
 
+export interface GigDeckSnapshot {
+  trackId: string | null;
+  positionSec: number;
+  isPlaying: boolean;
+  bpm: number;
+}
+
+export interface GigStateCheckpoint {
+  savedAt: number;
+  deckA: GigDeckSnapshot;
+  deckB: GigDeckSnapshot;
+  crossfader: number;
+  masterVolume: number;
+}
+
 type ErrorListener = (report: IssueReport) => void;
+
+const CPAD_CHECKPOINT_STORAGE_KEY = 'cloudmix_cpad_gig_checkpoint';
 
 class AutoErrorHealingService {
   private reportedHashes = new Set<string>();
   private listeners = new Set<ErrorListener>();
   private isInitialized = false;
+  private latestGigCheckpoint: GigStateCheckpoint | null = null;
+  private autoCheckpointTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.init();
@@ -108,11 +127,22 @@ class AutoErrorHealingService {
       this.reportedHashes.add(hash);
       setTimeout(() => this.reportedHashes.delete(hash), 60000); // 1 min debounce per unique error
 
+      const latestCheckpoint = this.getLatestGigCheckpoint();
+      const enrichedContext: ErrorContext = latestCheckpoint
+        ? {
+            ...context,
+            extra: {
+              ...(context.extra || {}),
+              latestCheckpoint,
+            },
+          }
+        : context;
+
       const report: IssueReport = {
         title: message.substring(0, 100),
         message,
         stack,
-        context,
+        context: enrichedContext,
         timestamp: Date.now(),
       };
 
@@ -144,6 +174,12 @@ class AutoErrorHealingService {
 
   private applySelfHealingWorkaround(report: IssueReport) {
     const msg = (report.message + ' ' + (report.stack || '')).toLowerCase();
+    const latestCheckpoint = this.getLatestGigCheckpoint();
+    if (latestCheckpoint) {
+      console.log('[AutoErrorHealing] CPAD Gig Recovery Checkpoint attached:', {
+        latestCheckpoint,
+      });
+    }
 
     // Auto-heal WebAudio suspended / buffer glitch
     if (msg.includes('audiocontext') || msg.includes('audiobuffer') || msg.includes('suspended')) {
@@ -177,6 +213,81 @@ class AutoErrorHealingService {
     try {
       updateService.checkForUpdates().catch(() => {});
     } catch {}
+  }
+
+  /**
+   * Persist live gig state checkpoint (Crashpad CPADinfo equivalent) for instant crash recovery.
+   */
+  public saveGigCheckpoint(checkpoint: GigStateCheckpoint): void {
+    this.latestGigCheckpoint = checkpoint;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CPAD_CHECKPOINT_STORAGE_KEY, JSON.stringify(checkpoint));
+      }
+    } catch {}
+  }
+
+  /**
+   * Retrieve the latest saved gig state checkpoint from memory or persistent storage.
+   */
+  public getLatestGigCheckpoint(): GigStateCheckpoint | null {
+    if (this.latestGigCheckpoint) {
+      return this.latestGigCheckpoint;
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(CPAD_CHECKPOINT_STORAGE_KEY);
+        if (raw) {
+          this.latestGigCheckpoint = JSON.parse(raw) as GigStateCheckpoint;
+          return this.latestGigCheckpoint;
+        }
+      }
+    } catch {}
+    return null;
+  }
+
+  /**
+   * Clear any stored gig recovery checkpoint.
+   */
+  public clearGigCheckpoint(): void {
+    this.latestGigCheckpoint = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(CPAD_CHECKPOINT_STORAGE_KEY);
+      }
+    } catch {}
+  }
+
+  /**
+   * Periodically snapshot deck positions, tracks, crossfader, and master gain during live sets.
+   */
+  public startAutoCheckpointing(
+    provider: () => GigStateCheckpoint,
+    intervalMs: number = 2000
+  ): () => void {
+    if (this.autoCheckpointTimer) {
+      clearInterval(this.autoCheckpointTimer);
+      this.autoCheckpointTimer = null;
+    }
+
+    const capture = () => {
+      try {
+        const snapshot = provider();
+        if (snapshot) {
+          this.saveGigCheckpoint(snapshot);
+        }
+      } catch {}
+    };
+
+    capture();
+    this.autoCheckpointTimer = setInterval(capture, Math.max(500, intervalMs));
+
+    return () => {
+      if (this.autoCheckpointTimer) {
+        clearInterval(this.autoCheckpointTimer);
+        this.autoCheckpointTimer = null;
+      }
+    };
   }
 
   public onError(callback: ErrorListener): () => void {
