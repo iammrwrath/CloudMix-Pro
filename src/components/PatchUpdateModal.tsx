@@ -68,53 +68,68 @@ export const PatchUpdateModal: React.FC<PatchUpdateModalProps> = ({ onClose }) =
   const fetchGitHubReleaseInfo = async () => {
     setLoadingNotes(true);
     try {
-      const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases?per_page=10');
-      if (resp.ok) {
-        const releases = await resp.json();
-        const data = Array.isArray(releases)
-          ? releases.find((r: any) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || releases[0]
-          : releases;
-        if (data) {
-          const tag = data.tag_name || '';
-          setReleaseTag(tag);
-          setReleaseName(data.name || data.tag_name || 'Latest Release');
-          
-          let notes = (data.body || '').trim();
-          // If GitHub body is just the generic compare link or blank, fetch detailed notes from CHANGELOG.md
-          if (!notes || notes.startsWith('**Full Changelog**:') || notes.length < 50) {
-            try {
-              const clResp = await fetch('https://raw.githubusercontent.com/iammrwrath/CloudMix-Pro/main/CHANGELOG.md');
-              if (clResp.ok) {
-                const clText = await clResp.text();
-                const parsed = extractVersionChangelog(clText, tag || 'v2.0.5');
-                if (parsed) {
-                  notes = parsed;
-                }
-              }
-            } catch {
-              // fallback to raw notes
-            }
+      let data: any = null;
+      if (typeof window !== 'undefined' && (window as any).desktopAPI?.checkGitHubReleases) {
+        try {
+          const gh = await (window as any).desktopAPI.checkGitHubReleases();
+          if (gh?.success && gh.release) {
+            data = gh.release;
           }
+        } catch {
+          // fall back to public API fetch below
+        }
+      }
 
-          setReleaseNotes(notes || 'No release notes provided for this release.');
-          if (data.published_at) {
-            setPublishedAt(new Date(data.published_at).toLocaleDateString(undefined, {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            }));
+      if (!data) {
+        const resp = await fetch('https://api.github.com/repos/iammrwrath/CloudMix-Pro/releases?per_page=10');
+        if (resp.ok) {
+          const releases = await resp.json();
+          data = Array.isArray(releases)
+            ? releases.find((r: any) => /^v\d+\.\d+\.\d+/.test(r.tag_name || '') && !r.tag_name?.includes('mixcortex')) || releases[0]
+            : releases;
+        }
+      }
+
+      if (data) {
+        const tag = data.tag_name || '';
+        setReleaseTag(tag);
+        setReleaseName(data.name || data.tag_name || 'Latest Release');
+
+        let notes = (data.body || '').trim();
+        // If GitHub body is just the generic compare link or blank, fetch detailed notes from CHANGELOG.md
+        if (!notes || notes.startsWith('**Full Changelog**:') || notes.length < 50) {
+          try {
+            const clResp = await fetch('https://raw.githubusercontent.com/iammrwrath/CloudMix-Pro/main/CHANGELOG.md');
+            if (clResp.ok) {
+              const clText = await clResp.text();
+              const parsed = extractVersionChangelog(clText, tag || 'v2.0.5');
+              if (parsed) {
+                notes = parsed;
+              }
+            }
+          } catch {
+            // fallback to raw notes
           }
-          const exeAsset = data.assets?.find((a: any) => a.name.toLowerCase().includes('cloudmix') && a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe')) ||
-                           data.assets?.find((a: any) => a.name.toLowerCase().includes('cloudmix') && a.name.endsWith('.exe')) ||
-                           data.assets?.find((a: any) => a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe'));
-          if (exeAsset) {
-            if (exeAsset.size) {
-              const mb = (exeAsset.size / (1024 * 1024)).toFixed(1);
-              setAssetSize(`${mb} MB`);
-            }
-            if (exeAsset.browser_download_url) {
-              setDownloadUrl(exeAsset.browser_download_url);
-            }
+        }
+
+        setReleaseNotes(notes || 'No release notes provided for this release.');
+        if (data.published_at) {
+          setPublishedAt(new Date(data.published_at).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }));
+        }
+        const exeAsset = data.assets?.find((a: any) => a.name.toLowerCase().includes('cloudmix') && a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe')) ||
+                         data.assets?.find((a: any) => a.name.toLowerCase().includes('cloudmix') && a.name.endsWith('.exe')) ||
+                         data.assets?.find((a: any) => a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe'));
+        if (exeAsset) {
+          if (exeAsset.size) {
+            const mb = (exeAsset.size / (1024 * 1024)).toFixed(1);
+            setAssetSize(`${mb} MB`);
+          }
+          if (exeAsset.browser_download_url) {
+            setDownloadUrl(exeAsset.browser_download_url);
           }
         }
       }

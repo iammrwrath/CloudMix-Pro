@@ -2087,6 +2087,8 @@ export const App: React.FC = () => {
           onClose={() => setIsSettingsOpen(false)}
           uiZoom={uiZoom}
           onUiZoomChange={handleUiZoomChange}
+          themeMode={themeMode}
+          onToggleTheme={handleToggleTheme}
         />
       )}
 

@@ -573,7 +573,7 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
 
                   {/* Unified Now Playing & Up Next HUD Widget */}
                   {overlayConfig.showCurrentTrack && (
-                    <div className="relative flex items-center p-3 rounded-2xl bg-[#060a14]/90 border-[1.5px] border-cyan-400/70 backdrop-blur-md shadow-[0_10px_32px_rgba(0,0,0,0.75),0_0_20px_rgba(0,240,255,0.25)] max-w-lg overflow-hidden">
+                    <div className="obs-hud-preview-card relative flex items-center p-3 rounded-2xl bg-[#060a14]/90 border-[1.5px] border-cyan-400/70 backdrop-blur-md shadow-[0_10px_32px_rgba(0,0,0,0.75),0_0_20px_rgba(0,240,255,0.25)] max-w-lg overflow-hidden">
                       {/* Spinning Vinyl Platter */}
                       <div className="relative w-14 h-14 rounded-full bg-[#020617] border-[1.5px] border-cyan-400/50 shadow-[0_0_14px_rgba(0,240,255,0.35)] flex items-center justify-center shrink-0 mr-3.5 overflow-hidden">
                         <div className="absolute inset-0 rounded-full bg-[repeating-radial-gradient(circle_at_50%_50%,#050508,#050508_2px,#151824_3px,#050508_4px)]" />

@@ -15,7 +15,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   const sections = [
     {
       title: 'DECK A CONTROLS (Cyan)',
-      color: '#00f0ff',
+      textClass: 'text-cyan-400',
+      dotClass: 'bg-cyan-400',
       shortcuts: [
         { key: 'W', action: 'Play / Pause' },
         { key: 'Q', action: 'Cue (Return / Set)' },
@@ -28,7 +29,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
     },
     {
       title: 'DECK B CONTROLS (Rose)',
-      color: '#ff2e88',
+      textClass: 'text-rose-400',
+      dotClass: 'bg-rose-400',
       shortcuts: [
         { key: 'I', action: 'Play / Pause' },
         { key: 'U', action: 'Cue (Return / Set)' },
@@ -41,7 +43,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
     },
     {
       title: 'MIXER & CROSSFADER',
-      color: '#a855f7',
+      textClass: 'text-purple-400',
+      dotClass: 'bg-purple-400',
       shortcuts: [
         { key: 'Z', action: 'Snap Crossfader to Deck A (-1.0)' },
         { key: 'X', action: 'Center Crossfader (0.0)' },
@@ -52,7 +55,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
     },
     {
       title: 'SAMPLER & WORKSTATION',
-      color: '#10b981',
+      textClass: 'text-emerald-400',
+      dotClass: 'bg-emerald-400',
       shortcuts: [
         { key: 'Alt + 1–8', action: 'Trigger Sampler Drops 1–8' },
         { key: 'V', action: 'Toggle Horizontal / Vertical Waveforms' },
@@ -65,9 +69,9 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl bg-slate-950 border border-white/20 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden">
+      <div className="relative w-full max-w-3xl bg-dj-panel border border-dj-border rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-dj-border bg-dj-surface/90">
           <div className="flex items-center space-x-3">
             <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
               <Keyboard className="w-5 h-5" />
@@ -98,12 +102,10 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
               className="bg-slate-900/60 rounded-xl p-3.5 border border-white/5 flex flex-col space-y-2.5"
             >
               <div
-                className="font-mono text-xs font-black tracking-wider flex items-center space-x-2"
-                style={{ color: sec.color }}
+                className={`font-mono text-xs font-black tracking-wider flex items-center space-x-2 ${sec.textClass}`}
               >
                 <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: sec.color }}
+                  className={`w-2 h-2 rounded-full ${sec.dotClass}`}
                 />
                 <span>{sec.title}</span>
               </div>

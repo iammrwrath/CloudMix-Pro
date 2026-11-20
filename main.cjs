@@ -1537,12 +1537,38 @@ ipcMain.handle('set-zoom-factor', (event, factor) => {
 });
 
 // Auto-Updater & GitHub Patch Engine
+let cachedGitHubToken;
+function getGitHubToken() {
+  if (cachedGitHubToken !== undefined) return cachedGitHubToken;
+  const envToken = (process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '').trim();
+  if (envToken) {
+    cachedGitHubToken = envToken;
+    return cachedGitHubToken;
+  }
+  try {
+    const { execFileSync } = require('child_process');
+    const cliToken = execFileSync('gh', ['auth', 'token'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 3000,
+    }).trim();
+    cachedGitHubToken = cliToken || null;
+  } catch {
+    cachedGitHubToken = null;
+  }
+  return cachedGitHubToken;
+}
+
 let autoUpdater = null;
 try {
   const updaterModule = require('electron-updater');
   autoUpdater = updaterModule.autoUpdater;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  const ghToken = getGitHubToken();
+  if (ghToken) {
+    autoUpdater.requestHeaders = { Authorization: `token ${ghToken}` };
+  }
   log('electron-updater initialized');
 
   autoUpdater.on('checking-for-update', () => {
@@ -1645,16 +1671,19 @@ ipcMain.handle('start-update-download', async () => {
     const fs = require('fs');
     const path = require('path');
     const os = require('os');
+    const ghToken = getGitHubToken();
 
     const releaseData = await new Promise((resolve, reject) => {
+      const headers = {
+        'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
+        'Accept': 'application/vnd.github.v3+json',
+      };
+      if (ghToken) headers.Authorization = `Bearer ${ghToken}`;
       const options = {
         hostname: 'api.github.com',
         path: '/repos/iammrwrath/CloudMix-Pro/releases?per_page=10',
         method: 'GET',
-        headers: {
-          'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
-          'Accept': 'application/vnd.github.v3+json',
-        },
+        headers,
       };
       https.get(options, (res) => {
         let body = '';
@@ -1678,21 +1707,27 @@ ipcMain.handle('start-update-download', async () => {
       releaseData?.assets?.find((a) => a.name.toLowerCase().includes('cloudmix') && a.name.toLowerCase().endsWith('.exe')) ||
       releaseData?.assets?.find((a) => a.name.toLowerCase().endsWith('setup.exe')) ||
       releaseData?.assets?.find((a) => a.name.toLowerCase().endsWith('.exe') && !a.name.toLowerCase().includes('portable'));
-    if (!asset || !asset.browser_download_url) {
+    if (!asset || (!asset.url && !asset.browser_download_url)) {
       throw new Error('No installer setup asset found in latest CloudMix Pro GitHub release');
     }
 
-    const downloadUrl = asset.browser_download_url;
+    const useApiAsset = Boolean(ghToken && asset.url);
+    const downloadUrl = useApiAsset ? asset.url : asset.browser_download_url;
     log('Downloading release asset from: ' + downloadUrl + ' (Asset name: ' + asset.name + ')');
 
     const tempFile = path.join(os.tmpdir(), `CloudMix-Pro-Setup-${releaseData.tag_name || 'latest'}.exe`);
     const fileStream = fs.createWriteStream(tempFile);
 
-    const downloadWithRedirect = (url) => {
+    const downloadWithRedirect = (url, isRedirect = false) => {
       return new Promise((resolve, reject) => {
-        https.get(url, { headers: { 'User-Agent': 'CloudMix-Pro' } }, (res) => {
+        const reqHeaders = { 'User-Agent': 'CloudMix-Pro' };
+        if (useApiAsset && !isRedirect) {
+          reqHeaders.Accept = 'application/octet-stream';
+          reqHeaders.Authorization = `Bearer ${ghToken}`;
+        }
+        https.get(url, { headers: reqHeaders }, (res) => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            return downloadWithRedirect(res.headers.location).then(resolve).catch(reject);
+            return downloadWithRedirect(res.headers.location, true).then(resolve).catch(reject);
           }
           if (res.statusCode !== 200) {
             return reject(new Error('Download failed with status: ' + res.statusCode));
@@ -1814,15 +1849,18 @@ ipcMain.handle('restart-and-install-patch', async () => {
 ipcMain.handle('check-github-releases', async () => {
   try {
     const https = require('https');
+    const ghToken = getGitHubToken();
+    const headers = {
+      'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
+      'Accept': 'application/vnd.github.v3+json'
+    };
+    if (ghToken) headers.Authorization = `Bearer ${ghToken}`;
     return new Promise((resolve) => {
       const options = {
         hostname: 'api.github.com',
         path: '/repos/iammrwrath/CloudMix-Pro/releases?per_page=10',
         method: 'GET',
-        headers: {
-          'User-Agent': 'CloudMix-Pro/' + app.getVersion(),
-          'Accept': 'application/vnd.github.v3+json'
-        }
+        headers
       };
       const req = https.request(options, (res) => {
         let data = '';

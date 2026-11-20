@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Cloud, HardDrive, Check, X, Shield, BookOpen, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings, Loader2 } from 'lucide-react';
+import { Cloud, HardDrive, Check, X, Shield, BookOpen, Music, Music2, LogIn, LogOut, RefreshCw, FolderOpen, Wifi, Monitor, ZoomIn, ZoomOut, Speaker, Headphones, Volume2, Sliders, Disc, Radio, Wand2, Palette, Cpu, SlidersHorizontal, Settings, Loader2, Sun, Moon } from 'lucide-react';
 import { googleDriveService } from '../services/GoogleDriveService';
 import { storageCache } from '../services/StorageCacheService';
 import { musicLibraryService } from '../services/MusicLibraryService';
@@ -13,6 +13,8 @@ interface SettingsModalProps {
   onClose: () => void;
   uiZoom?: number;
   onUiZoomChange?: (zoom: number) => void;
+  themeMode?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 /** Small self-contained input for the Google OAuth Client ID */
@@ -144,7 +146,7 @@ const GeniusTokenInput: React.FC = () => {
   );
 };
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: propUiZoom, onUiZoomChange }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: propUiZoom, onUiZoomChange, themeMode: appThemeMode = 'dark', onToggleTheme }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'audio' | 'dvs' | 'sound' | 'automix' | 'library' | 'appearance' | 'advanced' | 'midi'>('general');
   const [apiKey, setApiKey] = useState('');
   const [clientId, setClientId] = useState('');
@@ -159,7 +161,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState<string>('v2.0.54');
+  const [appVersion, setAppVersion] = useState<string>('v2.0.56');
 
   // Audio Device Routing State
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -593,7 +595,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                           window.open('https://github.com/iammrwrath/CloudMix-Pro/blob/main/docs/USER_GUIDE.md', '_blank');
                         }
                       }}
-                      className="text-cyan-400 hover:text-white dark:hover:text-white hover:underline font-mono text-[11px] cursor-pointer shrink-0 ml-2"
+                      className="text-cyan-400 hover:underline font-mono font-bold text-[11px] cursor-pointer shrink-0 ml-2"
                     >
                       GitHub Docs ↗
                     </button>
@@ -1176,8 +1178,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                   </div>
 
                   <div className="bg-dj-surface rounded-xl p-4 border border-dj-border space-y-4">
+                    {onToggleTheme && (
+                      <div className="pb-3 border-b border-dj-border">
+                        <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block mb-2">Interface Theme Mode</span>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (appThemeMode !== 'dark') onToggleTheme();
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center space-x-3 ${
+                              appThemeMode === 'dark'
+                                ? 'bg-cyan-950/40 border-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <Moon className="w-4 h-4 text-cyan-400 shrink-0" />
+                            <div>
+                              <span className="text-xs font-mono font-bold block">Dark Mode</span>
+                              <span className="text-[10px] text-slate-500">Cinematic Obsidian</span>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (appThemeMode !== 'light') onToggleTheme();
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center space-x-3 ${
+                              appThemeMode === 'light'
+                                ? 'bg-amber-950/50 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                            <div>
+                              <span className="text-xs font-mono font-bold block">Light Mode</span>
+                              <span className="text-[10px] text-slate-500">Studio Titanium</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
-                      <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block mb-2">Color Theme</span>
+                      <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block mb-2">Color Palette Accent</span>
                       <div className="grid grid-cols-3 gap-3">
                         {[
                           { id: 'pro_dark' as const, label: 'Pro Dark', desc: 'djay Pro Onyx' },
