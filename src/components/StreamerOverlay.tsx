@@ -173,12 +173,38 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
   }, [activeTrack?.artist, activeTrack?.title]);
 
   const handleToggle = (key: keyof OverlayConfig) => {
+    const nextVal = !overlayConfig[key];
     setOverlayConfig((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
+      const next = { ...prev, [key]: nextVal };
       storageCache.setSetting('obs_overlay_config', next);
       broadcastService.update({ overlayConfig: next });
       return next;
     });
+
+    const widgetKeyMap: Record<keyof OverlayConfig, keyof CanvasConfig['widgets']> = {
+      showCurrentTrack: 'currentTrack',
+      showNextTrack: 'nextTrack',
+      showLyrics: 'lyrics',
+      showVideo: 'video',
+    };
+    const widgetKey = widgetKeyMap[key];
+    if (widgetKey) {
+      setCanvasConfig((prev) => {
+        const nextCanvas: CanvasConfig = {
+          ...prev,
+          widgets: {
+            ...prev.widgets,
+            [widgetKey]: {
+              ...prev.widgets[widgetKey],
+              visible: nextVal,
+            },
+          },
+        };
+        storageCache.setSetting('obs_canvas_config', nextCanvas);
+        broadcastService.update({ canvasConfig: nextCanvas });
+        return nextCanvas;
+      });
+    }
   };
 
   const handleUpdateCanvasResolution = (width: number, height: number) => {

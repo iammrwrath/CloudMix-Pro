@@ -360,6 +360,17 @@ async function runComprehensiveSimulation() {
     'YouTube Music OAuth Implicit Token Flow & Reactive Auth Sync',
     'Uses response_type=token without Web client_secret and broadcasts auth state updates to Settings UI'
   );
+  assert(
+    streamerOverlayCode.includes('widgetKeyMap') && streamerOverlayCode.includes("storageCache.setSetting('obs_canvas_config', nextCanvas)"),
+    'StreamerOverlay Modular Widget Checkbox Canvas Sync',
+    'Toggling Modular Stream Widgets checkboxes immediately updates Stream Canvas Layout Map visibility'
+  );
+  const settingsModalCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'components', 'SettingsModal.tsx'), 'utf8');
+  assert(
+    settingsModalCode.includes('general_playhead_protection') && settingsModalCode.includes('setPlayheadProtection(e.target.checked)') && appCode.includes('general_playhead_protection'),
+    'Settings General Preferences Controlled Checkboxes',
+    'Auto-Sync, Quantize & Playhead Protection checkboxes persist to storageCache and enforce in App'
+  );
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);

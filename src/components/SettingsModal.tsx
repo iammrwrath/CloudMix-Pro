@@ -161,7 +161,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState<string>('v2.0.61');
+  const [appVersion, setAppVersion] = useState<string>('v2.0.62');
+  const [autoSyncOnLoad, setAutoSyncOnLoad] = useState<boolean>(false);
+  const [quantizeCuesLoops, setQuantizeCuesLoops] = useState<boolean>(true);
+  const [playheadProtection, setPlayheadProtection] = useState<boolean>(true);
 
   // Audio Device Routing State
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -256,6 +259,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   // Load Appearance settings
       const savedTheme = await storageCache.getSetting<'pro_dark' | 'midnight' | 'neon'>('appearance_theme', 'pro_dark');
       setThemeMode(savedTheme);
+      setAutoSyncOnLoad(await storageCache.getSetting<boolean>('general_auto_sync_on_load', false));
+      setQuantizeCuesLoops(await storageCache.getSetting<boolean>('general_quantize_cues_loops', true));
+      setPlayheadProtection(await storageCache.getSetting<boolean>('general_playhead_protection', true));
 
       // Load local path dynamically from OS Music folder if not customized
       let defaultMusicPath = '~/Music';
@@ -355,6 +361,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
     await storageCache.setSetting('automix_duration', automixDurationSec);
     await storageCache.setSetting('automix_sync', automixSync);
     await storageCache.setSetting('appearance_theme', themeMode);
+    await storageCache.setSetting('general_auto_sync_on_load', autoSyncOnLoad);
+    await storageCache.setSetting('general_quantize_cues_loops', quantizeCuesLoops);
+    await storageCache.setSetting('general_playhead_protection', playheadProtection);
 
     setSaved(true);
 
@@ -557,7 +566,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                         <span className="text-xs font-mono font-bold text-white block">Auto-Sync on Track Load</span>
                         <span className="text-[11px] text-slate-400">Automatically sync BPM & phase to the playing deck when loading a song</span>
                       </div>
-                      <input type="checkbox" defaultChecked className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                      <input
+                        type="checkbox"
+                        checked={autoSyncOnLoad}
+                        onChange={(e) => setAutoSyncOnLoad(e.target.checked)}
+                        className="accent-cyan-500 w-4 h-4 rounded cursor-pointer"
+                      />
                     </label>
 
                     <div className="border-t border-dj-border pt-3">
@@ -566,7 +580,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                           <span className="text-xs font-mono font-bold text-white block">Quantize Hot Cues & Loops</span>
                           <span className="text-[11px] text-slate-400">Snap cue point triggers and auto-loops to the nearest beatgrid marker</span>
                         </div>
-                        <input type="checkbox" defaultChecked className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                        <input
+                          type="checkbox"
+                          checked={quantizeCuesLoops}
+                          onChange={(e) => setQuantizeCuesLoops(e.target.checked)}
+                          className="accent-cyan-500 w-4 h-4 rounded cursor-pointer"
+                        />
                       </label>
                     </div>
 
@@ -576,7 +595,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                           <span className="text-xs font-mono font-bold text-white block">Playhead Protection (Lock Playing Deck)</span>
                           <span className="text-[11px] text-slate-400">Prevents accidentally loading a track onto an active deck during live gigs</span>
                         </div>
-                        <input type="checkbox" defaultChecked className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                        <input
+                          type="checkbox"
+                          checked={playheadProtection}
+                          onChange={(e) => setPlayheadProtection(e.target.checked)}
+                          className="accent-cyan-500 w-4 h-4 rounded cursor-pointer"
+                        />
                       </label>
                     </div>
                   </div>
