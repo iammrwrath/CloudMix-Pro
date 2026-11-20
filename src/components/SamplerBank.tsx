@@ -206,7 +206,7 @@ export const SamplerBank: React.FC = () => {
                     samplerEngine.triggerSlot(slot.id, 'up');
                   }
                 }}
-                className={`relative h-20 w-full rounded-lg flex flex-col items-center justify-between p-2 font-mono transition-all cursor-pointer select-none active:scale-95 ${
+                className={`sampler-pad-card ${slot.isPlaying ? 'is-playing' : ''} relative h-20 w-full rounded-lg flex flex-col items-center justify-between p-2 font-mono transition-all cursor-pointer select-none active:scale-95 ${
                   slot.isPlaying
                     ? 'ring-2 ring-white scale-[0.98]'
                     : 'hover:brightness-110'
@@ -223,7 +223,7 @@ export const SamplerBank: React.FC = () => {
               >
                 <div className="w-full flex items-center justify-between">
                   <span
-                    className="text-[9px] font-black px-1.5 py-0.5 rounded bg-black/60 text-white"
+                    className="sampler-pad-badge text-[9px] font-black px-1.5 py-0.5 rounded bg-black/60 text-white"
                     style={{ color: slot.color }}
                   >
                     #{index + 1}

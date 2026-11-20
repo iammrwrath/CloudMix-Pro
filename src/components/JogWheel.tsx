@@ -315,7 +315,7 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
 
             {/* Remaining Time (Pulsing warning when track is ending) */}
             <span
-              className={`text-[10px] sm:text-[11.5px] font-mono font-semibold leading-tight mt-0.5 ${
+              className={`jog-time-remaining text-[10px] sm:text-[11.5px] font-mono font-semibold leading-tight mt-0.5 ${
                 isNearEnd
                   ? 'text-rose-400 animate-pulse drop-shadow-[0_0_6px_rgba(244,63,94,0.9)]'
                   : 'text-slate-300'

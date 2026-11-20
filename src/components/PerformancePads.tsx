@@ -366,7 +366,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
                     samplerEngine.triggerSlot(slot.id, 'up');
                   }
                 }}
-                className={`relative h-[clamp(1.75rem,3.6cqh,2.65rem)] min-h-0 rounded-lg flex flex-col items-center justify-between p-1 font-mono font-bold transition-all cursor-pointer select-none active:scale-[0.95] ${
+                className={`sampler-pad-card ${slot.isPlaying ? 'is-playing' : ''} relative h-[clamp(1.75rem,3.6cqh,2.65rem)] min-h-0 rounded-lg flex flex-col items-center justify-between p-1 font-mono font-bold transition-all cursor-pointer select-none active:scale-[0.95] ${
                   slot.isPlaying
                     ? 'ring-2 ring-white scale-[0.98]'
                     : 'hover:brightness-110'
@@ -383,7 +383,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
               >
                 <div className="w-full flex items-center justify-between">
                   <span
-                    className="text-[10px] px-1 rounded bg-black/60 font-bold text-white"
+                    className="sampler-pad-badge text-[10px] px-1 rounded bg-black/60 font-bold text-white"
                     style={{ color: slot.color }}
                   >
                     #{i + 1}

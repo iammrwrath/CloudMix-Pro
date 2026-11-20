@@ -228,6 +228,9 @@ async function runComprehensiveSimulation() {
   assert(cssCode.includes('.waveform-screen-housing') && cssCode.includes('.waveform-screen-legend *'), 'Waveform Display Dark LCD Protection', 'Waveforms and tri-band legends maintain 100% luminous contrast in Light Mode');
   assert(cssCode.includes('button.bg-slate-900') && cssCode.includes('.bg-cyan-500\\/20'), 'Light Mode WCAG High-Contrast Theme Layer', 'Eliminates pale pastel clashes and elevates hardware buttons to crisp titanium in Light Mode');
   assert(cssCode.includes('.bg-amber-950\\/60'), 'Light Mode Amber & Badge Contrast', 'Guarantees readable contrast on active MIDI hardware profiles in Light Mode');
+  assert(cssCode.includes('.text-white:where(:not('), 'Zero-specificity .text-white :where() exclusion', 'Prevents Light Mode .text-white from overriding dark Jog LCD & Waveform Legend screens');
+  assert(cssCode.includes('label.bg-slate-800') && cssCode.includes('button.bg-slate-800\\/70'), 'Light Mode label & translucent button rules', 'Converts <label> Import Audio and translucent slate-800/70 buttons cleanly');
+  assert(cssCode.includes('.jog-lcd-hud .jog-time-remaining') && cssCode.includes('.sampler-pad-card:not(.is-playing)'), 'Jog LCD remaining time & Sampler Pad card Light Mode protection', 'Keeps Jog LCD timecodes crisp white and transforms inactive Sampler Pads to Light Titanium');
   const streamerOverlayPath = path.join(__dirname, '..', 'src', 'components', 'StreamerOverlay.tsx');
   const streamerOverlayCode = fs.readFileSync(streamerOverlayPath, 'utf8');
   assert(streamerOverlayCode.includes('Unified Now Playing & Up Next HUD Widget'), 'In-App Live Streamer Hub HUD Preview', 'Streamer Hub preview reflects unified single-card HUD widget');

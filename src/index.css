@@ -232,7 +232,14 @@
 [data-theme="light"] button.bg-slate-900\/95,
 [data-theme="light"] button.bg-slate-900\/90,
 [data-theme="light"] button.bg-slate-900\/80,
+[data-theme="light"] button.bg-slate-900\/70,
 [data-theme="light"] button.bg-slate-900\/60,
+[data-theme="light"] button.bg-slate-900\/50,
+[data-theme="light"] button.bg-slate-800\/70,
+[data-theme="light"] button.bg-slate-800\/60,
+[data-theme="light"] label.bg-slate-900,
+[data-theme="light"] label.bg-slate-800,
+[data-theme="light"] label.bg-slate-700,
 [data-theme="light"] button.bg-slate-950,
 [data-theme="light"] button.bg-slate-950\/90,
 [data-theme="light"] button.bg-slate-950\/80,
@@ -265,6 +272,10 @@
 [data-theme="light"] button.bg-slate-700:hover,
 [data-theme="light"] button.bg-slate-600:hover,
 [data-theme="light"] button.bg-zinc-800:hover,
+[data-theme="light"] button.bg-slate-900\/70:hover,
+[data-theme="light"] button.bg-slate-800\/70:hover,
+[data-theme="light"] label.bg-slate-800:hover,
+[data-theme="light"] label.bg-slate-700:hover,
 [data-theme="light"] button.bg-zinc-700:hover {
   background-color: #f1f5f9 !important;
   border-color: #94a3b8 !important;
@@ -274,7 +285,8 @@
 /* Neutral text inside light mode buttons: charcoal slate (preserving explicit color classes) */
 [data-theme="light"] button.bg-slate-900 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]),
 [data-theme="light"] button.bg-slate-800 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]),
-[data-theme="light"] button.bg-slate-700 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]) {
+[data-theme="light"] button.bg-slate-700 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]),
+[data-theme="light"] label.bg-slate-800 *:not([class*="text-cyan"]):not([class*="text-purple"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-pink"]):not([class*="text-indigo"]):not([class*="text-red"]):not([class*="text-yellow"]):not([class*="text-blue"]):not([class*="text-orange"]):not([class*="fill-"]) {
   color: #0f172a;
 }
 
@@ -284,6 +296,8 @@
 [data-theme="light"] div.bg-slate-800\/90,
 [data-theme="light"] div.bg-slate-800\/80,
 [data-theme="light"] span.bg-slate-800,
+[data-theme="light"] input.bg-slate-800,
+[data-theme="light"] .bg-slate-800:where(:not(button):not(.jog-lcd-hud *):not(.jog-lcd-hud > *)),
 [data-theme="light"] span.bg-slate-800\/80 {
   background-color: #e2e8f0 !important;
   color: var(--text-primary);
@@ -302,6 +316,7 @@
 [data-theme="light"] button[class*="from-red-"],
 [data-theme="light"] button[class*="from-rose-"],
 [data-theme="light"] button[class*="from-amber-"],
+[data-theme="light"] button[class*="from-fuchsia-"],
 [data-theme="light"] button.bg-rose-600,
 [data-theme="light"] button.bg-rose-500,
 [data-theme="light"] button.bg-red-600,
@@ -322,6 +337,7 @@
 [data-theme="light"] button[class*="from-red-"] *,
 [data-theme="light"] button[class*="from-rose-"] *,
 [data-theme="light"] button[class*="from-amber-"] *,
+[data-theme="light"] button[class*="from-fuchsia-"] *,
 [data-theme="light"] button.bg-rose-600 *,
 [data-theme="light"] button.bg-rose-500 *,
 [data-theme="light"] button.bg-red-600 *,
@@ -351,7 +367,7 @@
 }
 
 /* 4.4 Typography & Text Readability (WCAG AAA High-Contrast Scaling) */
-[data-theme="light"] .text-white:not(.bg-rose-600):not(.bg-rose-500):not(.bg-red-600):not(.bg-red-500):not(.bg-fuchsia-600):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-purple-500):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-blue-600):not([class*="from-pink-"]):not([class*="from-purple-"]):not([class*="from-cyan-"]):not([class*="from-red-"]):not([class*="from-rose-"]):not([class*="from-amber-"]):not(kbd) {
+[data-theme="light"] .text-white:where(:not(.bg-rose-600):not(.bg-rose-500):not(.bg-red-600):not(.bg-red-500):not(.bg-fuchsia-600):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-purple-500):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-blue-600):not([class*="from-pink-"]):not([class*="from-purple-"]):not([class*="from-cyan-"]):not([class*="from-fuchsia-"]):not([class*="from-red-"]):not([class*="from-rose-"]):not([class*="from-amber-"]):not(kbd):not(.jog-lcd-hud *):not(.waveform-screen-housing *):not(.obs-hud-preview-card *)) {
   color: var(--text-primary) !important;
 }
 
@@ -891,7 +907,7 @@
   color: #166534 !important;
 }
 
-[data-theme="light"] .hover\:text-white:not(.bg-rose-600):not(.bg-rose-500):not(.bg-red-600):not(.bg-red-500):not(.bg-fuchsia-600):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-blue-600):not([class*="from-"]):hover {
+[data-theme="light"] .hover\:text-white:where(:not(.bg-rose-600):not(.bg-rose-500):not(.bg-red-600):not(.bg-red-500):not(.bg-fuchsia-600):not(.bg-indigo-600):not(.bg-purple-600):not(.bg-cyan-600):not(.bg-emerald-600):not(.bg-blue-600):not([class*="from-"])):hover {
   color: #000000 !important;
 }
 
@@ -986,6 +1002,39 @@
 .jog-lcd-hud span.jog-rpm,
 [data-theme="light"] .jog-lcd-hud span.jog-rpm {
   color: #94a3b8 !important;
+}
+
+[data-theme="light"] .jog-lcd-hud,
+[data-theme="light"] .jog-lcd-hud .text-white {
+  color: #ffffff !important;
+}
+
+.jog-lcd-hud .jog-time-remaining,
+[data-theme="light"] .jog-lcd-hud .jog-time-remaining,
+[data-theme="light"] .jog-lcd-hud .text-slate-300 {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .jog-lcd-hud .jog-rpm,
+[data-theme="light"] .jog-lcd-hud .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .jog-lcd-hud .bg-slate-800 {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Sampler Pad Cards in Light Mode (PerformancePads & SamplerBank) */
+[data-theme="light"] .sampler-pad-card:not(.is-playing) {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 1px 0 #ffffff !important;
+}
+
+[data-theme="light"] .sampler-pad-card:not(.is-playing) .sampler-pad-badge {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
 }
 
 /* Dedicated Hardware Displays & Sliders (VU Meter, Fader Tracks) */
