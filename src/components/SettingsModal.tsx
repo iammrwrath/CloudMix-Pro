@@ -161,7 +161,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState<string>('v2.0.60');
+  const [appVersion, setAppVersion] = useState<string>('v2.0.61');
 
   // Audio Device Routing State
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -285,9 +285,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       const ytToken = await storageCache.getSetting<string | null>('yt_oauth_token', null);
       const ytRefreshToken = await storageCache.getSetting<string | null>('yt_refresh_token', null);
       const ytEmailSaved = await storageCache.getSetting<string | null>('yt_email', null);
-      if (ytToken || ytRefreshToken) {
+      if (ytToken || ytRefreshToken || youtubeMusicService.isSignedIn()) {
         setYtConnected(true);
-        setYtEmail(ytEmailSaved);
+        setYtEmail(ytEmailSaved || youtubeMusicService.getUserEmail());
       } else {
         setYtConnected(false);
         setYtEmail(null);
@@ -307,6 +307,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       } catch {}
     };
     loadSettings();
+    const unsubAuth = youtubeMusicService.onAuthChange((signedIn, email) => {
+      setYtConnected(signedIn);
+      setYtEmail(email);
+    });
+    return () => unsubAuth();
   }, []);
 
   // Update connected MIDI devices when MIDI tab is active
@@ -1061,7 +1066,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
                         {/* Optional Advanced Override */}
                         <details className="text-[10px] text-slate-500 font-mono group">
                           <summary className="cursor-pointer hover:text-slate-400 select-none transition-colors">
-                            ▸ Advanced: Override with Custom Google Cloud Client ID (Optional)
+                            Advanced: Override with Custom Google Cloud Client ID (Optional)
                           </summary>
                           <div className="mt-2 pt-2 border-t border-dj-border/80 space-y-1">
                             <label className="text-[10px] font-mono text-slate-400 block mb-1">

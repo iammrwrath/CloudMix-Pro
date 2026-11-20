@@ -590,9 +590,11 @@ ipcMain.handle('get-user-setting', async (event, key, defaultValue) => {
 const YT_CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 async function getYouTubeSessionStatus() {
   try {
+    const disk = readDiskSettings();
+    const hasOAuthToken = Boolean(disk && disk.yt_oauth_token);
     const cookies = await session.defaultSession.cookies.get({ url: 'https://www.youtube.com' });
-    const signedIn = cookies.some((ck) => ['SAPISID', '__Secure-3PAPISID', 'LOGIN_INFO'].includes(ck.name));
-    return { signedIn };
+    const hasCookie = cookies.some((ck) => ['SAPISID', '__Secure-3PAPISID', 'LOGIN_INFO'].includes(ck.name));
+    return { signedIn: Boolean(hasOAuthToken || hasCookie) };
   } catch (e) {
     return { signedIn: false, error: e.message };
   }
@@ -739,7 +741,8 @@ function runOAuthLoopback(authUrl) {
 }
 
 ipcMain.handle('youtube-session-sign-in', async (event, customAuthUrl) => {
-  // Uses RFC 8252 compliant system browser OAuth flow with PKCE & Offline Access (Refresh Token)
+  // Uses RFC 8252 system browser OAuth flow with implicit token response
+  // so Web Application OAuth Client IDs return access_token directly without client_secret errors.
   const CLIENT_ID = '471913746603-ao2ov3tkf3ctlpl6hdfq52a4t6il0sa5.apps.googleusercontent.com';
   const REDIRECT_URI = 'http://127.0.0.1:42813/callback';
   const SCOPES = [
@@ -747,94 +750,47 @@ ipcMain.handle('youtube-session-sign-in', async (event, customAuthUrl) => {
     'https://www.googleapis.com/auth/userinfo.email',
   ].join(' ');
 
-  let authUrl = customAuthUrl;
-  let codeVerifier = null;
+  const disk = readDiskSettings();
+  const activeClientId =
+    disk && typeof disk.yt_client_id === 'string' && disk.yt_client_id.trim()
+      ? disk.yt_client_id.trim()
+      : CLIENT_ID;
 
-  if (!authUrl) {
-    const crypto = require('crypto');
-    codeVerifier = crypto.randomBytes(32).toString('base64url');
-    const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
-
-    authUrl = (
-      'https://accounts.google.com/o/oauth2/v2/auth' +
-      '?client_id=' + encodeURIComponent(CLIENT_ID) +
-      '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
-      '&response_type=code' +
-      '&access_type=offline' +
-      '&prompt=consent' +
-      '&code_challenge=' + encodeURIComponent(codeChallenge) +
-      '&code_challenge_method=S256' +
-      '&scope=' + encodeURIComponent(SCOPES)
-    );
-  }
+  const authUrl = customAuthUrl || (
+    'https://accounts.google.com/o/oauth2/v2/auth' +
+    '?client_id=' + encodeURIComponent(activeClientId) +
+    '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
+    '&response_type=token' +
+    '&prompt=select_account' +
+    '&scope=' + encodeURIComponent(SCOPES)
+  );
 
   const res = await runOAuthLoopback(authUrl);
-  if (res) {
-    if (res.code) {
-      log('[OAUTH] Authorization code received. Exchanging for persistent refresh token via PKCE...');
-      try {
-        const https = require('https');
-        const tokenParams = new URLSearchParams({
-          client_id: CLIENT_ID,
-          code: res.code,
-          grant_type: 'authorization_code',
-          redirect_uri: REDIRECT_URI,
-        });
-        if (codeVerifier) {
-          tokenParams.append('code_verifier', codeVerifier);
-        }
+  if (res && (res.token || typeof res === 'string')) {
+    const token = typeof res === 'string' ? res : res.token;
+    try {
+      const current = readDiskSettings();
+      current.yt_oauth_token = token;
+      writeDiskSettings(current);
+    } catch {}
 
-        const exchangePromise = new Promise((resolve) => {
-          const postData = tokenParams.toString();
-          const req = https.request({
-            hostname: 'oauth2.googleapis.com',
-            path: '/token',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Content-Length': Buffer.byteLength(postData),
-            },
-          }, (tokenRes) => {
-            let data = '';
-            tokenRes.on('data', chunk => { data += chunk; });
-            tokenRes.on('end', () => {
-              try {
-                const parsed = JSON.parse(data);
-                resolve(parsed);
-              } catch {
-                resolve(null);
-              }
-            });
-          });
-          req.on('error', (e) => {
-            log('[OAUTH ERROR] Token exchange failed: ' + e.message);
-            resolve(null);
-          });
-          req.write(postData);
-          req.end();
-        });
-
-        const tokenData = await exchangePromise;
-        if (tokenData && tokenData.access_token) {
-          log('[OAUTH] Successfully exchanged code for persistent access + refresh token!');
-          return {
-            signedIn: true,
-            token: tokenData.access_token,
-            refreshToken: tokenData.refresh_token || null,
-          };
-        } else {
-          log('[OAUTH] Token exchange returned: ' + JSON.stringify(tokenData));
-        }
-      } catch (err) {
-        log('[OAUTH ERROR] Exception in token exchange: ' + err.message);
-      }
-    } else if (res.token) {
-      return { signedIn: true, token: res.token, refreshToken: null };
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
     }
+    log('[OAUTH] YouTube Music access token received and persisted cleanly.');
+    return { signedIn: true, token, refreshToken: null };
   }
   return { signedIn: false, error: 'Sign-in cancelled or timed out.' };
 });
 ipcMain.handle('youtube-session-sign-out', async () => {
+  try {
+    const current = readDiskSettings();
+    delete current.yt_oauth_token;
+    delete current.yt_refresh_token;
+    delete current.yt_email;
+    writeDiskSettings(current);
+  } catch {}
   try {
     const ses = session.defaultSession;
     for (const origin of ['https://www.youtube.com', 'https://accounts.google.com', 'https://music.youtube.com', 'https://www.google.com']) {

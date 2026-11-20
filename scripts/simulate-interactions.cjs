@@ -355,6 +355,11 @@ async function runComprehensiveSimulation() {
     'FXRack Per-Stem Target & InstantFX UI controls',
     'Exposes STEM TARGET routing pills and NEURAL MIX INSTANT FX pad grid'
   );
+  assert(
+    mainCode.includes("'&response_type=token'") && ytServiceCodeUpdated.includes('onAuthChange('),
+    'YouTube Music OAuth Implicit Token Flow & Reactive Auth Sync',
+    'Uses response_type=token without Web client_secret and broadcasts auth state updates to Settings UI'
+  );
 
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);

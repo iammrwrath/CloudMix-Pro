@@ -88,6 +88,7 @@ class YouTubeMusicService {
   private isFetchingPlaylists: boolean = false;
   private cachedPlaylists: YouTubePlaylist[] | null = null;
   private _fetchPlaylistsPromise: Promise<YouTubePlaylist[]> | null = null;
+  private authListeners = new Set<(signedIn: boolean, email: string | null) => void>();
 
   constructor() {
     // Restore saved tokens on init
@@ -99,6 +100,22 @@ class YouTubeMusicService {
       if (token) this._accessToken = token;
       if (refreshToken) this._refreshToken = refreshToken;
       if (email) this._userEmail = email;
+      this.notifyAuthListeners();
+    });
+  }
+
+  public onAuthChange(listener: (signedIn: boolean, email: string | null) => void): () => void {
+    this.authListeners.add(listener);
+    return () => this.authListeners.delete(listener);
+  }
+
+  private notifyAuthListeners(): void {
+    const signedIn = this.isSignedIn();
+    const email = this._userEmail;
+    this.authListeners.forEach((cb) => {
+      try {
+        cb(signedIn, email);
+      } catch {}
     });
   }
 
@@ -204,31 +221,36 @@ class YouTubeMusicService {
         : () => desktopAPI.openOAuthWindow();
 
       const result: any = await invokeSignIn();
-      if (result) {
-        let accessToken: string | null = null;
-        let refreshToken: string | null = null;
+      let accessToken: string | null = null;
+      let refreshToken: string | null = null;
 
+      if (result) {
         if (typeof result === 'string') {
           accessToken = result;
         } else if (result.token) {
           accessToken = result.token;
           if (result.refreshToken) refreshToken = result.refreshToken;
         }
-
-        if (accessToken) {
-          this._accessToken = accessToken;
-          this._isExpired = false;
-          await storageCache.setSetting('yt_oauth_token', accessToken);
-          if (refreshToken) {
-            this._refreshToken = refreshToken;
-            await storageCache.setSetting('yt_refresh_token', refreshToken);
-          }
-          await this._fetchUserEmail(accessToken);
-          this.cachedPlaylists = null;
-          this._fetchPlaylistsPromise = null;
-          this.isFetchingPlaylists = false;
-        }
       }
+
+      if (!accessToken) {
+        throw new Error(
+          result?.error || 'Google sign-in was cancelled or did not return an access token.'
+        );
+      }
+
+      this._accessToken = accessToken;
+      this._isExpired = false;
+      await storageCache.setSetting('yt_oauth_token', accessToken);
+      if (refreshToken) {
+        this._refreshToken = refreshToken;
+        await storageCache.setSetting('yt_refresh_token', refreshToken);
+      }
+      await this._fetchUserEmail(accessToken);
+      this.cachedPlaylists = null;
+      this._fetchPlaylistsPromise = null;
+      this.isFetchingPlaylists = false;
+      this.notifyAuthListeners();
       return;
     }
 
@@ -245,6 +267,7 @@ class YouTubeMusicService {
     storageCache.setSetting('yt_oauth_token', null);
     storageCache.setSetting('yt_refresh_token', null);
     storageCache.setSetting('yt_email', null);
+    this.notifyAuthListeners();
     try {
       (window as any).desktopAPI?.youtubeSessionSignOut?.().catch?.(() => {});
     } catch {}
