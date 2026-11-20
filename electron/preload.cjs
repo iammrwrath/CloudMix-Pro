@@ -138,4 +138,5 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   reportUITelemetry: (telemetry) => ipcRenderer.invoke('report-ui-telemetry', telemetry),
   captureWindowSnapshot: () => ipcRenderer.invoke('capture-window-snapshot'),
   sendWindowDrag: (coords) => ipcRenderer.send('window-drag-move', coords),
+  setProAudioPriority: (active) => ipcRenderer.invoke('set-pro-audio-priority', active),
 });

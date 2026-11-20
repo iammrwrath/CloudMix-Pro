@@ -627,6 +627,11 @@ class AudioEngine {
     const deck = this.decks.get(deckId);
     if (!deck || !deck.audioBuffer || !this.ctx) return;
 
+    // Engage Windows "Pro Audio" real-time priority boost during active playback
+    try {
+      (window as any).desktopAPI?.setProAudioPriority?.(true);
+    } catch {}
+
     // Clean up any existing active audio sources
     if (deck.sourceNode) {
       try {

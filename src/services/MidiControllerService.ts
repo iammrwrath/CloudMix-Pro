@@ -206,6 +206,187 @@ const buildReloopBuddyMappings = (): MidiMappingRule[] => [
   { controlName: 'DeckB_Pad_8_Shift', statusByte: 0x95, data1: 35, channel: 5, type: 'button' },
 ];
 
+// Pioneer DDJ Series (DDJ-400, DDJ-FLX4, DDJ-SB3, DDJ-REV1, DDJ-1000, DDJ-FLX10) native USB MIDI spec
+const buildPioneerDdjMappings = (): MidiMappingRule[] => [
+  ...buildStandard2DeckMappings(0, 1),
+  // Deck A (Ch 0) & Mixer Ch 6 (0xB6/0x96) & Performance Pads Ch 7 (0x97)
+  { controlName: 'DeckA_Play', statusByte: 0x90, data1: 0x0B, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Cue', statusByte: 0x90, data1: 0x0C, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Sync', statusByte: 0x90, data1: 0x58, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Pitch', statusByte: 0xB0, data1: 0x00, channel: 0, type: 'slider' },
+  { controlName: 'DeckA_JogTurn', statusByte: 0xB0, data1: 0x22, channel: 0, type: 'jog' },
+  { controlName: 'DeckA_JogBend', statusByte: 0xB0, data1: 0x21, channel: 0, type: 'jog' },
+  { controlName: 'DeckA_JogTouch', statusByte: 0x90, data1: 0x36, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Fader', statusByte: 0xB0, data1: 0x13, channel: 0, type: 'slider' },
+  { controlName: 'DeckA_EQ_High', statusByte: 0xB0, data1: 0x07, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_EQ_Mid', statusByte: 0xB0, data1: 0x0B, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_EQ_Low', statusByte: 0xB0, data1: 0x0F, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_Filter', statusByte: 0xB6, data1: 0x17, channel: 6, type: 'knob' },
+  { controlName: 'Headphone_Cue_A', statusByte: 0x90, data1: 0x54, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Load', statusByte: 0x96, data1: 0x46, channel: 6, type: 'button' },
+  { controlName: 'DeckA_Loop_Toggle', statusByte: 0x90, data1: 0x14, channel: 0, type: 'button' },
+  // Deck A Pads & Stems (Ch 7: 0x97 + Ch 0 direct fallback)
+  { controlName: 'DeckA_HotCue_1', statusByte: 0x97, data1: 0x00, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_2', statusByte: 0x97, data1: 0x01, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_3', statusByte: 0x97, data1: 0x02, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_4', statusByte: 0x97, data1: 0x03, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_5', statusByte: 0x97, data1: 0x04, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_6', statusByte: 0x97, data1: 0x05, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_7', statusByte: 0x97, data1: 0x06, channel: 7, type: 'button' },
+  { controlName: 'DeckA_HotCue_8', statusByte: 0x97, data1: 0x07, channel: 7, type: 'button' },
+  { controlName: 'DeckA_Stem_Vocals', statusByte: 0x97, data1: 0x35, channel: 7, type: 'button' },
+  { controlName: 'DeckA_Stem_Harmonics', statusByte: 0x97, data1: 0x36, channel: 7, type: 'button' },
+  { controlName: 'DeckA_Stem_Bass', statusByte: 0x97, data1: 0x37, channel: 7, type: 'button' },
+  { controlName: 'DeckA_Stem_Drums', statusByte: 0x97, data1: 0x38, channel: 7, type: 'button' },
+
+  // Deck B (Ch 1) & Performance Pads Ch 9 (0x99)
+  { controlName: 'DeckB_Play', statusByte: 0x91, data1: 0x0B, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Cue', statusByte: 0x91, data1: 0x0C, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Sync', statusByte: 0x91, data1: 0x58, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Pitch', statusByte: 0xB1, data1: 0x00, channel: 1, type: 'slider' },
+  { controlName: 'DeckB_JogTurn', statusByte: 0xB1, data1: 0x22, channel: 1, type: 'jog' },
+  { controlName: 'DeckB_JogBend', statusByte: 0xB1, data1: 0x21, channel: 1, type: 'jog' },
+  { controlName: 'DeckB_JogTouch', statusByte: 0x91, data1: 0x36, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Fader', statusByte: 0xB1, data1: 0x13, channel: 1, type: 'slider' },
+  { controlName: 'DeckB_EQ_High', statusByte: 0xB1, data1: 0x07, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_EQ_Mid', statusByte: 0xB1, data1: 0x0B, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_EQ_Low', statusByte: 0xB1, data1: 0x0F, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_Filter', statusByte: 0xB6, data1: 0x18, channel: 6, type: 'knob' },
+  { controlName: 'Headphone_Cue_B', statusByte: 0x91, data1: 0x54, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Load', statusByte: 0x96, data1: 0x47, channel: 6, type: 'button' },
+  { controlName: 'DeckB_Loop_Toggle', statusByte: 0x91, data1: 0x14, channel: 1, type: 'button' },
+  { controlName: 'DeckB_HotCue_1', statusByte: 0x99, data1: 0x00, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_2', statusByte: 0x99, data1: 0x01, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_3', statusByte: 0x99, data1: 0x02, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_4', statusByte: 0x99, data1: 0x03, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_5', statusByte: 0x99, data1: 0x04, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_6', statusByte: 0x99, data1: 0x05, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_7', statusByte: 0x99, data1: 0x06, channel: 9, type: 'button' },
+  { controlName: 'DeckB_HotCue_8', statusByte: 0x99, data1: 0x07, channel: 9, type: 'button' },
+  { controlName: 'DeckB_Stem_Vocals', statusByte: 0x99, data1: 0x35, channel: 9, type: 'button' },
+  { controlName: 'DeckB_Stem_Harmonics', statusByte: 0x99, data1: 0x36, channel: 9, type: 'button' },
+  { controlName: 'DeckB_Stem_Bass', statusByte: 0x99, data1: 0x37, channel: 9, type: 'button' },
+  { controlName: 'DeckB_Stem_Drums', statusByte: 0x99, data1: 0x38, channel: 9, type: 'button' },
+
+  // Master & Browser (Ch 6: 0xB6 / 0x96)
+  { controlName: 'Crossfader', statusByte: 0xB6, data1: 0x1F, channel: 6, type: 'slider' },
+  { controlName: 'Library_Scroll', statusByte: 0xB6, data1: 0x40, channel: 6, type: 'knob' },
+  { controlName: 'Master_Volume', statusByte: 0xB6, data1: 0x08, channel: 6, type: 'knob' },
+];
+
+// Numark Mixtrack Pro FX / Party Mix / DJ2GO2 Touch native USB MIDI spec
+const buildNumarkMappings = (): MidiMappingRule[] => [
+  ...buildStandard2DeckMappings(0, 1),
+  // Deck A (Ch 0, Pads Ch 4)
+  { controlName: 'DeckA_Play', statusByte: 0x90, data1: 0x00, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Cue', statusByte: 0x90, data1: 0x01, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Sync', statusByte: 0x90, data1: 0x02, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Pitch', statusByte: 0xB0, data1: 0x09, channel: 0, type: 'slider' },
+  { controlName: 'DeckA_JogTurn', statusByte: 0xB0, data1: 0x06, channel: 0, type: 'jog' },
+  { controlName: 'DeckA_JogTouch', statusByte: 0x90, data1: 0x06, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Fader', statusByte: 0xB0, data1: 0x1C, channel: 0, type: 'slider' },
+  { controlName: 'DeckA_EQ_High', statusByte: 0xB0, data1: 0x17, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_EQ_Mid', statusByte: 0xB0, data1: 0x18, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_EQ_Low', statusByte: 0xB0, data1: 0x19, channel: 0, type: 'knob' },
+  { controlName: 'DeckA_Filter', statusByte: 0xB0, data1: 0x1A, channel: 0, type: 'knob' },
+  { controlName: 'Headphone_Cue_A', statusByte: 0x90, data1: 0x1B, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Stem_Vocals', statusByte: 0x94, data1: 0x14, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Stem_Harmonics', statusByte: 0x94, data1: 0x15, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Stem_Bass', statusByte: 0x94, data1: 0x16, channel: 4, type: 'button' },
+  { controlName: 'DeckA_Stem_Drums', statusByte: 0x94, data1: 0x17, channel: 4, type: 'button' },
+
+  // Deck B (Ch 1, Pads Ch 5)
+  { controlName: 'DeckB_Play', statusByte: 0x91, data1: 0x00, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Cue', statusByte: 0x91, data1: 0x01, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Sync', statusByte: 0x91, data1: 0x02, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Pitch', statusByte: 0xB1, data1: 0x09, channel: 1, type: 'slider' },
+  { controlName: 'DeckB_JogTurn', statusByte: 0xB1, data1: 0x06, channel: 1, type: 'jog' },
+  { controlName: 'DeckB_JogTouch', statusByte: 0x91, data1: 0x06, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Fader', statusByte: 0xB1, data1: 0x1C, channel: 1, type: 'slider' },
+  { controlName: 'DeckB_EQ_High', statusByte: 0xB1, data1: 0x17, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_EQ_Mid', statusByte: 0xB1, data1: 0x18, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_EQ_Low', statusByte: 0xB1, data1: 0x19, channel: 1, type: 'knob' },
+  { controlName: 'DeckB_Filter', statusByte: 0xB1, data1: 0x1A, channel: 1, type: 'knob' },
+  { controlName: 'Headphone_Cue_B', statusByte: 0x91, data1: 0x1B, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Stem_Vocals', statusByte: 0x95, data1: 0x14, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Stem_Harmonics', statusByte: 0x95, data1: 0x15, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Stem_Bass', statusByte: 0x95, data1: 0x16, channel: 5, type: 'button' },
+  { controlName: 'DeckB_Stem_Drums', statusByte: 0x95, data1: 0x17, channel: 5, type: 'button' },
+
+  // Master Mixer Section (Ch 15: 0xBF / 0x9F & Ch 0 fallback)
+  { controlName: 'Crossfader', statusByte: 0xBF, data1: 0x08, channel: 15, type: 'slider' },
+  { controlName: 'Library_Scroll', statusByte: 0xBF, data1: 0x00, channel: 15, type: 'knob' },
+  { controlName: 'DeckA_Load', statusByte: 0x9F, data1: 0x02, channel: 15, type: 'button' },
+  { controlName: 'DeckB_Load', statusByte: 0x9F, data1: 0x03, channel: 15, type: 'button' },
+];
+
+// Denon DJ Prime / SC Live / MC4000 native MIDI specification
+const buildDenonMappings = (): MidiMappingRule[] => [
+  ...buildStandard2DeckMappings(0, 1),
+  { controlName: 'DeckA_Play', statusByte: 0x90, data1: 0x04, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Cue', statusByte: 0x90, data1: 0x01, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Sync', statusByte: 0x90, data1: 0x02, channel: 0, type: 'button' },
+  { controlName: 'DeckA_JogTurn', statusByte: 0xB0, data1: 0x08, channel: 0, type: 'jog' },
+  { controlName: 'DeckA_JogTouch', statusByte: 0x90, data1: 0x08, channel: 0, type: 'button' },
+  { controlName: 'DeckA_Pitch', statusByte: 0xB0, data1: 0x04, channel: 0, type: 'slider' },
+  { controlName: 'DeckB_Play', statusByte: 0x91, data1: 0x04, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Cue', statusByte: 0x91, data1: 0x01, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Sync', statusByte: 0x91, data1: 0x02, channel: 1, type: 'button' },
+  { controlName: 'DeckB_JogTurn', statusByte: 0xB1, data1: 0x08, channel: 1, type: 'jog' },
+  { controlName: 'DeckB_JogTouch', statusByte: 0x91, data1: 0x08, channel: 1, type: 'button' },
+  { controlName: 'DeckB_Pitch', statusByte: 0xB1, data1: 0x04, channel: 1, type: 'slider' },
+  { controlName: 'Crossfader', statusByte: 0xB2, data1: 0x00, channel: 2, type: 'slider' },
+  { controlName: 'Library_Scroll', statusByte: 0xB2, data1: 0x10, channel: 2, type: 'knob' },
+  { controlName: 'DeckA_Load', statusByte: 0x90, data1: 0x05, channel: 0, type: 'button' },
+  { controlName: 'DeckB_Load', statusByte: 0x91, data1: 0x05, channel: 1, type: 'button' },
+];
+
+// Hercules DJControl Inpulse (500 / 300 / 200 / T7 / Starlight) native MIDI spec
+const buildHerculesInpulseMappings = (): MidiMappingRule[] => [
+  ...buildStandard2DeckMappings(0, 1),
+  // Hercules Mixer Ch 0 (0xB0 / 0x90)
+  { controlName: 'Crossfader', statusByte: 0xB0, data1: 0x00, channel: 0, type: 'slider' },
+  { controlName: 'Library_Scroll', statusByte: 0xB0, data1: 0x01, channel: 0, type: 'knob' },
+  { controlName: 'Master_Volume', statusByte: 0xB0, data1: 0x03, channel: 0, type: 'knob' },
+  // Hercules Deck A (Ch 1) & Pads (Ch 6)
+  { controlName: 'DeckA_Play', statusByte: 0x91, data1: 0x07, channel: 1, type: 'button' },
+  { controlName: 'DeckA_Cue', statusByte: 0x91, data1: 0x06, channel: 1, type: 'button' },
+  { controlName: 'DeckA_Sync', statusByte: 0x91, data1: 0x05, channel: 1, type: 'button' },
+  { controlName: 'DeckA_Fader', statusByte: 0xB1, data1: 0x00, channel: 1, type: 'slider' },
+  { controlName: 'DeckA_Filter', statusByte: 0xB1, data1: 0x01, channel: 1, type: 'knob' },
+  { controlName: 'DeckA_EQ_Low', statusByte: 0xB1, data1: 0x02, channel: 1, type: 'knob' },
+  { controlName: 'DeckA_EQ_Mid', statusByte: 0xB1, data1: 0x03, channel: 1, type: 'knob' },
+  { controlName: 'DeckA_EQ_High', statusByte: 0xB1, data1: 0x04, channel: 1, type: 'knob' },
+  { controlName: 'DeckA_Pitch', statusByte: 0xB1, data1: 0x08, channel: 1, type: 'slider' },
+  { controlName: 'DeckA_JogTurn', statusByte: 0xB1, data1: 0x0A, channel: 1, type: 'jog' },
+  { controlName: 'DeckA_JogTouch', statusByte: 0x91, data1: 0x08, channel: 1, type: 'button' },
+  { controlName: 'Headphone_Cue_A', statusByte: 0x91, data1: 0x0C, channel: 1, type: 'button' },
+  { controlName: 'DeckA_Load', statusByte: 0x91, data1: 0x0D, channel: 1, type: 'button' },
+  { controlName: 'DeckA_Stem_Vocals', statusByte: 0x96, data1: 0x00, channel: 6, type: 'button' },
+  { controlName: 'DeckA_Stem_Harmonics', statusByte: 0x96, data1: 0x01, channel: 6, type: 'button' },
+  { controlName: 'DeckA_Stem_Bass', statusByte: 0x96, data1: 0x02, channel: 6, type: 'button' },
+  { controlName: 'DeckA_Stem_Drums', statusByte: 0x96, data1: 0x03, channel: 6, type: 'button' },
+
+  // Hercules Deck B (Ch 2) & Pads (Ch 7)
+  { controlName: 'DeckB_Play', statusByte: 0x92, data1: 0x07, channel: 2, type: 'button' },
+  { controlName: 'DeckB_Cue', statusByte: 0x92, data1: 0x06, channel: 2, type: 'button' },
+  { controlName: 'DeckB_Sync', statusByte: 0x92, data1: 0x05, channel: 2, type: 'button' },
+  { controlName: 'DeckB_Fader', statusByte: 0xB2, data1: 0x00, channel: 2, type: 'slider' },
+  { controlName: 'DeckB_Filter', statusByte: 0xB2, data1: 0x01, channel: 2, type: 'knob' },
+  { controlName: 'DeckB_EQ_Low', statusByte: 0xB2, data1: 0x02, channel: 2, type: 'knob' },
+  { controlName: 'DeckB_EQ_Mid', statusByte: 0xB2, data1: 0x03, channel: 2, type: 'knob' },
+  { controlName: 'DeckB_EQ_High', statusByte: 0xB2, data1: 0x04, channel: 2, type: 'knob' },
+  { controlName: 'DeckB_Pitch', statusByte: 0xB2, data1: 0x08, channel: 2, type: 'slider' },
+  { controlName: 'DeckB_JogTurn', statusByte: 0xB2, data1: 0x0A, channel: 2, type: 'jog' },
+  { controlName: 'DeckB_JogTouch', statusByte: 0x92, data1: 0x08, channel: 2, type: 'button' },
+  { controlName: 'Headphone_Cue_B', statusByte: 0x92, data1: 0x0C, channel: 2, type: 'button' },
+  { controlName: 'DeckB_Load', statusByte: 0x92, data1: 0x0D, channel: 2, type: 'button' },
+  { controlName: 'DeckB_Stem_Vocals', statusByte: 0x97, data1: 0x00, channel: 7, type: 'button' },
+  { controlName: 'DeckB_Stem_Harmonics', statusByte: 0x97, data1: 0x01, channel: 7, type: 'button' },
+  { controlName: 'DeckB_Stem_Bass', statusByte: 0x97, data1: 0x02, channel: 7, type: 'button' },
+  { controlName: 'DeckB_Stem_Drums', statusByte: 0x97, data1: 0x03, channel: 7, type: 'button' },
+];
+
 export const BUILT_IN_PROFILES: MidiProfile[] = [
   {
     id: 'reloop_buddy',
@@ -249,8 +430,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Pioneer DJ',
     description: 'Worldwide standard 2-channel entry controller with club-standard CDJ + DJM layout, Smart CFX, and Smart Fader.',
     tags: ['Club Standard', 'Smart CFX', 'Rekordbox', 'Serato'],
-    deviceMatchNames: ['ddj-flx4', 'ddj-400', 'flx4', 'pioneer ddj-400'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['ddj-flx4', 'ddj flx4', 'ddj-400', 'ddj 400', 'flx4', 'pioneer ddj-400'],
+    mappings: buildPioneerDdjMappings(),
   },
   {
     id: 'pioneer_ddj_rev1',
@@ -258,8 +439,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Pioneer DJ',
     description: 'Battle-style scratch controller with horizontal top-mounted tempo sliders and performance pads in the mixer center.',
     tags: ['Battle Style', 'Scratch', 'Tracking Scratch'],
-    deviceMatchNames: ['ddj-rev1', 'rev1', 'pioneer rev1'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['ddj-rev1', 'ddj rev1', 'rev1', 'pioneer rev1'],
+    mappings: buildPioneerDdjMappings(),
   },
   {
     id: 'pioneer_ddj_1000',
@@ -267,8 +448,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Pioneer DJ',
     description: 'Club-grade controller with full-sized mechanical CDJ jog wheels, customizable On-Jog color displays, and 14 Beat FX.',
     tags: ['Club Pro', 'On-Jog Display', 'Magvel Fader'],
-    deviceMatchNames: ['ddj-1000', 'ddj-800', 'pioneer 1000', 'pioneer 800'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['ddj-1000', 'ddj 1000', 'ddj-800', 'ddj 800', 'pioneer 1000', 'pioneer 800'],
+    mappings: buildPioneerDdjMappings(),
   },
   {
     id: 'pioneer_ddj_flx10',
@@ -276,8 +457,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Pioneer DJ',
     description: 'Flagship 4-channel controller with dedicated hardware Track Separation / 3-Stem Live Mashup buttons (Drums, Vocal, Inst).',
     tags: ['4-Channel', 'Live Stems', 'Track Separation'],
-    deviceMatchNames: ['ddj-flx10', 'flx10', 'pioneer flx10'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['ddj-flx10', 'ddj flx10', 'flx10', 'pioneer flx10'],
+    mappings: buildPioneerDdjMappings(),
   },
   {
     id: 'pioneer_ddj_sb3',
@@ -285,8 +466,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Pioneer DJ',
     description: 'Popular compact 2-channel controllers featuring Pad Scratch and smooth Filter Fade.',
     tags: ['Compact', 'Pad Scratch', 'Filter Fade'],
-    deviceMatchNames: ['ddj-sb3', 'ddj-sb', 'ddj-200'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['ddj-sb3', 'ddj sb3', 'ddj-sb2', 'ddj-sb', 'ddj-200', 'ddj 200'],
+    mappings: buildPioneerDdjMappings(),
   },
   {
     id: 'traktor_kontrol_s2_s4',
@@ -304,7 +485,16 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     description: '2-deck controller featuring dual spring-loaded paddle FX triggers, 6-inch capacitive-touch jog wheels, and 16 multi-function pads.',
     tags: ['Paddle FX', 'Capacitive Jog', 'Auto Loop'],
     deviceMatchNames: ['mixtrack', 'platinum fx', 'numark mixtrack'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    mappings: buildNumarkMappings(),
+  },
+  {
+    id: 'numark_party_mix',
+    name: 'Numark Party Mix / Party Mix II / Live',
+    manufacturer: 'Numark',
+    description: 'Plug-and-play party controller with dual LED light shows, performance pads (Cues/Loop/Sampler/Stems), and responsive jog wheels.',
+    tags: ['Plug & Play', 'LED Party Show', 'Compact'],
+    deviceMatchNames: ['party mix', 'partymix', 'party mix ii', 'party mix live', 'numark party'],
+    mappings: buildNumarkMappings(),
   },
   {
     id: 'numark_dj2go2_touch',
@@ -313,7 +503,7 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     description: 'Pocket-sized ultra-portable 2-channel DJ controller with capacitive touch scratch wheels and built-in audio interface.',
     tags: ['Ultra-Portable', 'Pocket Size', 'Touch Jog'],
     deviceMatchNames: ['dj2go2', 'dj2go', 'numark dj2go'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    mappings: buildNumarkMappings(),
   },
   {
     id: 'hercules_inpulse_500',
@@ -321,8 +511,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Hercules',
     description: 'Advanced controller equipped with light guides (Beatmatch Guide), Intelligent Music Assistant, and retractable feet.',
     tags: ['Beatmatch Guide', 'Light Guides', 'Filter FX'],
-    deviceMatchNames: ['inpulse', 'hercules inpulse', 'inpulse 500', 'inpulse 300', 'inpulse 200'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['inpulse', 'djcontrol inpulse', 'hercules inpulse', 'inpulse 500', 'inpulse 300', 'inpulse 200'],
+    mappings: buildHerculesInpulseMappings(),
   },
   {
     id: 'hercules_inpulse_t7',
@@ -331,7 +521,7 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     description: 'Motorized 7-inch vinyl platter DJ controller offering authentic vinyl feeling, real felt slipmats, and central labels.',
     tags: ['Motorized Vinyl', '7-Inch Platters', 'Authentic Scratch'],
     deviceMatchNames: ['inpulse t7', 'hercules t7', 't7'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    mappings: buildHerculesInpulseMappings(),
   },
   {
     id: 'hercules_starlight',
@@ -340,7 +530,7 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     description: 'Ultra-compact travel DJ controller with built-in audio card and brilliant RGB ambient base lighting.',
     tags: ['Travel', 'RGB Base', 'Compact'],
     deviceMatchNames: ['starlight', 'hercules starlight'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    mappings: buildHerculesInpulseMappings(),
   },
   {
     id: 'denon_prime_4',
@@ -348,8 +538,8 @@ export const BUILT_IN_PROFILES: MidiProfile[] = [
     manufacturer: 'Denon DJ',
     description: '4-deck standalone and performance controller with dedicated sweep FX, OLED feedback, and club connectivity.',
     tags: ['4-Deck', 'Sweep FX', 'Pro Performance'],
-    deviceMatchNames: ['prime 4', 'sc live', 'denon', 'mc4000'],
-    mappings: buildStandard2DeckMappings(0, 1),
+    deviceMatchNames: ['prime 4', 'prime 2', 'prime go', 'sc live', 'denon', 'denon dj', 'mc4000'],
+    mappings: buildDenonMappings(),
   },
   {
     id: 'rane_one_four',
@@ -414,6 +604,52 @@ export class MidiControllerService {
     }
   }
 
+  /**
+   * Matches a connected USB/WebMIDI controller name & manufacturer against built-in plug-and-play presets.
+   */
+  public matchControllerProfile(deviceName: string, manufacturer?: string): MidiProfile | null {
+    const rawName = (deviceName || '').toLowerCase();
+    const rawMfg = (manufacturer || '').toLowerCase();
+    const compactName = rawName.replace(/[^a-z0-9]+/g, '');
+    const combinedRaw = `${rawName} ${rawMfg}`.trim();
+
+    if (!combinedRaw) return null;
+
+    // 1. Direct & normalized substring match across model tokens (prefer specific longest match first)
+    let bestMatch: { profile: MidiProfile; score: number } | null = null;
+    for (const profile of BUILT_IN_PROFILES) {
+      for (const token of profile.deviceMatchNames) {
+        const lowerTok = token.toLowerCase();
+        const compactTok = lowerTok.replace(/[^a-z0-9]+/g, '');
+        if (combinedRaw.includes(lowerTok) || (compactTok.length >= 4 && compactName.includes(compactTok))) {
+          const score = lowerTok.length;
+          if (!bestMatch || score > bestMatch.score) {
+            bestMatch = { profile, score };
+          }
+        }
+      }
+    }
+    if (bestMatch) return bestMatch.profile;
+
+    // 2. Brand / manufacturer fallback for plug-and-play compatibility on generic USB driver names
+    const brandMap: Array<[string, string]> = [
+      ['pioneer', 'pioneer_ddj_flx4'],
+      ['alphatheta', 'pioneer_ddj_flx4'],
+      ['reloop', 'reloop_buddy'],
+      ['numark', 'numark_mixtrack_pro_fx'],
+      ['denon', 'denon_prime_4'],
+      ['hercules', 'hercules_inpulse_500'],
+      ['native instruments', 'traktor_kontrol_s2_s4'],
+      ['rane', 'rane_one_four'],
+    ];
+    for (const [brand, profileId] of brandMap) {
+      if (combinedRaw.includes(brand)) {
+        return BUILT_IN_PROFILES.find((p) => p.id === profileId) || null;
+      }
+    }
+    return null;
+  }
+
   private scanDevices() {
     if (!this.midiAccess) return;
 
@@ -426,11 +662,8 @@ export class MidiControllerService {
       this.connectedInputs.set(input.id, input);
       input.onmidimessage = (msg: any) => this.handleMidiMessage(msg);
 
-      // Hardware Auto-Detection: Match connected device against profiles
-      const deviceName = (input.name || '').toLowerCase();
-      const matchedProfile = BUILT_IN_PROFILES.find((p) =>
-        p.deviceMatchNames.some((m) => deviceName.includes(m.toLowerCase()))
-      );
+      // Plug-and-Play Hardware Auto-Detection: Match connected device against presets
+      const matchedProfile = this.matchControllerProfile(input.name || '', input.manufacturer);
 
       if (matchedProfile) {
         matchedAnyDevice = true;

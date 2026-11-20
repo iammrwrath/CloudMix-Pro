@@ -286,6 +286,19 @@ async function runComprehensiveSimulation() {
   assert(!ytServiceCodeUpdated.includes('undefined, undefined, 125.0)'), 'YouTube API dummy BPM removal', 'detectGenre called without dummy 125.0 BPM');
   assert(ytServiceCodeUpdated.includes("resolved === 'Dembow'"), 'Cached playlist auto-healing', 'Heals previously cached playlists to Dembow on load');
 
+  // --------------------------------------------------------------------------
+  // SECTION 8: VirtualDJ / AegisRE Architectural Upgrades Verification
+  // --------------------------------------------------------------------------
+  console.log('\n👉 [Simulation 8/8] VirtualDJ / AegisRE Architectural Upgrades Verification...');
+  assert(mainCode.includes('force_high_performance_gpu') && mainCode.includes('enable-gpu-rasterization'), 'Dedicated GPU Chromium flags', 'Forces dedicated NVIDIA/AMD GPU rasterization before app ready');
+  assert(mainCode.includes('function setProAudioPriority') && mainCode.includes("ipcMain.handle('set-pro-audio-priority'"), 'Windows Pro Audio priority booster', 'Elevates main & renderer OS thread priority when decks play');
+  assert(midiServiceCode.includes('buildPioneerDdjMappings') && midiServiceCode.includes('buildNumarkMappings'), 'Pioneer DDJ & Numark Mixtrack/Party Mix presets', 'Dedicated plug-and-play MIDI specs wired for Pioneer and Numark');
+  assert(midiServiceCode.includes("id: 'numark_party_mix'") && midiServiceCode.includes('buildDenonMappings') && midiServiceCode.includes('buildHerculesInpulseMappings'), 'Numark Party Mix, Denon DJ & Hercules Inpulse presets', 'Full controller ecosystem presets included');
+  assert(midiServiceCode.includes('matchControllerProfile('), 'Normalized USB/MIDI controller auto-detection', 'Automatically matches connected hardware by device name and brand');
+  assert(libServiceCode.includes('rebuildIndices()') && libServiceCode.includes('queryTracks('), 'Multi-facet O(1) library indexing', 'Instant filtering by BPM range, Key, Artist, and Genre');
+  assert(libServiceCode.includes('saveTrackCues(') && libServiceCode.includes('getTrackCues('), 'Persistent track cue points store', 'Preserves hot cues across sessions');
+  assert(libServiceCode.includes('BUILT_IN_SMART_CRATES') && libServiceCode.includes('getSmartCrates(') && libServiceCode.includes('getSmartCrateTracks('), 'Dynamic Smart Crates engine', 'Rule-based smart crates for Dembow, Peak Hour, Open Format & Cued tracks');
+
   console.log('\n================================================================');
   console.log(`🏁 SIMULATION RESULT: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

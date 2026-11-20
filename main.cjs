@@ -38,6 +38,12 @@ process.on('unhandledRejection', (reason) => log('[UNHANDLED REJECTION] ' + reas
 
 log('Electron main process starting up...');
 
+// Force dedicated discrete GPU (NVIDIA Optimus / AMD Enduro) on hybrid Windows laptops
+if (process.platform === 'win32') {
+  process.env.SHIM_MCCOMPAT = process.env.SHIM_MCCOMPAT || '0x800000001';
+  process.env.CUDA_DEVICE_ORDER = process.env.CUDA_DEVICE_ORDER || 'PCI_BUS_ID';
+}
+
 // Optimize for real-time audio and high refresh rate displays
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -45,14 +51,50 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('allow-file-access-from-files');
 app.commandLine.appendSwitch('disable-web-security');
 app.commandLine.appendSwitch('force-high-performance-gpu');
+app.commandLine.appendSwitch('force_high_performance_gpu');
 app.commandLine.appendSwitch('remote-debugging-port', '9222');
 // djay Pro Architecture: Real-time Audio Watchdog & WASAPI Exclusive / Low-latency Driver Switches
 app.commandLine.appendSwitch('enable-exclusive-audio');
 app.commandLine.appendSwitch('audio-buffer-size', '128');
+
+// Windows "Pro Audio" Process/Thread Priority Booster (inspired by VirtualDJ MMCSS Pro Audio)
+let proAudioPriorityActive = null;
+function setProAudioPriority(active = true) {
+  try {
+    const highPrio = os.constants?.priority?.PRIORITY_HIGH ?? -14;
+    const aboveNormalPrio = os.constants?.priority?.PRIORITY_ABOVE_NORMAL ?? -7;
+    const targetPrio = active ? highPrio : aboveNormalPrio;
+
+    os.setPriority(process.pid, targetPrio);
+
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+      try {
+        const rendererPid = mainWindow.webContents.getOSProcessId();
+        if (rendererPid && rendererPid > 0) {
+          os.setPriority(rendererPid, targetPrio);
+        }
+      } catch {}
+    }
+
+    if (proAudioPriorityActive !== active) {
+      proAudioPriorityActive = active;
+      if (active) {
+        log('[PRO AUDIO] Windows real-time audio priority boost active (HIGH)');
+      } else {
+        log('[PRO AUDIO] Audio priority restored to ABOVE_NORMAL');
+      }
+    }
+    return { success: true, active, priority: targetPrio };
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
+  }
+}
 
 let mainWindow = null;
 let latestUITelemetry = null;
@@ -236,6 +278,7 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', async () => {
     log('mainWindow finished loading.');
+    setProAudioPriority(true);
   });
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDesc, validatedURL) => {
@@ -814,11 +857,18 @@ ipcMain.handle('write-now-playing-broadcast', async (event, payload) => {
 ipcMain.handle('update-streaming-broadcast', async (event, payload) => {
   try {
     updateBroadcastState(payload);
+    if (payload && typeof payload.isPlaying === 'boolean') {
+      setProAudioPriority(payload.isPlaying);
+    }
     return true;
   } catch (err) {
     log('Failed to update streaming broadcast: ' + err);
     return false;
   }
+});
+
+ipcMain.handle('set-pro-audio-priority', async (event, active) => {
+  return setProAudioPriority(Boolean(active));
 });
 
 ipcMain.handle('get-streaming-broadcast-state', () => {

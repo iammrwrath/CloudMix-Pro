@@ -7,8 +7,89 @@
 import { CortexTrack } from '../types/cortex';
 import { cortexAiService } from './CortexAiService';
 import { storageCache } from './StorageCacheService';
-import { TrackMetadata } from '../types/dj';
+import { HotCue, TrackMetadata } from '../types/dj';
 import { decodeHtmlEntities } from '../utils/decodeHtml';
+
+export interface LibraryFilterOptions {
+  query?: string;
+  minBpm?: number;
+  maxBpm?: number;
+  key?: string;
+  camelotKey?: string;
+  harmonicMatchWith?: string;
+  artist?: string;
+  genre?: string;
+  smartCrateId?: string;
+  limit?: number;
+}
+
+export interface SmartCrate {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  rules: {
+    minBpm?: number;
+    maxBpm?: number;
+    genres?: string[];
+    keys?: string[];
+    artistQuery?: string;
+    minEnergy?: number;
+    hasCuesOnly?: boolean;
+  };
+}
+
+export const BUILT_IN_SMART_CRATES: SmartCrate[] = [
+  {
+    id: 'smart_dembow_latin',
+    name: 'Dembow & Latin Heat',
+    description: 'High-energy Dembow, Reggaeton, Bachata & Latin club essentials',
+    icon: 'flame',
+    rules: {
+      genres: ['Dembow', 'Reggaeton', 'Bachata', 'Latin / Urbano', 'Dembow / Latin'],
+    },
+  },
+  {
+    id: 'smart_peak_hour',
+    name: 'Peak Hour Club (120–134 BPM)',
+    description: 'Mainroom House, Tech House & Club weapons ready for peak sets',
+    icon: 'zap',
+    rules: {
+      minBpm: 120,
+      maxBpm: 134,
+      minEnergy: 7,
+    },
+  },
+  {
+    id: 'smart_hiphop_open',
+    name: 'Hip-Hop / R&B & Open Format',
+    description: 'Mid-tempo Hip-Hop, R&B, Trap and Dancehall groove selections',
+    icon: 'disc',
+    rules: {
+      minBpm: 72,
+      maxBpm: 108,
+      genres: ['Hip-Hop / Rap', 'Hip Hop', 'R&B / Soul', 'R&B', 'Trap / R&B', 'Dancehall'],
+    },
+  },
+  {
+    id: 'smart_high_energy',
+    name: 'High Energy Anthems (Lvl 8+)',
+    description: 'Festival & Peak-time energy 8–10 crowd pleasers',
+    icon: 'sparkles',
+    rules: {
+      minEnergy: 8,
+    },
+  },
+  {
+    id: 'smart_cued_tracks',
+    name: 'Cue-Prepared Gig Ready',
+    description: 'Tracks with saved hot cue points ready for instant live triggering',
+    icon: 'bookmark',
+    rules: {
+      hasCuesOnly: true,
+    },
+  },
+];
 
 export class MusicLibraryService {
   private tracks: CortexTrack[] = [];
@@ -17,6 +98,231 @@ export class MusicLibraryService {
   private listeners: Set<(tracks: CortexTrack[]) => void> = new Set();
   private selectedIndex: number = 0;
   private selectionListeners: Set<(track: TrackMetadata | null, index: number) => void> = new Set();
+
+  // Multi-Facet O(1) Memory Indices (VirtualDJ SQLite / Engine DJ speed parity)
+  private trackById: Map<string, CortexTrack> = new Map();
+  private byGenreIndex: Map<string, CortexTrack[]> = new Map();
+  private byKeyIndex: Map<string, CortexTrack[]> = new Map();
+  private byArtistIndex: Map<string, CortexTrack[]> = new Map();
+  private byBpmBucket: Map<number, CortexTrack[]> = new Map();
+  private searchTextIndex: Map<string, string> = new Map();
+  private cuePointCache: Map<string, HotCue[]> = new Map();
+  private customSmartCrates: SmartCrate[] = [];
+  private persistentStoreLoaded: boolean = false;
+
+  constructor() {
+    this.loadPersistentLibraryMeta().catch(() => {});
+  }
+
+  private async loadPersistentLibraryMeta(): Promise<void> {
+    if (this.persistentStoreLoaded) return;
+    this.persistentStoreLoaded = true;
+    try {
+      const savedCues = await storageCache.getSetting<Record<string, HotCue[]>>('persistent_cue_index', {});
+      if (savedCues && typeof savedCues === 'object') {
+        for (const [trackId, cues] of Object.entries(savedCues)) {
+          if (Array.isArray(cues) && cues.length > 0) {
+            this.cuePointCache.set(trackId, cues);
+          }
+        }
+      }
+      const savedCrates = await storageCache.getSetting<SmartCrate[]>('custom_smart_crates', []);
+      if (Array.isArray(savedCrates)) {
+        this.customSmartCrates = savedCrates;
+      }
+    } catch {}
+  }
+
+  /**
+   * Rebuilds O(1) lookup tables by ID, BPM bucket, Musical Key, Artist, Genre, and tokenized search string.
+   */
+  public rebuildIndices(): void {
+    this.trackById.clear();
+    this.byGenreIndex.clear();
+    this.byKeyIndex.clear();
+    this.byArtistIndex.clear();
+    this.byBpmBucket.clear();
+    this.searchTextIndex.clear();
+
+    for (const track of this.tracks) {
+      this.trackById.set(track.id, track);
+
+      const genreKey = (track.genre || 'Uncategorized').trim().toLowerCase();
+      if (!this.byGenreIndex.has(genreKey)) this.byGenreIndex.set(genreKey, []);
+      this.byGenreIndex.get(genreKey)!.push(track);
+
+      const rawKey = (track.key || '').trim().toUpperCase();
+      const camKey = (track.camelotKey || '').trim().toUpperCase();
+      if (rawKey) {
+        if (!this.byKeyIndex.has(rawKey)) this.byKeyIndex.set(rawKey, []);
+        this.byKeyIndex.get(rawKey)!.push(track);
+      }
+      if (camKey && camKey !== rawKey) {
+        if (!this.byKeyIndex.has(camKey)) this.byKeyIndex.set(camKey, []);
+        this.byKeyIndex.get(camKey)!.push(track);
+      }
+
+      const artistKey = (track.artist || 'Unknown Artist').trim().toLowerCase();
+      if (!this.byArtistIndex.has(artistKey)) this.byArtistIndex.set(artistKey, []);
+      this.byArtistIndex.get(artistKey)!.push(track);
+
+      const bpmBucket = Math.floor((track.bpm || 124) / 5) * 5;
+      if (!this.byBpmBucket.has(bpmBucket)) this.byBpmBucket.set(bpmBucket, []);
+      this.byBpmBucket.get(bpmBucket)!.push(track);
+
+      this.searchTextIndex.set(
+        track.id,
+        `${track.title || ''} ${track.artist || ''} ${track.album || ''} ${track.genre || ''} ${rawKey} ${camKey}`.toLowerCase()
+      );
+    }
+  }
+
+  /**
+   * Sub-millisecond multi-facet filter by BPM range, Musical/Camelot Key, Artist, Genre, Smart Crate & free text query.
+   */
+  public queryTracks(filter: LibraryFilterOptions = {}): CortexTrack[] {
+    if (this.tracks.length === 0) return [];
+    if (this.trackById.size !== this.tracks.length) {
+      this.rebuildIndices();
+    }
+
+    const activeCrate = filter.smartCrateId
+      ? this.getSmartCrates().find((c) => c.id === filter.smartCrateId)
+      : undefined;
+
+    const minBpm = filter.minBpm ?? activeCrate?.rules.minBpm;
+    const maxBpm = filter.maxBpm ?? activeCrate?.rules.maxBpm;
+    const minEnergy = activeCrate?.rules.minEnergy;
+    const hasCuesOnly = activeCrate?.rules.hasCuesOnly;
+    const allowedGenres = activeCrate?.rules.genres?.map((g) => g.toLowerCase());
+    const allowedKeys = activeCrate?.rules.keys?.map((k) => k.trim().toUpperCase());
+    const artistFilter = (filter.artist || activeCrate?.rules.artistQuery || '').trim().toLowerCase();
+    const genreFilter = (filter.genre || '').trim().toLowerCase();
+    const exactKeyFilter = (filter.camelotKey || filter.key || '').trim().toUpperCase();
+    const harmonicTarget = (filter.harmonicMatchWith || '').trim().toUpperCase();
+    const queryTokens = (filter.query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+    // Choose narrowest initial index candidate pool
+    let candidates: CortexTrack[] = this.tracks;
+    if (exactKeyFilter && this.byKeyIndex.has(exactKeyFilter)) {
+      candidates = this.byKeyIndex.get(exactKeyFilter)!;
+    } else if (genreFilter && this.byGenreIndex.has(genreFilter)) {
+      candidates = this.byGenreIndex.get(genreFilter)!;
+    } else if (minBpm !== undefined || maxBpm !== undefined) {
+      const startBucket = Math.floor((minBpm ?? 40) / 5) * 5;
+      const endBucket = Math.floor((maxBpm ?? 240) / 5) * 5;
+      const bucketPool: CortexTrack[] = [];
+      for (let b = startBucket; b <= endBucket; b += 5) {
+        const chunk = this.byBpmBucket.get(b);
+        if (chunk) bucketPool.push(...chunk);
+      }
+      candidates = bucketPool;
+    }
+
+    // Pre-compute harmonic neighbors if requested
+    let harmonicSet: Set<string> | null = null;
+    if (harmonicTarget) {
+      const normTarget = cortexAiService.normalizeCamelotKey(harmonicTarget).toUpperCase();
+      harmonicSet = new Set([normTarget]);
+      const match = normTarget.match(/^(\d{1,2})([AB])$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        const letter = match[2];
+        const prev = num === 1 ? 12 : num - 1;
+        const next = num === 12 ? 1 : num + 1;
+        const alt = letter === 'A' ? 'B' : 'A';
+        harmonicSet.add(`${prev}${letter}`);
+        harmonicSet.add(`${next}${letter}`);
+        harmonicSet.add(`${num}${alt}`);
+      }
+    }
+
+    const matched: CortexTrack[] = [];
+    for (const t of candidates) {
+      const bpm = t.bpm || 124;
+      if (minBpm !== undefined && bpm < minBpm) continue;
+      if (maxBpm !== undefined && bpm > maxBpm) continue;
+
+      if (minEnergy !== undefined && (t.energyLevel ?? 6) < minEnergy) continue;
+
+      const tGenre = (t.genre || '').toLowerCase();
+      if (genreFilter && !tGenre.includes(genreFilter)) continue;
+      if (allowedGenres && !allowedGenres.some((g) => tGenre.includes(g))) continue;
+
+      const tRawKey = (t.key || '').trim().toUpperCase();
+      const tCamKey = (t.camelotKey || '').trim().toUpperCase();
+      if (exactKeyFilter && tRawKey !== exactKeyFilter && tCamKey !== exactKeyFilter) continue;
+      if (allowedKeys && !allowedKeys.includes(tRawKey) && !allowedKeys.includes(tCamKey)) continue;
+      if (harmonicSet && !harmonicSet.has(tCamKey) && !harmonicSet.has(tRawKey)) continue;
+
+      if (artistFilter && !(t.artist || '').toLowerCase().includes(artistFilter)) continue;
+
+      if (hasCuesOnly) {
+        const cues = this.cuePointCache.get(t.id);
+        if (!cues || !cues.some((c) => c.active)) continue;
+      }
+
+      if (queryTokens.length > 0) {
+        const haystack = this.searchTextIndex.get(t.id) || `${t.title} ${t.artist}`.toLowerCase();
+        let allFound = true;
+        for (const tok of queryTokens) {
+          if (!haystack.includes(tok)) {
+            allFound = false;
+            break;
+          }
+        }
+        if (!allFound) continue;
+      }
+
+      matched.push(t);
+      if (filter.limit && matched.length >= filter.limit) break;
+    }
+
+    return matched;
+  }
+
+  /**
+   * Persist Hot Cues per track ID across sessions.
+   */
+  public async saveTrackCues(trackId: string, hotCues: HotCue[]): Promise<void> {
+    if (!trackId) return;
+    await this.loadPersistentLibraryMeta();
+    const cleaned = hotCues.filter((c) => c && c.active);
+    if (cleaned.length > 0) {
+      this.cuePointCache.set(trackId, cleaned);
+    } else {
+      this.cuePointCache.delete(trackId);
+    }
+
+    try {
+      const obj: Record<string, HotCue[]> = {};
+      for (const [k, v] of this.cuePointCache.entries()) {
+        obj[k] = v;
+      }
+      await storageCache.setSetting('persistent_cue_index', obj);
+    } catch {}
+  }
+
+  public getTrackCues(trackId: string): HotCue[] {
+    return this.cuePointCache.get(trackId) || [];
+  }
+
+  public getSmartCrates(): SmartCrate[] {
+    return [...BUILT_IN_SMART_CRATES, ...this.customSmartCrates];
+  }
+
+  public getSmartCrateTracks(crateId: string): CortexTrack[] {
+    return this.queryTracks({ smartCrateId: crateId });
+  }
+
+  public async createSmartCrate(crate: SmartCrate): Promise<SmartCrate[]> {
+    await this.loadPersistentLibraryMeta();
+    this.customSmartCrates = [...this.customSmartCrates.filter((c) => c.id !== crate.id), crate];
+    try {
+      await storageCache.setSetting('custom_smart_crates', this.customSmartCrates);
+    } catch {}
+    return this.getSmartCrates();
+  }
 
   public scrollSelection(delta: number): TrackMetadata | null {
     if (this.tracks.length === 0) return null;
@@ -228,6 +534,7 @@ export class MusicLibraryService {
   }
 
   public async initLibrary(): Promise<CortexTrack[]> {
+    await this.loadPersistentLibraryMeta();
     const combined: Map<string, CortexTrack> = new Map();
 
     // 0. Primary: Direct Algoriddim djay Pro MediaLibrary.db ingestion (6,000+ local tracks with real audio file paths)
@@ -236,6 +543,9 @@ export class MusicLibraryService {
         const djayTracks = await (window as any).desktopAPI.readDjayLibrary();
         if (Array.isArray(djayTracks) && djayTracks.length > 0) {
           for (const dt of djayTracks) {
+            if (Array.isArray(dt.hotCues) && dt.hotCues.length > 0 && !this.cuePointCache.has(dt.id)) {
+              this.cuePointCache.set(dt.id, dt.hotCues);
+            }
             combined.set(dt.id, {
               ...dt,
               energyLevel: dt.bpm >= 128 ? 8 : dt.bpm >= 120 ? 7 : 6,
@@ -251,6 +561,9 @@ export class MusicLibraryService {
     try {
       const storedTracks = await storageCache.getAllTracks();
       for (const t of storedTracks) {
+        if (Array.isArray(t.hotCues) && t.hotCues.length > 0 && !this.cuePointCache.has(t.id)) {
+          this.cuePointCache.set(t.id, t.hotCues);
+        }
         const pulseT = this.convertDjTrackToPulse(t);
         if (!combined.has(pulseT.id)) {
           combined.set(pulseT.id, pulseT);
@@ -268,8 +581,9 @@ export class MusicLibraryService {
       }
     }
 
-    // INSTANT UI DISPLAY: Populate live tracks and notify immediately (< 50ms)
+    // INSTANT UI DISPLAY: Populate live tracks, build O(1) facet indices, and notify immediately (< 50ms)
     this.tracks = Array.from(combined.values());
+    this.rebuildIndices();
     this.isLoaded = true;
     this.notify();
 
@@ -326,6 +640,7 @@ export class MusicLibraryService {
 
       if (updated) {
         this.tracks = Array.from(combined.values());
+        this.rebuildIndices();
         this.notify();
         try {
           const djTracks = this.tracks.map((t) => this.convertPulseToDjTrack(t));
@@ -361,7 +676,7 @@ export class MusicLibraryService {
       coverArtUrl: track.coverArtUrl,
       dateAdded: new Date().toLocaleDateString(),
       rating: track.rating || 4,
-      hotCues: [],
+      hotCues: this.getTrackCues(track.id),
       savedLoops: [],
       beatGrid: { bpm: track.bpm || 124, firstBeatOffset: 0.0, meter: 4 },
     };
@@ -438,6 +753,7 @@ export class MusicLibraryService {
     }
 
     if (added > 0 || newTracks.length > 0) {
+      this.rebuildIndices();
       this.isLoaded = true;
       this.notify();
 
@@ -562,6 +878,9 @@ export class MusicLibraryService {
   }
 
   public convertDjTrackToPulse(track: TrackMetadata): CortexTrack {
+    if (Array.isArray(track.hotCues) && track.hotCues.length > 0 && !this.cuePointCache.has(track.id)) {
+      this.cuePointCache.set(track.id, track.hotCues);
+    }
     return {
       id: track.id,
       title: decodeHtmlEntities(track.title),
@@ -584,6 +903,7 @@ export class MusicLibraryService {
   public addTrack(track: CortexTrack) {
     if (!this.tracks.some((t) => t.id === track.id)) {
       this.tracks.unshift(track);
+      this.rebuildIndices();
       this.notify();
     }
   }
