@@ -731,7 +731,7 @@ export const App: React.FC = () => {
 
   // Load Track to Deck
   const handleLoadTrack = useCallback(async (deckId: DeckId, rawTrack: TrackMetadata) => {
-    const playheadProtected = await storageCache.getSetting<boolean>('general_playhead_protection', true);
+    const playheadProtected = await storageCache.getSetting<boolean>('general_playhead_protection', false);
     const targetDeckPlaying = deckId === 'A' ? audioEngine.getDeck('A')?.isPlaying : audioEngine.getDeck('B')?.isPlaying;
     if (playheadProtected && targetDeckPlaying) {
       console.warn(`[Playhead Protection] Blocked loading track onto active playing Deck ${deckId}`);

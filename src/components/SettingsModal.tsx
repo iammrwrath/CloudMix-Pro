@@ -161,10 +161,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
   const [ytEmail, setYtEmail] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState<string>('v2.0.71');
+  const [appVersion, setAppVersion] = useState<string>('v2.0.72');
   const [autoSyncOnLoad, setAutoSyncOnLoad] = useState<boolean>(false);
   const [quantizeCuesLoops, setQuantizeCuesLoops] = useState<boolean>(true);
-  const [playheadProtection, setPlayheadProtection] = useState<boolean>(true);
+  const [playheadProtection, setPlayheadProtection] = useState<boolean>(false);
 
   // Audio Device Routing State
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
@@ -261,7 +261,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, uiZoom: p
       setThemeMode(savedTheme);
       setAutoSyncOnLoad(await storageCache.getSetting<boolean>('general_auto_sync_on_load', false));
       setQuantizeCuesLoops(await storageCache.getSetting<boolean>('general_quantize_cues_loops', true));
-      setPlayheadProtection(await storageCache.getSetting<boolean>('general_playhead_protection', true));
+      setPlayheadProtection(await storageCache.getSetting<boolean>('general_playhead_protection', false));
 
       // Load local path dynamically from OS Music folder if not customized
       let defaultMusicPath = '~/Music';

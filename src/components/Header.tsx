@@ -510,11 +510,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '2.0.71'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '2.0.72'} - Click to check GitHub for patches`}
               className="h-7 px-2 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-white/10 font-mono text-[11px] font-bold flex items-center space-x-1 shrink-0 cursor-pointer transition-colors shadow-xs group"
             >
               <Sparkles className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span className="hidden 2xl:inline">v{updateStatus.version || '2.0.71'}</span>
+              <span className="hidden 2xl:inline">v{updateStatus.version || '2.0.72'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}
@@ -1039,7 +1039,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.71'}</div>
+                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.72'}</div>
                       <span className="text-[10px] font-mono text-slate-500">GitHub Updates</span>
                     </div>
                   </button>
