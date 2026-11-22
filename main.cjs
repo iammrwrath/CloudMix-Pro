@@ -470,6 +470,42 @@ ipcMain.handle('read-local-audio', async (event, rawFilePath) => {
         }
       }
     }
+    if (!fs.existsSync(filePath)) {
+      const targetName = path.basename(filePath);
+      const searchRoots = [
+        path.join('G:\\My Drive\\Music', 'djayPro', 'music'),
+        'G:\\My Drive\\Music',
+      ];
+      try {
+        const disk = readDiskSettings();
+        if (disk && disk.local_music_path) searchRoots.unshift(disk.local_music_path);
+      } catch {}
+
+      const findByBasename = (dir, depth = 0) => {
+        if (depth > 4 || !dir || !fs.existsSync(dir)) return null;
+        const direct = path.join(dir, targetName);
+        if (fs.existsSync(direct)) return direct;
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const found = findByBasename(path.join(dir, entry.name), depth + 1);
+              if (found) return found;
+            }
+          }
+        } catch {}
+        return null;
+      };
+
+      for (const root of searchRoots) {
+        const relocated = findByBasename(root, 0);
+        if (relocated) {
+          log(`[read-local-audio] Relocated missing file ${filePath} -> ${relocated}`);
+          filePath = relocated;
+          break;
+        }
+      }
+    }
     const buffer = await fs.promises.readFile(filePath);
     return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
   } catch (err) {
