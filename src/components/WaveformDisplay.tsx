@@ -600,9 +600,9 @@ export const WaveformDisplay: React.FC<WaveformDisplayProps> = React.memo(({
         />
         {/* Frequency color legend */}
         <div className="waveform-screen-legend absolute top-1 right-2 flex items-center space-x-2 text-[11px] font-mono font-bold pointer-events-none px-2 py-0.5 rounded-md border shadow-md">
-          <span className="flex items-center text-white font-bold"><span className="w-2 h-2 rounded-full bg-[#ff3366] mr-1 shadow-[0_0_6px_#ff3366]"></span>Bass</span>
-          <span className="flex items-center text-white font-bold"><span className="w-2 h-2 rounded-full bg-[#00e5ff] mr-1 shadow-[0_0_6px_#00e5ff]"></span>Mid</span>
-          <span className="flex items-center text-white font-bold"><span className="w-2 h-2 rounded-full bg-white mr-1 shadow-[0_0_4px_#ffffff]"></span>Hi</span>
+          <span className="flex items-center text-white font-bold"><span className="w-2.5 h-2.5 rounded-full mr-1.5 inline-block shrink-0" style={{ backgroundColor: '#ff3366', boxShadow: '0 0 6px #ff3366' }}></span>Bass</span>
+          <span className="flex items-center text-white font-bold"><span className="w-2.5 h-2.5 rounded-full mr-1.5 inline-block shrink-0" style={{ backgroundColor: '#00e5ff', boxShadow: '0 0 6px #00e5ff' }}></span>Mid</span>
+          <span className="flex items-center text-white font-bold"><span className="w-2.5 h-2.5 rounded-full mr-1.5 inline-block shrink-0" style={{ backgroundColor: '#ffffff', boxShadow: '0 0 5px #ffffff' }}></span>Hi</span>
         </div>
       </div>
 
