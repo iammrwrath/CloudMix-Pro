@@ -51,6 +51,19 @@ export const AutomixHud: React.FC<AutomixHudProps> = ({ deckA, deckB }) => {
               >
                 {automixState.active ? (automixState.transitioning ? 'TRANSITIONING' : 'MONITORING') : 'STANDBY'}
               </span>
+              {automixState.active && !automixState.transitioning && (() => {
+                const triggerCountdown = Math.max(0, (automixState.timeToTransitionSec ?? 0) - 22);
+                const mins = Math.floor(triggerCountdown / 60);
+                const secs = Math.floor(triggerCountdown % 60);
+                const nextDeck = deckA.isPlaying ? deckB : deckA;
+                return (
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 whitespace-nowrap">
+                    {nextDeck.track
+                      ? `MIX IN ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                      : 'LOAD NEXT TRACK'}
+                  </span>
+                );
+              })()}
             </div>
             <span className="text-[10px] font-mono text-slate-400">
               Autonomous phrase-matched mixing with Neural Mix transition algorithms

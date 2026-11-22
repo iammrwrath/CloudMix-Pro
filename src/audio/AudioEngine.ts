@@ -1857,9 +1857,14 @@ class AudioEngine {
         this.masterAudioElement.srcObject = masterDest.stream;
         if (typeof (this.masterAudioElement as any).setSinkId === 'function') {
           (this.masterAudioElement as any).setSinkId(sinkTarget(this.masterDeviceId))
-            .catch((e: any) => console.warn('[AUDIO ROUTING] Master HTMLAudioElement.setSinkId error:', e));
+            .then(() => this.masterAudioElement?.play().catch(() => {}))
+            .catch((e: any) => {
+              console.warn('[AUDIO ROUTING] Master HTMLAudioElement.setSinkId error:', e);
+              this.masterAudioElement?.play().catch(() => {});
+            });
+        } else {
+          this.masterAudioElement.play().catch(() => {});
         }
-        this.masterAudioElement.play().catch(() => {});
       } catch (err) {
         console.warn('[AUDIO ROUTING] Master MediaStream routing failed, falling back to ctx.destination:', err);
         this.masterAnalyser.connect(this.ctx.destination);
@@ -1876,9 +1881,14 @@ class AudioEngine {
         this.headphoneAudioElement.srcObject = hpDest.stream;
         if (typeof (this.headphoneAudioElement as any).setSinkId === 'function') {
           (this.headphoneAudioElement as any).setSinkId(sinkTarget(this.headphoneDeviceId))
-            .catch((e: any) => console.warn('[AUDIO ROUTING] Headphone HTMLAudioElement.setSinkId error:', e));
+            .then(() => this.headphoneAudioElement?.play().catch(() => {}))
+            .catch((e: any) => {
+              console.warn('[AUDIO ROUTING] Headphone HTMLAudioElement.setSinkId error:', e);
+              this.headphoneAudioElement?.play().catch(() => {});
+            });
+        } else {
+          this.headphoneAudioElement.play().catch(() => {});
         }
-        this.headphoneAudioElement.play().catch(() => {});
       } catch (err) {
         console.warn('[AUDIO ROUTING] Headphone MediaStream routing failed, falling back to ctx.destination:', err);
         this.headphoneGain.connect(this.ctx.destination);

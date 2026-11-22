@@ -793,13 +793,11 @@ function getObsOverlayHtml() {
 
     /* Synced Lyrics Widget */
     .lyrics-container {
-      background: rgba(10, 15, 29, 0.88);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: transparent;
+      border: none;
       border-radius: 14px;
       padding: 10px 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      box-shadow: none;
       position: absolute;
       left: 40px;
       top: 260px;
@@ -834,9 +832,9 @@ function getObsOverlayHtml() {
       transform-origin: top left;
       border-radius: 14px;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: #000;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+      border: none;
+      background: transparent;
+      box-shadow: none;
     }
 
     .video-container iframe {
