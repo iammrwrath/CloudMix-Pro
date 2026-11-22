@@ -35,8 +35,9 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   const platterRotatorRef = useRef<HTMLDivElement | null>(null);
   const sheenRef = useRef<HTMLDivElement | null>(null);
   const rotationDegRef = useRef(0);
+  const isScratchingRef = useRef(false);
+  const lastAngleRef = useRef(0);
   const [isScratching, setIsScratching] = useState(false);
-  const [lastAngle, setLastAngle] = useState(0);
 
   const applyRotation = useCallback((deg: number) => {
     rotationDegRef.current = deg;
@@ -83,41 +84,63 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   };
 
   const startScratch = (clientX: number, clientY: number) => {
-    setIsScratching(true);
+    isScratchingRef.current = true;
     const angle = getAngle(clientX, clientY);
-    setLastAngle(angle);
+    lastAngleRef.current = angle;
+    setIsScratching(true);
     onScratchStart?.();
+  };
+
+  const handlePointerDownPlatter = (e: React.PointerEvent) => {
+    e.preventDefault();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+    startScratch(e.clientX, e.clientY);
   };
 
   const handleMouseDownPlatter = (e: React.MouseEvent) => {
     e.preventDefault();
-    startScratch(e.clientX, e.clientY);
+    if (!isScratchingRef.current) startScratch(e.clientX, e.clientY);
   };
 
   const handleTouchStartPlatter = (e: React.TouchEvent) => {
     if (e.touches.length > 0) {
       e.preventDefault();
-      startScratch(e.touches[0].clientX, e.touches[0].clientY);
+      if (!isScratchingRef.current) startScratch(e.touches[0].clientX, e.touches[0].clientY);
     }
   };
 
   const updateScratchAngle = useCallback((clientX: number, clientY: number) => {
-    if (!isScratching) return;
+    if (!isScratchingRef.current) return;
     const currentAngle = getAngle(clientX, clientY);
-    let delta = currentAngle - lastAngle;
+    let delta = currentAngle - lastAngleRef.current;
 
     // Handle 0/360 wrap-around
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
+    if (Math.abs(delta) < 0.01) return;
 
     const nextDeg = (rotationDegRef.current + delta) % 360;
     applyRotation(nextDeg);
-    setLastAngle(currentAngle);
+    lastAngleRef.current = currentAngle;
 
-    // Map degrees to seconds: 360 deg = ~1.8 seconds of audio
+    // Map degrees to seconds: 360 deg = ~1.8 seconds of audio (33.3 RPM vinyl revolution)
     const deltaSec = (delta / 360) * 1.8;
     onScratch(deltaSec);
-  }, [isScratching, lastAngle, onScratch, applyRotation]);
+  }, [onScratch, applyRotation]);
+
+  const handlePointerMove = useCallback((e: PointerEvent) => {
+    if (!isScratchingRef.current) return;
+    const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
+    if (coalesced && coalesced.length > 1) {
+      for (let i = 0; i < coalesced.length; i++) {
+        updateScratchAngle(coalesced[i].clientX, coalesced[i].clientY);
+      }
+    } else {
+      updateScratchAngle(e.clientX, e.clientY);
+    }
+  }, [updateScratchAngle]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     updateScratchAngle(e.clientX, e.clientY);
@@ -131,29 +154,28 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
   }, [updateScratchAngle]);
 
   const handleEnd = useCallback(() => {
-    if (isScratching) {
+    if (isScratchingRef.current) {
+      isScratchingRef.current = false;
       setIsScratching(false);
       onScratchEnd?.();
       onReleaseNudge();
     }
-  }, [isScratching, onScratchEnd, onReleaseNudge]);
+  }, [onScratchEnd, onReleaseNudge]);
 
   useEffect(() => {
     if (isScratching) {
-      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handleEnd);
+      window.addEventListener('pointercancel', handleEnd);
       window.addEventListener('mouseup', handleEnd);
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('touchend', handleEnd);
-      window.addEventListener('touchcancel', handleEnd);
       return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handleEnd);
+        window.removeEventListener('pointercancel', handleEnd);
         window.removeEventListener('mouseup', handleEnd);
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('touchend', handleEnd);
-        window.removeEventListener('touchcancel', handleEnd);
       };
     }
-  }, [isScratching, handleMouseMove, handleTouchMove, handleEnd]);
+  }, [isScratching, handlePointerMove, handleEnd]);
 
   // Format seconds to mm:ss.ms
   const formatTime = (sec: number) => {
@@ -187,9 +209,10 @@ export const JogWheel: React.FC<JogWheelProps> = React.memo(({
 
         {/* Inner Touch Platter (Grooved Vinyl with Anisotropic Sheen) */}
         <div
+          onPointerDown={handlePointerDownPlatter}
           onMouseDown={handleMouseDownPlatter}
           onTouchStart={handleTouchStartPlatter}
-          className="relative w-full h-full rounded-full bg-[#07090e] flex items-center justify-center shadow-inner overflow-hidden"
+          className="relative w-full h-full rounded-full bg-[#07090e] flex items-center justify-center shadow-inner overflow-hidden touch-none"
           style={{
             backgroundImage: `radial-gradient(circle, #101624 0%, #080b12 55%, #030407 100%)`,
           }}

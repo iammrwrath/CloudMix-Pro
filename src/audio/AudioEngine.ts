@@ -181,6 +181,7 @@ export interface DeckAudioNodes {
   audioBuffer: AudioBuffer | null;
   reverseAudioBuffer: AudioBuffer | null;
   scratchSourceNode: AudioBufferSourceNode | null;
+  scratchWorkletNode?: AudioNode | null;
   scratchGainNode: GainNode | null;
   scratchDirection: 'forward' | 'reverse';
   startTime: number;
@@ -196,6 +197,7 @@ export interface DeckAudioNodes {
   isScratching?: boolean;
   scratchPlaybackPos?: number;
   scratchLastTimestamp?: number;
+  scratchSmoothedRate?: number;
 }
 
 class AudioEngine {
@@ -228,6 +230,8 @@ class AudioEngine {
   private preInstantFxStems: Map<DeckId, StemState> = new Map();
   private scratchSampleBuffer: AudioBuffer | null = null;
   private scratchSampleLoading: boolean = false;
+  private scratchWorkletReady: boolean = false;
+  private scratchWorkletLoading: boolean = false;
 
   constructor() {
     // Lazy initialized on first user interaction to comply with browser audio autoplay policy
@@ -267,8 +271,124 @@ class AudioEngine {
     this.setupDeck('A');
     this.setupDeck('B');
 
-    // Preload authentic turntable scratch sample for manual vinyl scratching
+    // Preload authentic turntable scratch sample & register AudioWorklet vinyl scrubber
     this.loadScratchSample().catch(() => {});
+    this.registerScratchWorklet().catch(() => {});
+  }
+
+  private async registerScratchWorklet(): Promise<void> {
+    if (!this.ctx || this.scratchWorkletReady || this.scratchWorkletLoading) return;
+    if (!this.ctx.audioWorklet || typeof Blob === 'undefined' || typeof URL === 'undefined') return;
+    this.scratchWorkletLoading = true;
+    try {
+      const workletCode = `
+        class VinylScratchProcessor extends AudioWorkletProcessor {
+          constructor() {
+            super();
+            this.left = null;
+            this.right = null;
+            this.length = 0;
+            this.bufferSampleRate = 48000;
+            this.playheadSample = 0;
+            this.targetRate = 0;
+            this.currentRate = 0;
+            this.active = false;
+            this.isSynthetic = false;
+            this.port.onmessage = (e) => {
+              const d = e.data;
+              if (!d) return;
+              if (d.type === 'load') {
+                this.left = d.left;
+                this.right = d.right || d.left;
+                this.length = d.left ? d.left.length : 0;
+                this.bufferSampleRate = d.sampleRate || sampleRate;
+                this.isSynthetic = !!d.isSynthetic;
+              } else if (d.type === 'start') {
+                this.playheadSample = Math.max(0, Math.min(this.length - 1, (d.posSec || 0) * this.bufferSampleRate));
+                this.currentRate = d.rate || 0;
+                this.targetRate = d.rate || 0;
+                this.active = true;
+              } else if (d.type === 'rate') {
+                this.targetRate = d.rate;
+                if (typeof d.posSec === 'number' && !this.isSynthetic) {
+                  const targetSample = d.posSec * this.bufferSampleRate;
+                  if (Math.abs(targetSample - this.playheadSample) > this.bufferSampleRate * 0.25) {
+                    this.playheadSample = Math.max(0, Math.min(this.length - 1, targetSample));
+                  }
+                }
+              } else if (d.type === 'stop') {
+                this.active = false;
+                this.targetRate = 0;
+                this.currentRate = 0;
+              }
+            };
+          }
+          process(inputs, outputs) {
+            const out = outputs[0];
+            if (!out || !out[0]) return true;
+            const outL = out[0];
+            const outR = out[1] || out[0];
+            if (!this.active || !this.left || this.length < 2) {
+              for (let i = 0; i < outL.length; i++) {
+                outL[i] = 0;
+                if (outR !== outL) outR[i] = 0;
+              }
+              return true;
+            }
+            const srRatio = this.bufferSampleRate / sampleRate;
+            const len = this.length;
+            const L = this.left;
+            const R = this.right || L;
+            // 1-pole sample-level vinyl inertia smoothing (~3.5ms time constant)
+            const alpha = 0.012;
+            for (let i = 0; i < outL.length; i++) {
+              this.currentRate += (this.targetRate - this.currentRate) * alpha;
+              const speed = Math.abs(this.currentRate);
+              if (speed < 0.002) {
+                outL[i] = 0;
+                if (outR !== outL) outR[i] = 0;
+                continue;
+              }
+              let idx = this.playheadSample;
+              if (this.isSynthetic) {
+                idx = ((idx % len) + len) % len;
+              } else if (idx < 0) {
+                idx = 0;
+              } else if (idx >= len - 1) {
+                idx = len - 2;
+              }
+              const i0 = idx | 0;
+              const frac = idx - i0;
+              const i1 = i0 + 1 < len ? i0 + 1 : 0;
+              // Gain scales smoothly with vinyl speed for authentic faderless needle bite
+              const gain = Math.min(1.15, 0.35 + speed * 0.65);
+              outL[i] = (L[i0] + frac * (L[i1] - L[i0])) * gain;
+              if (outR !== outL) {
+                outR[i] = (R[i0] + frac * (R[i1] - R[i0])) * gain;
+              }
+              this.playheadSample += this.currentRate * srRatio;
+              if (this.isSynthetic) {
+                this.playheadSample = ((this.playheadSample % len) + len) % len;
+              } else {
+                if (this.playheadSample < 0) this.playheadSample = 0;
+                if (this.playheadSample >= len - 1) this.playheadSample = len - 1;
+              }
+            }
+            return true;
+          }
+        }
+        registerProcessor('vinyl-scratch-processor', VinylScratchProcessor);
+      `;
+      const blob = new Blob([workletCode], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      await this.ctx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      this.scratchWorkletReady = true;
+    } catch (e) {
+      console.warn('[AudioEngine] AudioWorklet scratch processor fallback to BufferSource:', e);
+    } finally {
+      this.scratchWorkletLoading = false;
+    }
   }
 
   private setupDeck(deckId: DeckId) {
@@ -1150,6 +1270,43 @@ class AudioEngine {
     if (!this.scratchSampleBuffer && !this.scratchSampleLoading) {
       this.loadScratchSample().catch(() => {});
     }
+    this.registerScratchWorklet().catch(() => {});
+    deck.scratchSmoothedRate = 0;
+
+    // If AudioWorklet is ready, instantiate or reuse bi-directional VinylScratchProcessor node
+    const isBufferSilent = !deck.audioBuffer ||
+      (deck.audioBuffer.length > 0 && Math.abs(deck.audioBuffer.getChannelData(0)[0] || 0) < 0.0005);
+    const activeBuf = (!isBufferSilent && deck.audioBuffer) ? deck.audioBuffer : this.scratchSampleBuffer;
+
+    if (this.scratchWorkletReady && activeBuf && typeof AudioWorkletNode !== 'undefined') {
+      try {
+        if (!deck.scratchWorkletNode) {
+          const workletNode = new AudioWorkletNode(this.ctx, 'vinyl-scratch-processor', {
+            numberOfInputs: 0,
+            numberOfOutputs: 1,
+            outputChannelCount: [2],
+          });
+          workletNode.connect(deck.gainTrim);
+          deck.scratchWorkletNode = workletNode;
+        }
+        const port = (deck.scratchWorkletNode as AudioWorkletNode).port;
+        port.postMessage({
+          type: 'load',
+          left: activeBuf.getChannelData(0),
+          right: activeBuf.numberOfChannels > 1 ? activeBuf.getChannelData(1) : activeBuf.getChannelData(0),
+          sampleRate: activeBuf.sampleRate,
+          isSynthetic: isBufferSilent || activeBuf === this.scratchSampleBuffer,
+        });
+        port.postMessage({
+          type: 'start',
+          posSec: deck.scratchPlaybackPos,
+          rate: 0.15,
+        });
+        return;
+      } catch (err) {
+        console.warn('[AudioEngine] Worklet startScratch fallback:', err);
+      }
+    }
 
     // Start immediate tactile vinyl groove contact sound so user hears vinyl bite upon initial touch
     this.updateScratch(deckId, 0.001);
@@ -1164,12 +1321,15 @@ class AudioEngine {
     }
 
     const now = performance.now();
-    const dt = Math.max(0.005, (now - (deck.scratchLastTimestamp || now)) / 1000);
+    const dt = Math.max(0.002, (now - (deck.scratchLastTimestamp || now)) / 1000);
     deck.scratchLastTimestamp = now;
 
-    // Velocity = distance / time
-    const velocity = deltaSec / dt;
-    const clampedRate = Math.max(-4.0, Math.min(4.0, velocity));
+    // Velocity = distance / time with responsive 1-pole filter
+    const rawVelocity = deltaSec / dt;
+    const clampedRaw = Math.max(-6.0, Math.min(6.0, rawVelocity));
+    const prevRate = deck.scratchSmoothedRate ?? clampedRaw;
+    const clampedRate = prevRate * 0.25 + clampedRaw * 0.75;
+    deck.scratchSmoothedRate = clampedRate;
     const speed = Math.abs(clampedRate);
 
     // Keep playhead synchronized
@@ -1178,6 +1338,18 @@ class AudioEngine {
     const nextPos = Math.max(0, Math.min(duration, currentPos + deltaSec));
     deck.scratchPlaybackPos = nextPos;
     deck.pauseOffset = nextPos;
+
+    // Fast path: AudioWorklet bi-directional sample scrubber (zero node re-allocation on direction flip)
+    if (deck.scratchWorkletNode && this.scratchWorkletReady) {
+      try {
+        (deck.scratchWorkletNode as AudioWorkletNode).port.postMessage({
+          type: 'rate',
+          rate: clampedRate,
+          posSec: nextPos,
+        });
+        return;
+      } catch {}
+    }
 
     const direction: 'forward' | 'reverse' = clampedRate < 0 ? 'reverse' : 'forward';
 
@@ -1268,6 +1440,13 @@ class AudioEngine {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
     deck.isScratching = false;
+    deck.scratchSmoothedRate = 0;
+
+    if (deck.scratchWorkletNode) {
+      try {
+        (deck.scratchWorkletNode as AudioWorkletNode).port.postMessage({ type: 'stop' });
+      } catch {}
+    }
 
     // Disconnect scratch source node cleanly upon mouse release
     if (deck.scratchGainNode) {
