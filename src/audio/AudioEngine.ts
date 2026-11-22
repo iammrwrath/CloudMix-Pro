@@ -1811,7 +1811,7 @@ class AudioEngine {
    * Supports modern setSinkId on AudioContext and HTMLAudioElement fallback to route audio
    * independently to USB DJ Controllers, GoXLR Mini, external interfaces, or private headphones.
    */
-  private setupOutputRouting() {
+  private async setupOutputRouting() {
     if (!this.ctx || !this.masterGain || !this.masterLimiter || !this.masterAnalyser || !this.headphoneGain) return;
 
     // Disconnect any existing master/headphone destinations
@@ -1834,7 +1834,7 @@ class AudioEngine {
 
     if (isShared && typeof (this.ctx as any).setSinkId === 'function') {
       try {
-        (this.ctx as any).setSinkId(sinkTarget(this.masterDeviceId));
+        await (this.ctx as any).setSinkId(sinkTarget(this.masterDeviceId));
         this.masterAnalyser.connect(this.ctx.destination);
         this.headphoneGain.connect(this.ctx.destination);
         audioContextSinkSuccess = true;
