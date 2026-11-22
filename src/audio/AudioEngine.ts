@@ -887,9 +887,11 @@ class AudioEngine {
 
   public pauseDeck(deckId: DeckId) {
     const deck = this.decks.get(deckId);
-    if (!deck || !deck.isPlaying) return;
+    if (!deck) return;
 
-    deck.pauseOffset = this.getCurrentTime(deckId);
+    if (deck.isPlaying) {
+      deck.pauseOffset = this.getCurrentTime(deckId);
+    }
     if (deck.sourceNode) {
       try {
         deck.sourceNode.stop();
