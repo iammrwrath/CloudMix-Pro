@@ -734,14 +734,38 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
 
                 {/* Interactive Scaled Mini Canvas Preview */}
                 <div className="space-y-1.5 pt-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap justify-between items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
                       <Move className="w-3.5 h-3.5 text-cyan-400" />
                       Stream Canvas Layout Map ({canvasConfig.width} × {canvasConfig.height})
                     </span>
-                    <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded">
-                      🖱️ Click & drag to move • Drag ↘ corner to resize
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {[
+                        { key: 'currentTrack' as const, label: 'Track Card', dot: 'bg-cyan-400' },
+                        { key: 'nextTrack' as const, label: 'Up Next', dot: 'bg-purple-400' },
+                        { key: 'lyrics' as const, label: 'Lyrics', dot: 'bg-pink-400' },
+                        { key: 'video' as const, label: 'Video Feed', dot: 'bg-emerald-400' },
+                      ].map(({ key, label, dot }) => {
+                        if (!canvasConfig.widgets[key]?.visible) return null;
+                        const active = selectedWidgetKey === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setSelectedWidgetKey(key)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                              active
+                                ? 'bg-slate-800 text-white border-cyan-400 shadow-sm'
+                                : 'bg-slate-900/70 text-slate-400 border-slate-700/70 hover:text-white hover:border-slate-500'
+                            }`}
+                            title={`Bring ${label} to front for dragging & resizing`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div
                     ref={canvasRef}
@@ -787,7 +811,7 @@ export const StreamerOverlay: React.FC<StreamerOverlayProps> = ({ deckA, deckB, 
                             top: `${Math.max(0, Math.min(topPercent, 95))}%`,
                             width: `${Math.max(widthPercent, 8)}%`,
                             height: `${Math.max(heightPercent, 5)}%`,
-                            zIndex: isSelected ? 30 : 10,
+                            zIndex: isSelected ? 30 : key === 'video' ? 5 : 15,
                           }}
                         >
                           <div className="flex items-center gap-1 truncate pointer-events-none">
