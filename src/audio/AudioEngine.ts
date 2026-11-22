@@ -1853,16 +1853,28 @@ class AudioEngine {
         if (!this.masterAudioElement) {
           this.masterAudioElement = new Audio();
           this.masterAudioElement.autoplay = true;
+          this.masterAudioElement.style.display = 'none';
+          if (typeof document !== 'undefined' && document.body) {
+            document.body.appendChild(this.masterAudioElement);
+          }
         }
-        this.masterAudioElement.srcObject = masterDest.stream;
         if (typeof (this.masterAudioElement as any).setSinkId === 'function') {
           (this.masterAudioElement as any).setSinkId(sinkTarget(this.masterDeviceId))
-            .then(() => this.masterAudioElement?.play().catch(() => {}))
+            .then(() => {
+              if (this.masterAudioElement) {
+                this.masterAudioElement.srcObject = masterDest.stream;
+                this.masterAudioElement.play().catch(() => {});
+              }
+            })
             .catch((e: any) => {
               console.warn('[AUDIO ROUTING] Master HTMLAudioElement.setSinkId error:', e);
-              this.masterAudioElement?.play().catch(() => {});
+              if (this.masterAudioElement) {
+                this.masterAudioElement.srcObject = masterDest.stream;
+                this.masterAudioElement.play().catch(() => {});
+              }
             });
         } else {
+          this.masterAudioElement.srcObject = masterDest.stream;
           this.masterAudioElement.play().catch(() => {});
         }
       } catch (err) {
@@ -1877,16 +1889,28 @@ class AudioEngine {
         if (!this.headphoneAudioElement) {
           this.headphoneAudioElement = new Audio();
           this.headphoneAudioElement.autoplay = true;
+          this.headphoneAudioElement.style.display = 'none';
+          if (typeof document !== 'undefined' && document.body) {
+            document.body.appendChild(this.headphoneAudioElement);
+          }
         }
-        this.headphoneAudioElement.srcObject = hpDest.stream;
         if (typeof (this.headphoneAudioElement as any).setSinkId === 'function') {
           (this.headphoneAudioElement as any).setSinkId(sinkTarget(this.headphoneDeviceId))
-            .then(() => this.headphoneAudioElement?.play().catch(() => {}))
+            .then(() => {
+              if (this.headphoneAudioElement) {
+                this.headphoneAudioElement.srcObject = hpDest.stream;
+                this.headphoneAudioElement.play().catch(() => {});
+              }
+            })
             .catch((e: any) => {
               console.warn('[AUDIO ROUTING] Headphone HTMLAudioElement.setSinkId error:', e);
-              this.headphoneAudioElement?.play().catch(() => {});
+              if (this.headphoneAudioElement) {
+                this.headphoneAudioElement.srcObject = hpDest.stream;
+                this.headphoneAudioElement.play().catch(() => {});
+              }
             });
         } else {
+          this.headphoneAudioElement.srcObject = hpDest.stream;
           this.headphoneAudioElement.play().catch(() => {});
         }
       } catch (err) {
