@@ -1719,6 +1719,38 @@ ipcMain.handle('reset-audio-watchdog', () => {
   return wd;
 });
 
+// Automatic Background Demucs Dependency Bootstrapper
+let demucsBootstrapStatus = 'checking'; // 'checking' | 'ready' | 'installing' | 'unavailable'
+function ensureDemucsInstalled() {
+  const { exec } = require('child_process');
+  exec('python -m demucs --help', { windowsHide: true, timeout: 8000 }, (err) => {
+    if (!err) {
+      demucsBootstrapStatus = 'ready';
+      log('[DemucsBootstrap] Native Demucs is already installed and ready.');
+      return;
+    }
+    demucsBootstrapStatus = 'installing';
+    log('[DemucsBootstrap] Demucs not found; installing in background...');
+    exec(
+      'python -m pip install -U "demucs==4.0.1" torch torchaudio numpy dora-search openunmix',
+      { windowsHide: true, timeout: 600000 },
+      (installErr) => {
+        if (!installErr) {
+          demucsBootstrapStatus = 'ready';
+          log('[DemucsBootstrap] Background Demucs installation completed.');
+        } else {
+          demucsBootstrapStatus = 'unavailable';
+          log('[DemucsBootstrap] Background install skipped/failed (using built-in 4-stem DSP): ' + installErr.message);
+        }
+      }
+    );
+  });
+}
+ipcMain.handle('get-demucs-status', () => ({ status: demucsBootstrapStatus }));
+app.whenReady().then(() => {
+  setTimeout(ensureDemucsInstalled, 4000);
+});
+
 ipcMain.handle('check-for-updates', async () => {
   log('IPC: check-for-updates called');
   if (autoUpdater) {
