@@ -1081,8 +1081,8 @@
 }
 
 .jog-wheel {
-  width: min(94cqh, 94cqw, 275px);
-  height: min(94cqh, 94cqw, 275px);
+  width: min(96cqh, 96cqw, 380px);
+  height: min(96cqh, 96cqw, 380px);
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1 / 1;

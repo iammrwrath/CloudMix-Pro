@@ -151,7 +151,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('A', 'vocals', v)}
                   accentColor="#ec4899"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -185,7 +185,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('A', 'harmonics', v)}
                   accentColor="#a855f7"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -219,7 +219,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('A', 'bass', v)}
                   accentColor="#3b82f6"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -253,7 +253,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('A', 'drums', v)}
                   accentColor="#f59e0b"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -290,7 +290,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={0.0}
                   onChange={(v) => onEQChange('A', 'high', v)}
                   accentColor="#00e5ff"
-                  size={18}
+                  size={22}
                 />
                 <button
                   onClick={() => onEQKillToggle('A', 'high')}
@@ -313,7 +313,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={0.0}
                   onChange={(v) => onEQChange('A', 'mid', v)}
                   accentColor="#00e5ff"
-                  size={18}
+                  size={22}
                 />
                 <button
                   onClick={() => onEQKillToggle('A', 'mid')}
@@ -336,7 +336,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={0.0}
                   onChange={(v) => onEQChange('A', 'low', v)}
                   accentColor="#00e5ff"
-                  size={18}
+                  size={22}
                 />
                 <button
                   onClick={() => onEQKillToggle('A', 'low')}
@@ -399,7 +399,7 @@ export const Mixer = React.memo<MixerProps>(({
               />
             </div>
 
-            <VUMeter level={deckA.meterLevelL} height={24} segments={8} />
+            <VUMeter level={deckA.meterLevelL} height={64} segments={12} />
           </div>
         </div>
 
@@ -445,7 +445,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('B', 'vocals', v)}
                   accentColor="#ec4899"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -479,7 +479,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('B', 'harmonics', v)}
                   accentColor="#a855f7"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -513,7 +513,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('B', 'bass', v)}
                   accentColor="#3b82f6"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -547,7 +547,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={1.0}
                   onChange={(v) => onStemGainChange?.('B', 'drums', v)}
                   accentColor="#f59e0b"
-                  size={18}
+                  size={22}
                 />
                 <div className="absolute -right-4 top-0 flex flex-col space-y-0.5">
                   <button
@@ -584,7 +584,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={0.0}
                   onChange={(v) => onEQChange('B', 'high', v)}
                   accentColor="#ff3366"
-                  size={18}
+                  size={22}
                 />
                 <button
                   onClick={() => onEQKillToggle('B', 'high')}
@@ -607,7 +607,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={0.0}
                   onChange={(v) => onEQChange('B', 'mid', v)}
                   accentColor="#ff3366"
-                  size={18}
+                  size={22}
                 />
                 <button
                   onClick={() => onEQKillToggle('B', 'mid')}
@@ -630,7 +630,7 @@ export const Mixer = React.memo<MixerProps>(({
                   defaultValue={0.0}
                   onChange={(v) => onEQChange('B', 'low', v)}
                   accentColor="#ff3366"
-                  size={18}
+                  size={22}
                 />
                 <button
                   onClick={() => onEQKillToggle('B', 'low')}
