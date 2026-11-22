@@ -510,11 +510,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={() => (onOpenPatchModal ? onOpenPatchModal() : updateService.checkForUpdates())}
-              title={`CloudMix Pro v${updateStatus.version || '2.0.64'} - Click to check GitHub for patches`}
+              title={`CloudMix Pro v${updateStatus.version || '2.0.65'} - Click to check GitHub for patches`}
               className="h-7 px-2 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-white/10 font-mono text-[11px] font-bold flex items-center space-x-1 shrink-0 cursor-pointer transition-colors shadow-xs group"
             >
               <Sparkles className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span className="hidden 2xl:inline">v{updateStatus.version || '2.0.64'}</span>
+              <span className="hidden 2xl:inline">v{updateStatus.version || '2.0.65'}</span>
               {updateStatus.status === 'checking' && (
                 <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin ml-0.5" />
               )}
@@ -616,7 +616,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => setIsMenuOpen(false)}
         >
           <div
-            className={`w-80 sm:w-96 h-full shadow-2xl flex flex-col border-l animate-in slide-in-from-right duration-250 select-text overflow-hidden ${
+            className={`w-[390px] sm:w-[450px] h-full shadow-2xl flex flex-col border-l animate-in slide-in-from-right duration-250 select-text overflow-hidden ${
               themeMode === 'light'
                 ? 'bg-white border-slate-200 text-slate-800'
                 : 'bg-slate-950/95 border-slate-800 text-slate-100'
@@ -754,7 +754,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <button
                       onClick={() => onToggleCortex?.()}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                         isCortexOpen
                           ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md'
                           : themeMode === 'light'
@@ -794,7 +794,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <button
                       onClick={onToggleStreamerHud}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                         isStreamerHudOpen
                           ? 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-md'
                           : themeMode === 'light'
@@ -1039,7 +1039,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                     <div>
-                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.64'}</div>
+                      <div className="text-xs font-bold leading-tight">v{updateStatus.version || '2.0.65'}</div>
                       <span className="text-[10px] font-mono text-slate-500">GitHub Updates</span>
                     </div>
                   </button>
