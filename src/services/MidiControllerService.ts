@@ -850,6 +850,45 @@ export class MidiControllerService {
     this.isLearning = false;
     this.learningControl = null;
   }
+
+  /** Export current MIDI mappings as declarative JSON (VirtualDJ / djay Pro style) */
+  public exportCustomMappingJson(): string {
+    return JSON.stringify(
+      {
+        schema: 'cloudmix-midi-mapping-v1',
+        exportedAt: new Date().toISOString(),
+        mappings: (this as any).mappings || [],
+      },
+      null,
+      2
+    );
+  }
+
+  /** Import declarative JSON MIDI mappings */
+  public importCustomMappingJson(jsonStr: string): { ok: boolean; count: number; error?: string } {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      const list = Array.isArray(parsed) ? parsed : parsed?.mappings;
+      if (!Array.isArray(list)) return { ok: false, count: 0, error: 'Invalid mapping array' };
+      (this as any).mappings = list;
+      return { ok: true, count: list.length };
+    } catch (e: any) {
+      return { ok: false, count: 0, error: e?.message || 'Parse error' };
+    }
+  }
+
+  /** Send MIDI SysEx packet (0xF0 ... 0xF7) for hardware jog-wheel screens */
+  public sendSysExJogUpdate(deck: 'A' | 'B', bpm: number, elapsedSec: number, title: string): void {
+    const outputs = (this as any).midiAccess?.outputs;
+    if (!outputs) return;
+    const payload = `${deck}|${bpm.toFixed(1)}|${Math.floor(elapsedSec)}|${(title || '').slice(0, 24)}`;
+    const bytes = [0xf0, 0x00, 0x20, 0x7f, ...Array.from(payload).map((c) => c.charCodeAt(0) & 0x7f), 0xf7];
+    outputs.forEach((out: any) => {
+      try {
+        out.send(bytes);
+      } catch {}
+    });
+  }
 }
 
 export const midiControllerService = new MidiControllerService();

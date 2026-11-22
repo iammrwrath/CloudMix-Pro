@@ -1691,6 +1691,34 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
+// ASIO / Audio Driver Crash-Quarantine Watchdog
+const getWatchdogPath = () => path.join(app.getPath('userData'), 'audio-watchdog.json');
+function readAudioWatchdog() {
+  try {
+    const p = getWatchdogPath();
+    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {}
+  return { pendingInit: false, safeMode: false, quarantinedDriver: null, crashCount: 0 };
+}
+function writeAudioWatchdog(data) {
+  try {
+    fs.writeFileSync(getWatchdogPath(), JSON.stringify(data, null, 2), 'utf8');
+  } catch {}
+}
+
+ipcMain.handle('get-audio-watchdog-status', () => readAudioWatchdog());
+ipcMain.handle('mark-audio-init-complete', () => {
+  const wd = readAudioWatchdog();
+  wd.pendingInit = false;
+  writeAudioWatchdog(wd);
+  return wd;
+});
+ipcMain.handle('reset-audio-watchdog', () => {
+  const wd = { pendingInit: false, safeMode: false, quarantinedDriver: null, crashCount: 0 };
+  writeAudioWatchdog(wd);
+  return wd;
+});
+
 ipcMain.handle('check-for-updates', async () => {
   log('IPC: check-for-updates called');
   if (autoUpdater) {
