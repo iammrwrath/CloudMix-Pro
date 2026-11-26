@@ -2034,7 +2034,8 @@ class AudioEngine {
     const rms = Math.sqrt(sumSq / Math.max(1, count));
     if (rms < 0.001) return 1.0;
     const gain = Math.max(0.5, Math.min(2.0, 0.20 / rms));
-    deck.crossfaderGain.gain.setTargetAtTime(gain, this.ctx.currentTime, 0.02);
+    (deck as any)._autoGain = gain;
+    this.updateCrossfaderGains();
     return gain;
   }
 
@@ -2118,8 +2119,11 @@ class AudioEngine {
     if (deckA.isSandbox) gainA = 0.0;
     if (deckB.isSandbox) gainB = 0.0;
 
-    deckA.crossfaderGain.gain.setTargetAtTime(gainA, this.ctx.currentTime, 0.01);
-    deckB.crossfaderGain.gain.setTargetAtTime(gainB, this.ctx.currentTime, 0.01);
+    const autoGainA = (deckA as any)._autoGain || 1.0;
+    const autoGainB = (deckB as any)._autoGain || 1.0;
+
+    deckA.crossfaderGain.gain.setTargetAtTime(gainA * autoGainA, this.ctx.currentTime, 0.01);
+    deckB.crossfaderGain.gain.setTargetAtTime(gainB * autoGainB, this.ctx.currentTime, 0.01);
 
     // ==========================================
     // Neural Mix Crossfader Transition Automation
