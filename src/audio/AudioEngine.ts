@@ -2034,7 +2034,7 @@ class AudioEngine {
     const rms = Math.sqrt(sumSq / Math.max(1, count));
     if (rms < 0.001) return 1.0;
     const gain = Math.max(0.5, Math.min(2.0, 0.20 / rms));
-    deck.trimGain.gain.setTargetAtTime(gain, this.ctx.currentTime, 0.02);
+    deck.gainNode.gain.setTargetAtTime(gain, this.ctx.currentTime, 0.02);
     return gain;
   }
 
@@ -2054,21 +2054,19 @@ class AudioEngine {
    * Loops a quantized beat slice while the underlying playhead advances invisibly,
    * snapping back to the live beat position on release.
    */
-  public startLoopRoll(deckId: DeckId, beats: number = 0.25) {
+  public startLoopRoll(deckId: DeckId, beats: number = 0.25, bpm: number = 120) {
     const deck = this.decks.get(deckId);
     if (!deck || !this.ctx) return;
     (deck as any)._loopRollStartTime = performance.now();
     (deck as any)._loopRollStartPos = this.getCurrentTime(deckId);
     (deck as any)._loopRollWasPlaying = deck.isPlaying;
-    const beatSec = 60 / Math.max(40, deck.bpm || 120);
+    const beatSec = 60 / Math.max(40, bpm || 120);
     const loopLen = Math.max(0.05, beats * beatSec);
     const startPos = (deck as any)._loopRollStartPos;
-    deck.loopStart = startPos;
-    deck.loopEnd = Math.min(deck.audioBuffer?.duration || startPos + loopLen, startPos + loopLen);
-    deck.isLooping = true;
+    const endPos = Math.min(deck.audioBuffer?.duration || startPos + loopLen, startPos + loopLen);
     if (deck.sourceNode) {
-      deck.sourceNode.loopStart = deck.loopStart;
-      deck.sourceNode.loopEnd = deck.loopEnd;
+      deck.sourceNode.loopStart = startPos;
+      deck.sourceNode.loopEnd = endPos;
       deck.sourceNode.loop = true;
     }
   }
@@ -2080,7 +2078,6 @@ class AudioEngine {
     const startPos = (deck as any)._loopRollStartPos || 0;
     const wasPlaying = Boolean((deck as any)._loopRollWasPlaying);
     const elapsedSec = ((performance.now() - startTime) / 1000) * (deck.playbackRate || 1.0);
-    deck.isLooping = false;
     if (deck.sourceNode) {
       deck.sourceNode.loop = false;
     }
