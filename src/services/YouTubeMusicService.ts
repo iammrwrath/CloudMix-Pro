@@ -96,10 +96,27 @@ class YouTubeMusicService {
       storageCache.getSetting<string | null>('yt_oauth_token', null),
       storageCache.getSetting<string | null>('yt_refresh_token', null),
       storageCache.getSetting<string | null>('yt_email', null),
-    ]).then(([token, refreshToken, email]) => {
+    ]).then(async ([token, refreshToken, email]) => {
       if (token) this._accessToken = token;
       if (refreshToken) this._refreshToken = refreshToken;
       if (email) this._userEmail = email;
+      if (!this._accessToken && typeof window !== 'undefined' && (window as any).electronAPI?.youtubeSessionStatus) {
+        try {
+          const status = await (window as any).electronAPI.youtubeSessionStatus();
+          if (status?.token) {
+            this._accessToken = status.token;
+            storageCache.setSetting('yt_oauth_token', status.token).catch(() => {});
+          }
+          if (status?.refreshToken && !this._refreshToken) {
+            this._refreshToken = status.refreshToken;
+            storageCache.setSetting('yt_refresh_token', status.refreshToken).catch(() => {});
+          }
+          if (status?.email && !this._userEmail) {
+            this._userEmail = status.email;
+            storageCache.setSetting('yt_email', status.email).catch(() => {});
+          }
+        } catch {}
+      }
       this.notifyAuthListeners();
     });
   }

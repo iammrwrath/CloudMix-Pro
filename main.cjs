@@ -630,7 +630,12 @@ async function getYouTubeSessionStatus() {
     const hasOAuthToken = Boolean(disk && disk.yt_oauth_token);
     const cookies = await session.defaultSession.cookies.get({ url: 'https://www.youtube.com' });
     const hasCookie = cookies.some((ck) => ['SAPISID', '__Secure-3PAPISID', 'LOGIN_INFO'].includes(ck.name));
-    return { signedIn: Boolean(hasOAuthToken || hasCookie) };
+    return {
+      signedIn: Boolean(hasOAuthToken || hasCookie),
+      token: (disk && disk.yt_oauth_token) || null,
+      refreshToken: (disk && disk.yt_refresh_token) || null,
+      email: (disk && disk.yt_email) || null,
+    };
   } catch (e) {
     return { signedIn: false, error: e.message };
   }
