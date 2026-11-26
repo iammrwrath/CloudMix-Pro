@@ -2016,6 +2016,80 @@ class AudioEngine {
     this.playDeck(deckId, cuePosSec);
   }
 
+  /**
+   * Mixxx Auto-Gain / ReplayGain Normalization (enginepregain.cpp):
+   * Measures RMS loudness of the loaded AudioBuffer and normalizes deck trim toward -14 LUFS (~0.20 RMS).
+   */
+  public computeAutoGain(deckId: DeckId): number {
+    const deck = this.decks.get(deckId);
+    if (!deck || !deck.audioBuffer || !this.ctx) return 1.0;
+    const ch0 = deck.audioBuffer.getChannelData(0);
+    const step = Math.max(1, Math.floor(ch0.length / 20000));
+    let sumSq = 0;
+    let count = 0;
+    for (let i = 0; i < ch0.length; i += step) {
+      sumSq += ch0[i] * ch0[i];
+      count++;
+    }
+    const rms = Math.sqrt(sumSq / Math.max(1, count));
+    if (rms < 0.001) return 1.0;
+    const gain = Math.max(0.5, Math.min(2.0, 0.20 / rms));
+    deck.trimGain.gain.setTargetAtTime(gain, this.ctx.currentTime, 0.02);
+    return gain;
+  }
+
+  /**
+   * Mixxx Talkover / Mic Sidechain Ducking (enginetalkoverducking.cpp):
+   * Smoothly ducks the master mix by duckDb (default -12 dB) when talkover is active.
+   */
+  public setTalkover(active: boolean, duckDb: number = -12) {
+    if (!this.ctx || !this.masterGain) return;
+    const targetGain = active ? Math.pow(10, duckDb / 20) : 1.0;
+    const tc = active ? 0.04 : 0.25;
+    this.masterGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, tc);
+  }
+
+  /**
+   * Mixxx Slip-Mode Loop Roll (slipmodestate.h):
+   * Loops a quantized beat slice while the underlying playhead advances invisibly,
+   * snapping back to the live beat position on release.
+   */
+  public startLoopRoll(deckId: DeckId, beats: number = 0.25) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    (deck as any)._loopRollStartTime = performance.now();
+    (deck as any)._loopRollStartPos = this.getCurrentTime(deckId);
+    (deck as any)._loopRollWasPlaying = deck.isPlaying;
+    const beatSec = 60 / Math.max(40, deck.bpm || 120);
+    const loopLen = Math.max(0.05, beats * beatSec);
+    const startPos = (deck as any)._loopRollStartPos;
+    deck.loopStart = startPos;
+    deck.loopEnd = Math.min(deck.audioBuffer?.duration || startPos + loopLen, startPos + loopLen);
+    deck.isLooping = true;
+    if (deck.sourceNode) {
+      deck.sourceNode.loopStart = deck.loopStart;
+      deck.sourceNode.loopEnd = deck.loopEnd;
+      deck.sourceNode.loop = true;
+    }
+  }
+
+  public endLoopRoll(deckId: DeckId) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    const startTime = (deck as any)._loopRollStartTime || performance.now();
+    const startPos = (deck as any)._loopRollStartPos || 0;
+    const wasPlaying = Boolean((deck as any)._loopRollWasPlaying);
+    const elapsedSec = ((performance.now() - startTime) / 1000) * (deck.playbackRate || 1.0);
+    deck.isLooping = false;
+    if (deck.sourceNode) {
+      deck.sourceNode.loop = false;
+    }
+    if (wasPlaying) {
+      const targetPos = Math.min(deck.audioBuffer?.duration || 210, startPos + elapsedSec);
+      this.playDeck(deckId, targetPos);
+    }
+  }
+
   private updateCrossfaderGains() {
     if (!this.ctx) return;
     const deckA = this.decks.get('A');
