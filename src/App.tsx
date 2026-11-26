@@ -540,16 +540,28 @@ export const App: React.FC = () => {
       // Transport (Deck A)
       if (controlName === 'DeckA_Play' && value > 0.5) handlePlayToggle('A');
       else if (controlName === 'DeckA_Play_Shift' && value > 0.5) handleCueClick('A');
-      else if (controlName === 'DeckA_Cue' && value > 0.5) handleCueClick('A');
-      else if (controlName === 'DeckA_Cue_Shift' && value > 0.5) audioEngine.seekDeck('A', 0);
+      else if (controlName === 'DeckA_Cue') {
+        if (value > 0.5) handleCueHoldStart('A');
+        else handleCueHoldEnd('A');
+      }
+      else if (controlName === 'DeckA_Cue_Shift') {
+        if (value > 0.5) audioEngine.startCensor('A');
+        else audioEngine.endCensor('A');
+      }
       else if (controlName === 'DeckA_Sync' && value > 0.5) handleSyncClick('A');
       else if (controlName === 'DeckA_Sync_Shift' && value > 0.5) handleRateChange('A', 1.0);
 
       // Transport (Deck B)
       else if (controlName === 'DeckB_Play' && value > 0.5) handlePlayToggle('B');
       else if (controlName === 'DeckB_Play_Shift' && value > 0.5) handleCueClick('B');
-      else if (controlName === 'DeckB_Cue' && value > 0.5) handleCueClick('B');
-      else if (controlName === 'DeckB_Cue_Shift' && value > 0.5) audioEngine.seekDeck('B', 0);
+      else if (controlName === 'DeckB_Cue') {
+        if (value > 0.5) handleCueHoldStart('B');
+        else handleCueHoldEnd('B');
+      }
+      else if (controlName === 'DeckB_Cue_Shift') {
+        if (value > 0.5) audioEngine.startCensor('B');
+        else audioEngine.endCensor('B');
+      }
       else if (controlName === 'DeckB_Sync' && value > 0.5) handleSyncClick('B');
       else if (controlName === 'DeckB_Sync_Shift' && value > 0.5) handleRateChange('B', 1.0);
 
