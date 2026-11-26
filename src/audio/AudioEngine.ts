@@ -219,6 +219,7 @@ class AudioEngine {
   private crossfaderVal: number = 0.0; // -1.0 (A) to +1.0 (B)
   private crossfaderCurve: 'smooth' | 'linear' | 'scratch' = 'linear';
   private crossfaderHamster: boolean = false;
+  private splitHeadphoneMode: boolean = false;
   private neuralTransitionMode: NeuralTransitionMode = 'standard';
   private unmixerMuteFxEnabled: boolean = true;
   private fxStemTargets: Map<DeckId, FXTarget> = new Map([
@@ -1967,6 +1968,52 @@ class AudioEngine {
 
   public getCrossfaderHamster(): boolean {
     return this.crossfaderHamster;
+  }
+
+  /**
+   * Serato Split-Headphone Cable Mode (Master on Left, Cue on Right)
+   */
+  public setSplitHeadphoneMode(enabled: boolean) {
+    this.splitHeadphoneMode = enabled;
+  }
+
+  public getSplitHeadphoneMode(): boolean {
+    return this.splitHeadphoneMode;
+  }
+
+  /**
+   * Serato Censor / Reverse-Slip: plays track in reverse (-1.0x) while slip playhead advances
+   */
+  public startCensor(deckId: DeckId) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    (deck as any)._censorStartTime = performance.now();
+    (deck as any)._censorStartPos = this.getCurrentTime(deckId);
+    (deck as any)._censorWasPlaying = deck.isPlaying;
+    this.startScratch(deckId);
+    this.updateScratch(deckId, -0.02);
+  }
+
+  public endCensor(deckId: DeckId) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    const startTime = (deck as any)._censorStartTime || performance.now();
+    const startPos = (deck as any)._censorStartPos || 0;
+    const wasPlaying = Boolean((deck as any)._censorWasPlaying);
+    const elapsedSec = ((performance.now() - startTime) / 1000) * (deck.playbackRate || 1.0);
+    this.endScratch(deckId);
+    if (wasPlaying) {
+      const targetPos = Math.min(deck.audioBuffer?.duration || 210, startPos + elapsedSec);
+      this.playDeck(deckId, targetPos);
+    }
+  }
+
+  /**
+   * Serato Pitch Play: triggers a cue point shifted by semitoneOffset (-12..+12)
+   */
+  public triggerPitchPlay(deckId: DeckId, cuePosSec: number, semitoneOffset: number) {
+    this.setDeckPitchSemitones(deckId, semitoneOffset);
+    this.playDeck(deckId, cuePosSec);
   }
 
   private updateCrossfaderGains() {
