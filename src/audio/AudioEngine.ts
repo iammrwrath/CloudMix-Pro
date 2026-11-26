@@ -339,9 +339,11 @@ class AudioEngine {
             const len = this.length;
             const L = this.left;
             const R = this.right || L;
-            // 1-pole sample-level vinyl inertia smoothing (~3.5ms time constant)
-            const alpha = 0.012;
+            // 1-pole sample-level vinyl inertia smoothing + stationary hand-hold friction decay
+            const alpha = 0.015;
+            const stationaryDecay = 0.9965;
             for (let i = 0; i < outL.length; i++) {
+              this.targetRate *= stationaryDecay;
               this.currentRate += (this.targetRate - this.currentRate) * alpha;
               const speed = Math.abs(this.currentRate);
               if (speed < 0.002) {
@@ -359,12 +361,28 @@ class AudioEngine {
               }
               const i0 = idx | 0;
               const frac = idx - i0;
-              const i1 = i0 + 1 < len ? i0 + 1 : 0;
+              const im1 = i0 > 0 ? i0 - 1 : 0;
+              const i1 = i0 + 1 < len ? i0 + 1 : i0;
+              const i2 = i0 + 2 < len ? i0 + 2 : i1;
+              // 4-point Cubic Hermite interpolation for crisp high-frequency scratch transients
+              const l0 = L[im1], l1 = L[i0], l2 = L[i1], l3 = L[i2];
+              const c0L = l1;
+              const c1L = 0.5 * (l2 - l0);
+              const c2L = l0 - 2.5 * l1 + 2.0 * l2 - 0.5 * l3;
+              const c3L = 0.5 * (l3 - l0) + 1.5 * (l1 - l2);
+              const sampleL = ((c3L * frac + c2L) * frac + c1L) * frac + c0L;
+
               // Gain scales smoothly with vinyl speed for authentic faderless needle bite
-              const gain = Math.min(1.15, 0.35 + speed * 0.65);
-              outL[i] = (L[i0] + frac * (L[i1] - L[i0])) * gain;
+              const gain = Math.min(1.15, 0.38 + speed * 0.65);
+              outL[i] = sampleL * gain;
               if (outR !== outL) {
-                outR[i] = (R[i0] + frac * (R[i1] - R[i0])) * gain;
+                const r0 = R[im1], r1 = R[i0], r2 = R[i1], r3 = R[i2];
+                const c0R = r1;
+                const c1R = 0.5 * (r2 - r0);
+                const c2R = r0 - 2.5 * r1 + 2.0 * r2 - 0.5 * r3;
+                const c3R = 0.5 * (r3 - r0) + 1.5 * (r1 - r2);
+                const sampleR = ((c3R * frac + c2R) * frac + c1R) * frac + c0R;
+                outR[i] = sampleR * gain;
               }
               this.playheadSample += this.currentRate * srRatio;
               if (this.isSynthetic) {
@@ -1465,10 +1483,30 @@ class AudioEngine {
       deck.scratchSourceNode = null;
     }
 
-    // If deck was playing when scratch started, resume forward playback from new scratch position
+    // If deck was playing when scratch started, resume forward playback with DJTurntableStartDelay (~45ms Technics motor torque spin-up ramp)
     if (deck.isPlaying) {
       const resumePos = deck.scratchPlaybackPos ?? deck.pauseOffset;
       this.playDeck(deckId, resumePos);
+      const targetRate = Math.max(0.1, deck.playbackRate || 1.0);
+      const now = this.ctx.currentTime;
+      const startSpinRate = Math.max(0.25, targetRate * 0.35);
+      const motorSpinUpSec = 0.045;
+      try {
+        if (deck.sourceNode) {
+          deck.sourceNode.playbackRate.setValueAtTime(startSpinRate, now);
+          deck.sourceNode.playbackRate.linearRampToValueAtTime(targetRate, now + motorSpinUpSec);
+        }
+        if (deck.stemVocalsSource) {
+          deck.stemVocalsSource.playbackRate.setValueAtTime(startSpinRate, now);
+          deck.stemVocalsSource.playbackRate.linearRampToValueAtTime(targetRate, now + motorSpinUpSec);
+          deck.stemDrumsSource?.playbackRate.setValueAtTime(startSpinRate, now);
+          deck.stemDrumsSource?.playbackRate.linearRampToValueAtTime(targetRate, now + motorSpinUpSec);
+          deck.stemBassSource?.playbackRate.setValueAtTime(startSpinRate, now);
+          deck.stemBassSource?.playbackRate.linearRampToValueAtTime(targetRate, now + motorSpinUpSec);
+          deck.stemHarmonicsSource?.playbackRate.setValueAtTime(startSpinRate, now);
+          deck.stemHarmonicsSource?.playbackRate.linearRampToValueAtTime(targetRate, now + motorSpinUpSec);
+        }
+      } catch {}
     } else {
       deck.pauseOffset = deck.scratchPlaybackPos ?? deck.pauseOffset;
     }

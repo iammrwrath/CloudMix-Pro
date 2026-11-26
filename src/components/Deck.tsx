@@ -16,6 +16,8 @@ interface DeckProps {
   onLoadTrack?: (track: TrackMetadata) => void;
   onPlayToggle: () => void;
   onCueClick: () => void;
+  onCueHoldStart?: () => void;
+  onCueHoldEnd?: () => void;
   onSyncClick: () => void;
   onSeek: (seconds: number) => void;
   onRateChange: (rate: number) => void;
@@ -51,6 +53,8 @@ export const Deck = React.memo<DeckProps>(({
   onLoadTrack,
   onPlayToggle,
   onCueClick,
+  onCueHoldStart,
+  onCueHoldEnd,
   onSyncClick,
   onSeek,
   onRateChange,
@@ -85,9 +89,12 @@ export const Deck = React.memo<DeckProps>(({
   const accentColor = isDeckA ? '#00f2fe' : '#ff007f';
 
   const toggleRange = () => {
-    if (tempoRange === 0.08) setTempoRange(0.16);
+    // djayApp.exe DJTempoSliderRange cycle: ±6% -> ±8% -> ±16% -> ±50% -> ±100% (Wide)
+    if (tempoRange === 0.06) setTempoRange(0.08);
+    else if (tempoRange === 0.08) setTempoRange(0.16);
     else if (tempoRange === 0.16) setTempoRange(0.5);
-    else setTempoRange(0.08);
+    else if (tempoRange === 0.5) setTempoRange(1.0);
+    else setTempoRange(0.06);
   };
 
   const halveLoop = () => {
@@ -529,11 +536,30 @@ export const Deck = React.memo<DeckProps>(({
           <span>SYNC</span>
         </button>
 
-        {/* CUE Button */}
+        {/* CUE Button (Supports djay Pro setPlayingHold: Hold-to-Preview when paused & tap to return/set Cue) */}
         <button
-          onClick={onCueClick}
-          title="Temporary Cue Playhead"
-          className="flex-1 h-[clamp(2rem,3.8cqh,2.65rem)] min-h-0 rounded-lg sm:rounded-xl font-mono font-bold text-xs sm:text-[14px] mr-1.5 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1.5 cursor-pointer select-none shrink-0"
+          onPointerDown={(e) => {
+            if (!deckState.isPlaying && onCueHoldStart) {
+              e.preventDefault();
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              } catch {}
+              onCueHoldStart();
+            }
+          }}
+          onPointerUp={() => {
+            if (onCueHoldEnd) onCueHoldEnd();
+          }}
+          onPointerCancel={() => {
+            if (onCueHoldEnd) onCueHoldEnd();
+          }}
+          onClick={() => {
+            if (deckState.isPlaying || !onCueHoldStart) {
+              onCueClick();
+            }
+          }}
+          title="Temporary Cue Playhead (Hold when paused to preview; release to snap back to Cue)"
+          className="flex-1 h-[clamp(2rem,3.8cqh,2.65rem)] min-h-0 rounded-lg sm:rounded-xl font-mono font-bold text-xs sm:text-[14px] mr-1.5 bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-slate-800 hover:border-amber-400 active:bg-amber-500 active:text-black active:scale-[0.95] transition-all shadow-[0_2px_8px_rgba(0,0,0,0.5)] flex items-center justify-center space-x-1.5 cursor-pointer select-none shrink-0"
           style={{
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}

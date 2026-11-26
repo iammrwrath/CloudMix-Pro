@@ -370,15 +370,16 @@ export const App: React.FC = () => {
       });
     }
 
-    // Initialize audio output devices
+    // Initialize audio output devices immediately and call audioEngine.init() so GoXLR Mini Music/Sample sinks bind on startup
     Promise.all([
       storageCache.getSetting<string>('audio_master_device_id', 'default'),
       storageCache.getSetting<string>('audio_headphone_device_id', 'default'),
       storageCache.getSetting<'interactive' | 'balanced' | 'playback'>('audio_latency_hint', 'interactive'),
-    ]).then(([masterDev, hpDev, latency]) => {
-      audioEngine.setMasterOutputDevice(masterDev || 'default');
-      audioEngine.setHeadphoneOutputDevice(hpDev || 'default');
-      if (latency) audioEngine.setLatencyHint(latency);
+    ]).then(async ([masterDev, hpDev, latency]) => {
+      if (latency) await audioEngine.setLatencyHint(latency);
+      audioEngine.init();
+      await audioEngine.setMasterOutputDevice(masterDev || 'default');
+      await audioEngine.setHeadphoneOutputDevice(hpDev || 'default');
     }).catch(() => {});
 
     return () => {
@@ -740,6 +741,25 @@ export const App: React.FC = () => {
 
     const track = sanitizeTrackMetadata(rawTrack);
     audioEngine.resumeContext().catch(() => {});
+    // djayApp.exe _resetUnmixersOnTurntable: reset muted/soloed stems to full 100% mix when loading a new track
+    audioEngine.resetStems(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.resetStems(deckId);
+    }
+    const defaultFreshStems = {
+      vocals: 1.0,
+      harmonics: 1.0,
+      bass: 1.0,
+      drums: 1.0,
+      vocalsMuted: false,
+      harmonicsMuted: false,
+      bassMuted: false,
+      drumsMuted: false,
+      vocalsSolo: false,
+      harmonicsSolo: false,
+      bassSolo: false,
+      drumsSolo: false,
+    };
     try {
       // 1. YouTube Music native stream ingestion: real audio decoded directly into Web Audio
       if (track.fileSource === 'youtube') {
@@ -764,6 +784,7 @@ export const App: React.FC = () => {
               duration: initialDur,
               isPlaying: false,
               playbackRate: 1.0,
+              stems: defaultFreshStems,
             }));
             broadcastService.update({ trackA: track, isPlayingA: false });
           } else {
@@ -774,6 +795,7 @@ export const App: React.FC = () => {
               duration: initialDur,
               isPlaying: false,
               playbackRate: 1.0,
+              stems: defaultFreshStems,
             }));
             broadcastService.update({ trackB: track, isPlayingB: false });
           }
@@ -937,6 +959,7 @@ export const App: React.FC = () => {
           duration: audioBuffer.duration,
           isPlaying: false,
           playbackRate: 1.0,
+          stems: defaultFreshStems,
         }));
         broadcastService.update({ trackA: track, isPlayingA: false });
       } else {
@@ -948,6 +971,7 @@ export const App: React.FC = () => {
           duration: audioBuffer.duration,
           isPlaying: false,
           playbackRate: 1.0,
+          stems: defaultFreshStems,
         }));
         broadcastService.update({ trackB: track, isPlayingB: false });
       }
@@ -1047,8 +1071,46 @@ export const App: React.FC = () => {
     }
   };
 
+  const cueHoldRef = useRef<{ A?: { active: boolean; cueSec: number }; B?: { active: boolean; cueSec: number } }>({});
+
+  // djayApp.exe setPlayingHold: Hold CUE when paused to preview immediately from cue point; release to snap back & pause
+  const handleCueHoldStart = (deckId: DeckId) => {
+    const deck = deckId === 'A' ? deckA : deckB;
+    if (!deck.track || deck.isPlaying) return;
+    const cueSec = deck.track.hotCues?.[0]?.time ?? deck.currentTime ?? 0;
+    cueHoldRef.current[deckId] = { active: true, cueSec };
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      audioEngine.pauseDeck(deckId);
+      youtubeDeckBridge.seek(deckId, cueSec);
+      youtubeDeckBridge.play(deckId);
+    } else {
+      youtubeDeckBridge.pause(deckId);
+      audioEngine.playDeck(deckId, cueSec);
+    }
+    if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: true, currentTime: cueSec }));
+    else setDeckB((prev) => ({ ...prev, isPlaying: true, currentTime: cueSec }));
+  };
+
+  const handleCueHoldEnd = (deckId: DeckId) => {
+    const hold = cueHoldRef.current[deckId];
+    if (!hold || !hold.active) return;
+    cueHoldRef.current[deckId] = { active: false, cueSec: hold.cueSec };
+    youtubeDeckBridge.pause(deckId);
+    audioEngine.pauseDeck(deckId);
+    if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
+      youtubeDeckBridge.seek(deckId, hold.cueSec);
+    }
+    audioEngine.seekDeck(deckId, hold.cueSec);
+    if (deckId === 'A') setDeckA((prev) => ({ ...prev, isPlaying: false, currentTime: hold.cueSec }));
+    else setDeckB((prev) => ({ ...prev, isPlaying: false, currentTime: hold.cueSec }));
+  };
+
   // Cue Button Click
   const handleCueClick = (deckId: DeckId) => {
+    if (cueHoldRef.current[deckId]?.active) {
+      handleCueHoldEnd(deckId);
+      return;
+    }
     const deck = deckId === 'A' ? deckA : deckB;
     if (!deck.track) return;
 
@@ -1388,8 +1450,18 @@ export const App: React.FC = () => {
   };
 
   const handleCrossfaderChange = (val: number) => {
+    const prevXf = mixer.crossfader;
     audioEngine.setCrossfader(val, mixer.crossfaderCurve);
     setMixer((prev) => ({ ...prev, crossfader: val }));
+
+    // djayApp.exe didPlayTemporaryFromCrossfadeFX: Crossfader Fader-Start when moving off hard-cut edge with neural crossfade FX active
+    if (mixer.neuralTransitionMode && mixer.neuralTransitionMode !== 'standard') {
+      if (prevXf <= -0.95 && val > -0.9 && deckB.track && !deckB.isPlaying) {
+        handlePlayToggle('B');
+      } else if (prevXf >= 0.95 && val < 0.9 && deckA.track && !deckA.isPlaying) {
+        handlePlayToggle('A');
+      }
+    }
 
     // Update YouTube decks volume with crossfader blend
     if (youtubeDeckBridge.isYouTubeDeck('A')) {
@@ -1806,6 +1878,8 @@ export const App: React.FC = () => {
               onLoadTrack={(t) => handleLoadTrack('A', t)}
               onPlayToggle={() => handlePlayToggle('A')}
               onCueClick={() => handleCueClick('A')}
+              onCueHoldStart={() => handleCueHoldStart('A')}
+              onCueHoldEnd={() => handleCueHoldEnd('A')}
               onSyncClick={() => handleSyncClick('A')}
               onSeek={(sec) => handleSeek('A', sec)}
               onRateChange={(rate) => handleRateChange('A', rate)}
@@ -1871,6 +1945,8 @@ export const App: React.FC = () => {
               onLoadTrack={(t) => handleLoadTrack('B', t)}
               onPlayToggle={() => handlePlayToggle('B')}
               onCueClick={() => handleCueClick('B')}
+              onCueHoldStart={() => handleCueHoldStart('B')}
+              onCueHoldEnd={() => handleCueHoldEnd('B')}
               onSyncClick={() => handleSyncClick('B')}
               onSeek={(sec) => handleSeek('B', sec)}
               onRateChange={(rate) => handleRateChange('B', rate)}

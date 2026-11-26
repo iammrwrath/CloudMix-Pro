@@ -62,7 +62,7 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
 
         <button
           onClick={onRangeToggle}
-          title="Toggle Pitch Range (±8%, ±16%, ±50%)"
+          title="Cycle Pitch Range (±6%, ±8%, ±16%, ±50%, ±100% Wide)"
           className="px-1 py-0.5 text-[10px] font-mono font-bold rounded bg-slate-900 border border-slate-700 text-slate-200 hover:text-white transition-colors cursor-pointer leading-none"
         >
           ±{Math.round(tempoRange * 100)}%
