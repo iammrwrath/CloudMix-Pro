@@ -1306,7 +1306,7 @@ class AudioEngine {
   // =========================================================================
   public startScratch(deckId: DeckId) {
     const deck = this.decks.get(deckId);
-    if (!deck || !this.ctx) return;
+    if (!deck || !this.ctx || !deck.audioBuffer) return;
     this.resumeContext();
     deck.isScratching = true;
     deck.scratchPlaybackPos = this.getCurrentTime(deckId);
@@ -1386,7 +1386,7 @@ class AudioEngine {
 
   public updateScratch(deckId: DeckId, deltaSec: number) {
     const deck = this.decks.get(deckId);
-    if (!deck || !this.ctx || !deck.isScratching) return;
+    if (!deck || !this.ctx || !deck.isScratching || !deck.audioBuffer) return;
 
     if (!this.scratchSampleBuffer && !this.scratchSampleLoading) {
       this.loadScratchSample().catch(() => {});
