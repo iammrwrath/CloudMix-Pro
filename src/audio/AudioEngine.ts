@@ -218,6 +218,7 @@ class AudioEngine {
   private decks: Map<DeckId, DeckAudioNodes> = new Map();
   private crossfaderVal: number = 0.0; // -1.0 (A) to +1.0 (B)
   private crossfaderCurve: 'smooth' | 'linear' | 'scratch' = 'linear';
+  private crossfaderHamster: boolean = false;
   private neuralTransitionMode: NeuralTransitionMode = 'standard';
   private unmixerMuteFxEnabled: boolean = true;
   private fxStemTargets: Map<DeckId, FXTarget> = new Map([
@@ -1096,6 +1097,58 @@ class AudioEngine {
   }
 
   /**
+   * VirtualDJ backspin: whips the platter backward (-4.2x -> 0x) with exponential friction decay
+   */
+  public triggerBackspin(deckId: DeckId, durationSec: number = 0.85) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    const wasPlaying = deck.isPlaying;
+    this.startScratch(deckId);
+    const steps = 16;
+    const stepMs = (durationSec * 1000) / steps;
+    for (let i = 0; i < steps; i++) {
+      setTimeout(() => {
+        if (!deck.isScratching) return;
+        const progress = i / steps;
+        const rate = -4.2 * Math.pow(1 - progress, 1.8);
+        this.updateScratch(deckId, rate * (stepMs / 1000));
+      }, i * stepMs);
+    }
+    setTimeout(() => {
+      deck.isPlaying = false;
+      this.endScratch(deckId);
+      if (wasPlaying) this.pauseDeck(deckId);
+    }, durationSec * 1000);
+  }
+
+  /**
+   * VirtualDJ Scratch DNA: beat-quantized automated scratch macros ('baby' | 'flare' | 'crab' | 'chirp')
+   */
+  public triggerScratchDNA(deckId: DeckId, pattern: 'baby' | 'flare' | 'crab' | 'chirp', bpm: number = 125) {
+    const deck = this.decks.get(deckId);
+    if (!deck || !this.ctx) return;
+    const beatMs = (60 / Math.max(60, bpm)) * 1000;
+    const stepMs = beatMs / 8; // 32nd-note resolution
+    const seqMap: Record<string, number[]> = {
+      baby: [2.2, -2.2, 2.4, -2.4, 2.0, -2.0, 1.5, 0],
+      flare: [2.8, 0, -2.8, 2.8, 0, -2.8, 2.2, 0],
+      crab: [3.2, 0, 3.2, 0, 3.2, -3.5, 0, 0],
+      chirp: [2.6, 0, -2.6, 0, 2.6, -2.6, 1.8, 0],
+    };
+    const seq = seqMap[pattern] || seqMap.baby;
+    this.startScratch(deckId);
+    seq.forEach((rate, idx) => {
+      setTimeout(() => {
+        if (!deck.isScratching) return;
+        this.updateScratch(deckId, rate * (stepMs / 1000));
+      }, idx * stepMs);
+    });
+    setTimeout(() => {
+      this.endScratch(deckId);
+    }, seq.length * stepMs + 20);
+  }
+
+  /**
    * VirtualDJ keyLoopDown / Riser emulation:
    * Shifts playback pitch smoothly upward or downward over durationSec
    */
@@ -1907,6 +1960,15 @@ class AudioEngine {
     deck.stemHarmonicsGain.gain.setTargetAtTime(effHarmonics, this.ctx.currentTime, decayConst(effHarmonics));
   }
 
+  public setCrossfaderHamster(enabled: boolean) {
+    this.crossfaderHamster = enabled;
+    this.updateCrossfaderGains();
+  }
+
+  public getCrossfaderHamster(): boolean {
+    return this.crossfaderHamster;
+  }
+
   private updateCrossfaderGains() {
     if (!this.ctx) return;
     const deckA = this.decks.get('A');
@@ -1916,8 +1978,9 @@ class AudioEngine {
     let gainA = 1.0;
     let gainB = 1.0;
 
-    // Normalize val from [-1, 1] to [0, 1] where 0 is full A, 1 is full B
-    const pos = (this.crossfaderVal + 1.0) / 2.0;
+    // Normalize val from [-1, 1] to [0, 1] where 0 is full A, 1 is full B (inverted when Hamster mode is active)
+    const rawPos = (this.crossfaderVal + 1.0) / 2.0;
+    const pos = this.crossfaderHamster ? 1.0 - rawPos : rawPos;
 
     if (this.crossfaderCurve === 'smooth') {
       // Equal power constant-loudness sine/cosine curve

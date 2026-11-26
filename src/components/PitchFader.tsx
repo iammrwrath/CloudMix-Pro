@@ -41,7 +41,21 @@ export const PitchFader: React.FC<PitchFaderProps> = ({
   };
 
   const handleReset = () => {
-    onRateChange(1.0);
+    // VirtualDJ pitchResetSpeed: smooth 450ms glide back to 0.0% (1.0x)
+    const startRate = playbackRate;
+    if (Math.abs(startRate - 1.0) < 0.002) {
+      onRateChange(1.0);
+      return;
+    }
+    const durationMs = 450;
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startTime) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      onRateChange(startRate + (1.0 - startRate) * eased);
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   };
 
   return (
