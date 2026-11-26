@@ -1071,13 +1071,13 @@ export const App: React.FC = () => {
     }
   };
 
-  const cueHoldRef = useRef<{ A?: { active: boolean; cueSec: number }; B?: { active: boolean; cueSec: number } }>({});
+  const cueHoldRef = useRef<Partial<Record<DeckId, { active: boolean; cueSec: number }>>>({});
 
   // djayApp.exe setPlayingHold: Hold CUE when paused to preview immediately from cue point; release to snap back & pause
   const handleCueHoldStart = (deckId: DeckId) => {
     const deck = deckId === 'A' ? deckA : deckB;
     if (!deck.track || deck.isPlaying) return;
-    const cueSec = deck.track.hotCues?.[0]?.time ?? deck.currentTime ?? 0;
+    const cueSec = deck.track.hotCues?.[0]?.position ?? deck.currentTime ?? 0;
     cueHoldRef.current[deckId] = { active: true, cueSec };
     if (youtubeDeckBridge.isYouTubeDeck(deckId)) {
       audioEngine.pauseDeck(deckId);
