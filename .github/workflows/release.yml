@@ -31,6 +31,9 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
+      - name: Run Electron E2E Tests
+        run: npm run test:e2e
+
       - name: Build CloudMix Pro Installers
         run: npx electron-builder --win nsis portable --publish never
 

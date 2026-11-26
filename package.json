@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "vite",
     "test": "node scripts/simulate-interactions.cjs",
+    "test:e2e": "node scripts/e2e-electron.cjs",
     "prebuild": "node scripts/verify-packaging.cjs && node scripts/simulate-interactions.cjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -85,6 +86,7 @@
     "autoprefixer": "^10.4.21",
     "electron": "^44.2.0",
     "electron-builder": "^25.1.0",
+    "playwright": "^1.50.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.7.3",
