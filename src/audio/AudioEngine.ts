@@ -1032,28 +1032,25 @@ class AudioEngine {
     if (deck.isPlaying) {
       deck.pauseOffset = this.getCurrentTime(deckId);
     }
-    if (deck.sourceNode) {
+    const stopNode = (n: AudioBufferSourceNode | null | undefined) => {
+      if (!n) return;
+      try { n.stop(); } catch {}
+      try { n.disconnect(); } catch {}
+    };
+    stopNode(deck.sourceNode);
+    deck.sourceNode = null;
+    stopNode(deck.stemVocalsSource);
+    deck.stemVocalsSource = null;
+    stopNode(deck.stemDrumsSource);
+    deck.stemDrumsSource = null;
+    stopNode(deck.stemBassSource);
+    deck.stemBassSource = null;
+    stopNode(deck.stemHarmonicsSource);
+    deck.stemHarmonicsSource = null;
+    if (deck.scratchWorkletNode) {
       try {
-        deck.sourceNode.stop();
-        deck.sourceNode.disconnect();
+        deck.scratchWorkletNode.port.postMessage({ type: 'setVelocity', velocity: 0 });
       } catch {}
-      deck.sourceNode = null;
-    }
-    if (deck.stemVocalsSource) {
-      try {
-        deck.stemVocalsSource.stop();
-        deck.stemVocalsSource.disconnect();
-        deck.stemDrumsSource?.stop();
-        deck.stemDrumsSource?.disconnect();
-        deck.stemBassSource?.stop();
-        deck.stemBassSource?.disconnect();
-        deck.stemHarmonicsSource?.stop();
-        deck.stemHarmonicsSource?.disconnect();
-      } catch {}
-      deck.stemVocalsSource = null;
-      deck.stemDrumsSource = null;
-      deck.stemBassSource = null;
-      deck.stemHarmonicsSource = null;
     }
     deck.isPlaying = false;
   }
