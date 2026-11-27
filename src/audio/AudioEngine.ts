@@ -1049,7 +1049,7 @@ class AudioEngine {
     deck.stemHarmonicsSource = null;
     if (deck.scratchWorkletNode) {
       try {
-        deck.scratchWorkletNode.port.postMessage({ type: 'setVelocity', velocity: 0 });
+        (deck.scratchWorkletNode as any).port?.postMessage({ type: 'setVelocity', velocity: 0 });
       } catch {}
     }
     deck.isPlaying = false;
