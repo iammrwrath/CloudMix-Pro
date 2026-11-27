@@ -81,6 +81,8 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   ytmSaveAuth: (payload) => ipcRenderer.invoke('ytm:save-auth', payload),
   ytmLoadAuth: () => ipcRenderer.invoke('ytm:load-auth'),
   ytmClearAuth: () => ipcRenderer.invoke('ytm:clear-auth'),
+  audioSaveSettings: (payload) => ipcRenderer.invoke('audio:save-settings', payload),
+  audioLoadSettings: () => ipcRenderer.invoke('audio:load-settings'),
   openOAuthWindow: (authUrl) => ipcRenderer.invoke('open-oauth-window', authUrl),
   fetchGeniusLyrics: (params) => ipcRenderer.invoke('fetch-genius-lyrics', params),
 

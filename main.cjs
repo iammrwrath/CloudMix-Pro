@@ -46,6 +46,7 @@ if (process.platform === 'win32') {
 
 // Optimize for real-time audio and high refresh rate displays
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('enable-features', 'AudioContextSetSinkId');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -671,6 +672,27 @@ ipcMain.handle('ytm:clear-auth', async () => {
   } catch (e) {
     return { ok: false, error: e.message };
   }
+});
+
+// Dedicated audio-settings.json persistence in app.getPath('userData')
+ipcMain.handle('audio:save-settings', async (_event, payload) => {
+  try {
+    const audioPath = path.join(app.getPath('userData'), 'audio-settings.json');
+    fs.writeFileSync(audioPath, JSON.stringify(payload || {}, null, 2), 'utf8');
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('audio:load-settings', async () => {
+  try {
+    const audioPath = path.join(app.getPath('userData'), 'audio-settings.json');
+    if (fs.existsSync(audioPath)) {
+      return JSON.parse(fs.readFileSync(audioPath, 'utf8'));
+    }
+  } catch {}
+  return null;
 });
 let activeOAuthServer = null;
 
