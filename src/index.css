@@ -9,26 +9,26 @@
   --color-deck-b: #ff007f;
   --color-accent-green: #00ff66;
   --color-accent-amber: #ffb703;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', monospace;
 }
 
 /* ==========================================================================
-   1. GLOBAL THEME CUSTOM PROPERTIES (CINEMATIC DARK & STUDIO TITANIUM LIGHT)
+   1. GLOBAL THEME CUSTOM PROPERTIES (APPLE OBSIDIAN & FROSTED GLASS)
    ========================================================================== */
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0B0C0E;
-  --bg-secondary: #0F1115;
-  --surface: #131519;
-  --surface-elevated: #1A1D23;
-  --surface-glass: rgba(19, 21, 25, 0.92);
-  --accent: #00B4D8;
-  --accent-secondary: #E11D48;
+  --bg-primary: #08090C;
+  --bg-secondary: #0C0E12;
+  --surface: #111318;
+  --surface-elevated: rgba(24, 27, 34, 0.78);
+  --surface-glass: rgba(24, 27, 34, 0.78);
+  --accent: #0A84FF;
+  --accent-secondary: #FF375F;
   --accent-amber: #ffb703;
-  --border-subtle: #262A33;
-  --border-glow: rgba(0, 180, 216, 0.42);
-  --border-glow-pink: rgba(225, 29, 72, 0.42);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-glow: rgba(10, 132, 255, 0.42);
+  --border-glow-pink: rgba(255, 55, 95, 0.42);
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;

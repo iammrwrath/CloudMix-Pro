@@ -166,6 +166,16 @@ export const Deck = React.memo<DeckProps>(({
           : 'border-dj-border'
       }`}
     >
+      {/* Dynamic Album-Art / Deck Ambient Aura */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.14] blur-3xl"
+        style={{
+          background: isDeckA
+            ? 'radial-gradient(circle at 50% 45%, #0A84FF 0%, transparent 68%)'
+            : 'radial-gradient(circle at 50% 45%, #FF375F 0%, transparent 68%)',
+        }}
+      />
+
       {/* Illuminated Drag-over Drop Zone Overlay */}
       {isDragOver && (
         <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center border-2 border-dashed border-cyan-400 rounded-xl animate-pulse pointer-events-none">
