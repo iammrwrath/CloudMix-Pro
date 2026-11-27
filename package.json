@@ -1,7 +1,7 @@
 {
   "name": "cloudmix-pro",
   "productName": "CloudMix Pro",
-  "version": "2.0.84",
+  "version": "2.0.85",
   "description": "CloudMix Pro",
   "main": "main.cjs",
   "author": "iammrwrath",
