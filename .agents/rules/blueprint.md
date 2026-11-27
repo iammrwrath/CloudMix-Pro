@@ -35,3 +35,19 @@ Always check recent local Git history and @/BLUEPRINT.md before opening source f
   1. **Build & Syntax Verification:** Execute `npm run build` in the build environment to prove clean bundling and type safety.
   2. **Simulated User Interaction Testing:** Run automated or headless test scripts that simulate realistic user behavior (loading tracks onto Deck A/Deck B, triggering Play/Pause toggles, scrubbing/seeking, firing hot cues/loops, testing playlist fetches, verifying updater and bridge lifecycles).
   3. **Verification Output & Adjustment:** Check runtime logs, stdout, and state transitions. If an issue is observed during simulation, immediately adjust the code and re-test before declaring completion.
+
+
+### INVARIANT: YouTube Music 4-Way Stem Separation & Playback Pipeline
+Any changes to `AudioEngine.ts`, `Deck.tsx`, `YouTubeDeckBridge.ts`, `YouTubeMusicService.ts`, `StemSeparatorService.ts`, `electron/nativeAudioPipeline.cjs`, or `streamingServer.cjs` MUST preserve end-to-end 4-way stem separation (`VOC`, `MEL`, `BAS`, `DRM`, `ACAP`, `INST`) for both local files and **YouTube Music** tracks:
+
+1. **Unified PCM Buffer Source (Local + YouTube Music):**
+   - Never isolate YouTube Music playback to an un-analyzable `<iframe />` audio-only path when stems are used. Keep the existing `YouTubeMusicService` / `YouTubeDeckBridge` -> `yt-dlp` / `streamingServer.cjs` PCM extraction pipeline intact so every YouTube Music track resolves to decoded `AudioBuffer` / `Float32Array` PCM data identical to local audio files.
+2. **4-Stem Synchronized Playback & Scratching (`AudioEngine.ts` + `StemSeparatorService.ts`):**
+   - When `StemSeparatorService` splits a track (local or YouTube Music) via ONNX HTDemucs into 4 stem buffers (`vocals`, `other`/`melody`, `bass`, `drums`), all 4 stem playback nodes or `TurntableScratchProcessor` `AudioWorklet` channels MUST run sample-accurately locked to the exact same master playhead, pitch/tempo rate, loop region, and scratch velocity.
+   - Toggling Mute (`M`), Solo (`S`), `ACAP`, or `INST` on a YouTube Music deck must smoothly ramp each stem's dedicated `GainNode` (`setTargetAtTime(..., 0.004)`) without drifting out of phase or interrupting playback.
+3. **Fallback & Progressive Stem Readiness:**
+   - Playback of a YouTube Music track must start immediately via the full-mix buffer while `StemSeparatorService` processes stems asynchronously, then hot-swap seamlessly at the exact current sample offset once the 4 stem buffers are ready—with zero audio dropout or UI freeze.
+4. **UI/UX Preservation (`Deck.tsx`):**
+   - Keep the 4-way Stems strip (`VOC`, `MEL`, `BAS`, `DRM` with `M`/`S` toggles and `ACAP`/`INST` quick-buttons) permanently accessible and visible on every deck layout (`2-DECK` and `STACKED`) for both local and YouTube Music tracks.
+5. **Mandatory Verification Before Completing Any Refactor:**
+   - After any UI or audio engine edit, verify via `scripts/simulate-interactions.cjs` or an automated check that loading a YouTube Music track into Deck A/B populates `StemSeparatorService`, renders waveform + stems, and responds to `VOC`/`MEL`/`BAS`/`DRM` mute/solo, `ACAP`/`INST`, EQ, and FX without console errors.
