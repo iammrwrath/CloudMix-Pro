@@ -242,7 +242,7 @@ class AudioEngine {
   public init() {
     if (this.ctx) return;
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    this.ctx = new AudioCtx({ latencyHint: this.bufferSizeOption });
+    this.ctx = new AudioCtx({ latencyHint: this.bufferSizeOption || 'interactive', sampleRate: 48000 });
 
     // Master bus & Limiter
     this.masterGain = this.ctx.createGain();
@@ -250,10 +250,10 @@ class AudioEngine {
 
     this.masterLimiter = this.ctx.createDynamicsCompressor();
     this.masterLimiter.threshold.setValueAtTime(-1.0, this.ctx.currentTime);
-    this.masterLimiter.knee.setValueAtTime(3.0, this.ctx.currentTime);
+    this.masterLimiter.knee.setValueAtTime(0.0, this.ctx.currentTime);
     this.masterLimiter.ratio.setValueAtTime(20.0, this.ctx.currentTime);
-    this.masterLimiter.attack.setValueAtTime(0.003, this.ctx.currentTime);
-    this.masterLimiter.release.setValueAtTime(0.05, this.ctx.currentTime);
+    this.masterLimiter.attack.setValueAtTime(0.001, this.ctx.currentTime);
+    this.masterLimiter.release.setValueAtTime(0.08, this.ctx.currentTime);
 
     this.masterAnalyser = this.ctx.createAnalyser();
     this.masterAnalyser.fftSize = 64;
@@ -2121,9 +2121,10 @@ class AudioEngine {
 
     const autoGainA = (deckA as any)._autoGain || 1.0;
     const autoGainB = (deckB as any)._autoGain || 1.0;
+    const xfadeTc = this.crossfaderCurve === 'scratch' ? 0.0015 : 0.004;
 
-    deckA.crossfaderGain.gain.setTargetAtTime(gainA * autoGainA, this.ctx.currentTime, 0.01);
-    deckB.crossfaderGain.gain.setTargetAtTime(gainB * autoGainB, this.ctx.currentTime, 0.01);
+    deckA.crossfaderGain.gain.setTargetAtTime(gainA * autoGainA, this.ctx.currentTime, xfadeTc);
+    deckB.crossfaderGain.gain.setTargetAtTime(gainB * autoGainB, this.ctx.currentTime, xfadeTc);
 
     // ==========================================
     // Neural Mix Crossfader Transition Automation
