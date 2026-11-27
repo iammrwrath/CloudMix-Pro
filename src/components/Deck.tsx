@@ -156,7 +156,7 @@ export const Deck = React.memo<DeckProps>(({
           }
         } catch {}
       }}
-      className={`deck-container deck-hardware-viewport ${isDeckA ? 'deck-card-a' : 'deck-card-b'} relative flex flex-col h-full bg-dj-panel rounded-xl p-1 border flex-1 min-w-0 min-h-0 overflow-hidden justify-between transition-all duration-150 ${
+      className={`deck-container deck-hardware-viewport ${isDeckA ? 'deck-card-a' : 'deck-card-b'} relative flex flex-col h-full bg-dj-panel rounded-none p-0 border-y border-x flex-1 min-w-0 min-h-0 overflow-hidden justify-between transition-all duration-150 ${
         isDragOver
           ? 'border-cyan-400 ring-2 ring-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.6)]'
           : deckState.isPlaying
@@ -355,7 +355,7 @@ export const Deck = React.memo<DeckProps>(({
       </div>
 
       {/* 4. Middle Section: 4-Stem Neural Mix Strip + Jog Wheel + Pitch Fader (Hardware Cluster) */}
-      <div className="flex items-center justify-between flex-1 my-0.5 py-0.5 gap-1.5 min-h-[125px] overflow-hidden">
+      <div className="flex items-center justify-between flex-1 my-0 py-0 gap-1 min-h-[125px] overflow-hidden">
         {/* 4-Stem Neural Mix Quick Panel (Drums, Bass, Harmonic, Vocal) */}
         <div className="flex flex-col justify-between h-full max-h-full min-h-0 bg-slate-950/80 rounded-xl p-1.5 border border-white/10 w-24 sm:w-28 xl:w-32 shrink-0 shadow-inner overflow-hidden">
           <div className="flex items-center justify-between border-b border-white/10 pb-0.5 shrink-0">

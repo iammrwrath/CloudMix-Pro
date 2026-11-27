@@ -164,7 +164,7 @@ export const PerformancePads: React.FC<PerformancePadsProps> = ({
       </div>
 
       {/* 8 Performance Pads Grid (Tactile RGB Backlit Silicone Pads) */}
-      <div className="grid grid-cols-4 gap-1">
+      <div className="grid grid-cols-4 gap-0 border border-dj-border">
         {padMode === 'HOT CUE' && (
           Array.from({ length: 8 }).map((_, i) => {
             const cue = hotCues.find((c) => c.id === i && c.active);

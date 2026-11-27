@@ -22,8 +22,8 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
   step = 0.01,
   centerDetent = true,
   onChange,
-  accentColor = '#00f0ff',
-  size = 36,
+  accentColor = '#00B4D8',
+  size = 42,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const startYRef = useRef(0);
@@ -73,7 +73,8 @@ export const RotaryKnob = React.memo<RotaryKnobProps>(({
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
-    applyDeltaY(startYRef.current - e.clientY);
+    const precision = e.shiftKey ? 0.25 : 1.0;
+    applyDeltaY((startYRef.current - e.clientY) * precision);
   }, [isDragging, applyDeltaY]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {

@@ -1881,7 +1881,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          <div className="flex flex-1 space-x-1 overflow-hidden min-h-0 min-w-0">
+          <div className="flex flex-1 gap-0 overflow-hidden min-h-0 min-w-0">
             {/* Deck A */}
             <Deck
               deckId="A"
