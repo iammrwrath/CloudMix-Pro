@@ -641,6 +641,37 @@ async function getYouTubeSessionStatus() {
   }
 }
 ipcMain.handle('youtube-session-status', () => getYouTubeSessionStatus());
+
+// Dedicated ytm-auth.json persistence in app.getPath('userData')
+ipcMain.handle('ytm:save-auth', async (_event, payload) => {
+  try {
+    const authPath = path.join(app.getPath('userData'), 'ytm-auth.json');
+    fs.writeFileSync(authPath, JSON.stringify(payload || {}, null, 2), 'utf8');
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('ytm:load-auth', async () => {
+  try {
+    const authPath = path.join(app.getPath('userData'), 'ytm-auth.json');
+    if (fs.existsSync(authPath)) {
+      return JSON.parse(fs.readFileSync(authPath, 'utf8'));
+    }
+  } catch {}
+  return null;
+});
+
+ipcMain.handle('ytm:clear-auth', async () => {
+  try {
+    const authPath = path.join(app.getPath('userData'), 'ytm-auth.json');
+    if (fs.existsSync(authPath)) fs.unlinkSync(authPath);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 let activeOAuthServer = null;
 
 function runOAuthLoopback(authUrl) {

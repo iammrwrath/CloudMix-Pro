@@ -100,6 +100,23 @@ class YouTubeMusicService {
       if (token) this._accessToken = token;
       if (refreshToken) this._refreshToken = refreshToken;
       if (email) this._userEmail = email;
+      if (!this._accessToken && typeof window !== 'undefined') {
+        try {
+          const ytmDisk = await (window as any).electronAPI?.ytmLoadAuth?.();
+          if (ytmDisk?.access_token) {
+            this._accessToken = ytmDisk.access_token;
+            storageCache.setSetting('yt_oauth_token', ytmDisk.access_token).catch(() => {});
+          }
+          if (ytmDisk?.refresh_token && !this._refreshToken) {
+            this._refreshToken = ytmDisk.refresh_token;
+            storageCache.setSetting('yt_refresh_token', ytmDisk.refresh_token).catch(() => {});
+          }
+          if (ytmDisk?.email && !this._userEmail) {
+            this._userEmail = ytmDisk.email;
+            storageCache.setSetting('yt_email', ytmDisk.email).catch(() => {});
+          }
+        } catch {}
+      }
       if (!this._accessToken && typeof window !== 'undefined' && (window as any).electronAPI?.youtubeSessionStatus) {
         try {
           const status = await (window as any).electronAPI.youtubeSessionStatus();

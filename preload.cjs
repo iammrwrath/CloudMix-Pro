@@ -78,6 +78,9 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   youtubeSessionStatus: () => ipcRenderer.invoke('youtube-session-status'),
   youtubeSessionSignIn: (authUrl) => ipcRenderer.invoke('youtube-session-sign-in', authUrl),
   youtubeSessionSignOut: () => ipcRenderer.invoke('youtube-session-sign-out'),
+  ytmSaveAuth: (payload) => ipcRenderer.invoke('ytm:save-auth', payload),
+  ytmLoadAuth: () => ipcRenderer.invoke('ytm:load-auth'),
+  ytmClearAuth: () => ipcRenderer.invoke('ytm:clear-auth'),
   openOAuthWindow: (authUrl) => ipcRenderer.invoke('open-oauth-window', authUrl),
   fetchGeniusLyrics: (params) => ipcRenderer.invoke('fetch-genius-lyrics', params),
 
